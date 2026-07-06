@@ -85,6 +85,10 @@ async def main():
             await sign_in(page, recep_email, recep_pwd)
             await page.screenshot(path=str(SHOTS / "reason501_before.png"))
 
+            status_before = sb(
+                f"/rest/v1/appointments?id=eq.{appt_id}&select=status", method="GET"
+            )[0]["status"]
+
             # Call the RPC directly from the authenticated browser session,
             # using the app's own Supabase client (bearer = reception user).
             rpc_result = await page.evaluate(
@@ -109,9 +113,6 @@ async def main():
                 if "reason_too_long" not in msg and "طويل" not in msg:
                     failures.append(f"expected 'reason_too_long' / 'طويل' in error, got: {err}")
 
-            status_before = sb(
-                f"/rest/v1/appointments?id=eq.{appt_id}&select=status", method="GET"
-            )[0]["status"]
             row_now = sb(f"/rest/v1/appointments?id=eq.{appt_id}&select=status",
                          method="GET")[0]
             if row_now["status"] != status_before:
