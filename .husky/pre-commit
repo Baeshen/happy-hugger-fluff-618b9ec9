@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# يمنع الالتزام بأي تغيير يكسر قواعد استيراد friendlyInsertError داخل مسارات book.
+# لتشغيل الـ hooks لأول مرة بعد الاستنساخ: `bun run prepare`
+CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^src/routes/(book\.tsx|api/public/book/.*\.(ts|tsx))$' || true)
+if [ -n "$CHANGED" ]; then
+  echo "→ pre-commit: تشغيل lint:book على مسارات book المعدّلة"
+  bun run lint:book || {
+    echo "✗ فشل lint:book — تم رفض الالتزام. أصلح الأخطاء (خاصة تعارض friendlyInsertError) ثم أعد المحاولة."
+    exit 1
+  }
+fi
