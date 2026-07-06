@@ -97,12 +97,12 @@ function AdminDashboard() {
     );
   }
 
-  const tabs: { id: Tab; label: string; icon: any; show: boolean }[] = [
-    { id: "overview", label: "نظرة عامة", icon: LayoutDashboard, show: true },
-    { id: "appointments", label: "المواعيد", icon: CalendarDays, show: canSeeAppts },
-    { id: "orders", label: "طلبات الأدوية", icon: Pill, show: canSeeOrders },
-    { id: "doctors", label: "الأطباء", icon: Stethoscope, show: isAdmin },
-  ].filter((t) => t.show);
+  const tabs: { id: Tab; label: string; icon: any; show: boolean }[] = ([
+    { id: "overview" as Tab, label: "نظرة عامة", icon: LayoutDashboard, show: true },
+    { id: "appointments" as Tab, label: "المواعيد", icon: CalendarDays, show: canSeeAppts },
+    { id: "orders" as Tab, label: "طلبات الأدوية", icon: Pill, show: canSeeOrders },
+    { id: "doctors" as Tab, label: "الأطباء", icon: Stethoscope, show: isAdmin },
+  ]).filter((t) => t.show);
 
   return (
     <div className="container-app py-10">
