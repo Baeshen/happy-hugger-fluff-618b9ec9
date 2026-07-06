@@ -83,27 +83,12 @@ async def main():
 
         # Rewrite the outgoing server-fn request body to inject a 501-char reason,
         # bypassing client-side normalizeReason() slicing to 500.
+        SENTINEL = "REASON_SENTINEL_TOKEN_XYZ"
         async def rewrite_reason(route, request):
             try:
                 body = request.post_data or ""
-                print("  body_in:", body[:200])
-                parsed = json.loads(body) if body else None
-                changed = False
-                def walk(obj):
-                    nonlocal changed
-                    if isinstance(obj, dict):
-                        for k, v in list(obj.items()):
-                            if k == "reason" and isinstance(v, str):
-                                obj[k] = REASON_501
-                                changed = True
-                            else:
-                                walk(v)
-                    elif isinstance(obj, list):
-                        for x in obj: walk(x)
-                walk(parsed)
-                if changed:
-                    new_body = json.dumps(parsed)
-                    print("  rewrote reason -> len", len(REASON_501))
+                if SENTINEL in body:
+                    new_body = body.replace(SENTINEL, REASON_501)
                     await route.continue_(post_data=new_body)
                     return
             except Exception as e:
