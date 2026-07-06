@@ -406,6 +406,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      normalize_reason: { Args: { _raw: string }; Returns: string }
       update_appointment_notes: {
         Args: { _id: string; _notes: string; _reason?: string }
         Returns: undefined
