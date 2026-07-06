@@ -175,6 +175,76 @@ Note: `SUPABASE_SERVICE_ROLE_KEY` is not available on Lovable Cloud. For full te
 
 > **ملاحظة:** PRs القادمة من `forks` تُستثنى من هذه الوظيفة لأن GitHub لا يكشف أسرار المستودع الأصلي للـ forks.
 
+## اختبار الأسرار و RLS محليًا قبل تشغيل CI
+
+تجنّب انتظار CI لمعرفة ما إذا كانت الأسرار أو اختبارات RLS تعمل؛ شغّل الاختبارات محليًا أولًا.
+
+### 1. تأكّد من توفّر الأسرار
+
+أيّ من الأوامر التالية يكشف ما إذا كانت الأسرار الثلاثة مضبوطة في البيئة الحالية:
+
+```bash
+# طريقة 1: اعرض الأسماء فقط (القيم تبقى مخفيّة)
+env | grep -E '^(SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY)=' || echo "One or more secrets are missing"
+
+# طريقة 2: تحقق سريع من أنها ليست فارغة
+bash -c '
+  missing=()
+  [ -z "$SUPABASE_URL" ]              && missing+=("SUPABASE_URL")
+  [ -z "$SUPABASE_PUBLISHABLE_KEY" ]  && missing+=("SUPABASE_PUBLISHABLE_KEY")
+  [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing+=("SUPABASE_SERVICE_ROLE_KEY")
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo "❌ Missing: ${missing[*]}"
+    exit 1
+  fi
+  echo "✅ All Supabase secrets are set"
+'
+```
+
+### 2. ضع الأسرار في ملف `.env` محلي (اختياري)
+
+إذا أردت عدم كتابتها في كل أمر، أنشئ ملفًا باسم `.env.local` (لا ترفعه إلى Git) يحتوي على:
+
+```dotenv
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+ثم شغّل الاختبارات مع تحميلها:
+
+```bash
+set -a; source .env.local; set +a
+```
+
+### 3. شغّل اختبار RLS واحدًا
+
+```bash
+SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... \
+  bun tests/rls/appointments.rls.test.ts
+```
+
+استبدل `appointments.rls.test.ts` بأي ملف آخر تحت `tests/rls/`.
+
+### 4. شغّل كامل مجموعة RLS كما يفعل CI
+
+```bash
+set -e
+for f in tests/rls/*.test.ts; do
+  echo "── $f ──"
+  bun "$f"
+done
+```
+
+### 5. أمثلة على أخطاء محليّة شائعة
+
+| الخطأ المحلي | السبب | الحل |
+| ------------ | ----- | ---- |
+| `Missing: SUPABASE_SERVICE_ROLE_KEY` | لم يُضبط السرّ في البيئة | صدّر الأسرار أو حمّل `.env.local`. |
+| `fetch failed` / `401 Unauthorized` | `SUPABASE_URL` أو مفتاح خاطئ | تأكّد من تطابق المفاتيح مع المشروع. |
+| `permission denied for table` | `SUPABASE_SERVICE_ROLE_KEY` غير صحيح أو RLS مفقود | تأكّد من المفتاح، ومن أن الجداول تملك GRANTs و RLS policies. |
+| فشل فقط في بعض ملفّات الـ RLS | تغييرات في السكيما لم تُنفّذ | شغّل آخر migration على قاعدة البيانات المحليّة/الحية. |
+
 ## استكشاف أخطاء CI المتعلقة بالأسرار
 
 | العَرَض | السبب المحتمل | الحل |
