@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeReason, isEmptyReason, reasonRequiredFor } from "@/lib/reason";
 import {
   getMyRoles,
   getAdminStats,
