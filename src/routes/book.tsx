@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Check, ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User } from "lucide-react";
@@ -47,13 +47,13 @@ function BookPage() {
     queryFn: async () => (await supabase.from("doctors").select("*, specialties(*)").eq("is_active", true)).data ?? [],
   });
 
-  // set initial specialty
-  useMemo(() => {
-    if (!specialtyId && specialties && initSpec) {
+  useEffect(() => {
+    if (specialtyId) return;
+    if (specialties && initSpec) {
       const s = specialties.find((x) => x.slug === initSpec);
-      if (s) setSpecialtyId(s.id);
+      if (s) { setSpecialtyId(s.id); return; }
     }
-    if (!specialtyId && doctorId && doctors) {
+    if (doctorId && doctors) {
       const d = doctors.find((x) => x.id === doctorId);
       if (d?.specialty_id) setSpecialtyId(d.specialty_id);
     }
