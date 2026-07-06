@@ -71,16 +71,18 @@ async def main():
             await page.wait_for_timeout(600)
             await page.screenshot(path=str(SHOTS / "book_step1.png"))
 
-            # Step 1: pick the first specialty tile.
-            step1_buttons = page.locator("div.grid button")
-            await step1_buttons.first.wait_for(timeout=8000)
-            await step1_buttons.first.click()
-            await page.get_by_role("button", name="التالي").click()
+            # Step 1: pick a specific specialty by Arabic name.
+            card = page.locator("div.rounded-2xl").first
+            await card.wait_for(timeout=8000)
+            await card.get_by_role("button", name="الأطفال", exact=True).click()
+            next_btn = page.get_by_role("button", name="التالي")
+            await next_btn.wait_for(state="visible", timeout=5000)
+            await next_btn.click()
 
             # Step 2: "any available doctor"
             await page.wait_for_timeout(300)
-            await page.get_by_text("أي طبيب متاح", exact=False).first.click()
-            await page.get_by_role("button", name="التالي").click()
+            await card.get_by_role("button", name="أي طبيب متاح", exact=True).click()
+            await next_btn.click()
 
             # Step 3: date grid, then time grid.
             await page.wait_for_timeout(600)
