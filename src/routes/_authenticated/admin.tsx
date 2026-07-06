@@ -119,6 +119,8 @@ function AdminDashboard() {
     { id: "appointments" as Tab, label: "المواعيد", icon: CalendarDays, show: canSeeAppts },
     { id: "orders" as Tab, label: "طلبات الأدوية", icon: Pill, show: canSeeOrders },
     { id: "doctors" as Tab, label: "الأطباء", icon: Stethoscope, show: isAdmin },
+    { id: "specialties" as Tab, label: "التخصصات", icon: Tag, show: isAdmin },
+    { id: "availability" as Tab, label: "فترات الدوام", icon: CalendarClock, show: isAdmin || isReception },
   ]).filter((t) => t.show);
 
   return (
