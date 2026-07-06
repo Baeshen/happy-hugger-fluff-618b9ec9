@@ -15,6 +15,15 @@ trap cleanup EXIT
 
 cp "$FILE" "$BACKUP"
 
+# 1) baseline: لا يجب أن تكون قواعد friendlyInsertError مفعّلة قبل الحقن
+BASELINE="$(bun run lint:book 2>&1 || true)"
+if echo "$BASELINE" | grep -Eq "no-restricted-(imports|syntax).*insert-errors|insert-errors.*no-restricted"; then
+  echo "✗ baseline يحتوي مسبقًا على انتهاكات لقواعد friendlyInsertError — أصلحها أولًا."
+  echo "$BASELINE" | grep -E "no-restricted|insert-errors" | head -10
+  exit 1
+fi
+
+
 # حقن استيراد سيئ + إعادة تعريف محلية في أول الملف
 {
   echo 'import { friendlyInsertError } from "../lib/insert-errors";'
