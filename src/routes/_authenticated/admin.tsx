@@ -161,6 +161,8 @@ function AdminDashboard() {
       {tab === "appointments" && canSeeAppts && <AppointmentsTab />}
       {tab === "orders" && canSeeOrders && <OrdersTab />}
       {tab === "doctors" && isAdmin && <DoctorsTab />}
+      {tab === "specialties" && isAdmin && <SpecialtiesTab />}
+      {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
     </div>
   );
 }
