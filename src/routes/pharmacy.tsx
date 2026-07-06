@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { friendlyInsertError } from "@/lib/insert-errors";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Upload, Check, Pill } from "lucide-react";
