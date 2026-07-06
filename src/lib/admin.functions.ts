@@ -11,8 +11,50 @@ async function getRoles(supabase: any, userId: string): Promise<Role[]> {
 
 function ensureRole(roles: Role[], allowed: Role[]) {
   if (!roles.some((r) => allowed.includes(r))) {
-    throw new Error("Forbidden");
+    throw new Error("FORBIDDEN: ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
   }
+}
+
+/**
+ * Convert a raw Supabase/PostgREST error into an Arabic user-facing message.
+ * Handles: RLS denials, check-constraint violations, FK/unique conflicts,
+ * missing rows, and network timeouts. Keeps raw details in the log server-side.
+ */
+function humanizeSupabaseError(err: any, fallback = "تعذّر تنفيذ الطلب."): string {
+  if (!err) return fallback;
+  const code: string | undefined = err.code ?? err.details?.code;
+  const msg: string = String(err.message ?? err.details ?? "");
+  console.error("[supabase-error]", { code, msg, hint: err.hint, details: err.details });
+
+  // RLS denial (PostgREST maps to 42501 or PGRST301)
+  if (code === "42501" || code === "PGRST301" || /row-level security|permission denied/i.test(msg)) {
+    return "ليست لديك الصلاحية لتنفيذ هذا الإجراء. الرجاء التواصل مع المسؤول إذا كنت ترى هذا خطأً.";
+  }
+  // CHECK constraint / policy WITH CHECK failure on insert
+  if (code === "23514" || /violates check constraint/i.test(msg)) {
+    return "البيانات المُدخلة غير صالحة. الرجاء مراجعة الحقول والمحاولة مجددًا.";
+  }
+  // Unique violation
+  if (code === "23505" || /duplicate key/i.test(msg)) {
+    return "توجد بيانات مكرّرة تمنع إتمام العملية.";
+  }
+  // Foreign key
+  if (code === "23503" || /foreign key/i.test(msg)) {
+    return "لا يمكن تنفيذ الطلب لوجود سجلات مرتبطة.";
+  }
+  // Not-null
+  if (code === "23502" || /null value in column/i.test(msg)) {
+    return "أحد الحقول المطلوبة مفقود.";
+  }
+  // Auth / session
+  if (/jwt|unauthorized|not authenticated/i.test(msg)) {
+    return "انتهت الجلسة. الرجاء تسجيل الدخول من جديد.";
+  }
+  // Rate limit
+  if (code === "429" || /rate limit/i.test(msg)) {
+    return "عدد المحاولات مرتفع. الرجاء الانتظار قليلًا ثم المحاولة مرة أخرى.";
+  }
+  return fallback;
 }
 
 export const getMyRoles = createServerFn({ method: "GET" })
