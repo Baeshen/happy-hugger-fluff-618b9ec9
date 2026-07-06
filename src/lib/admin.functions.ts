@@ -106,6 +106,7 @@ export const listAppointments = createServerFn({ method: "GET" })
   });
 
 import { checkAppointmentTransition, type ApptStatus, type StaffRole } from "./appt-transitions";
+import { reasonSchema } from "./reason";
 
 export const updateAppointmentStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -113,7 +114,7 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
     z.object({
       id: z.string().uuid(),
       status: z.enum(["new", "confirmed", "completed", "cancelled", "no_show"]),
-      reason: z.string().trim().max(500).optional(),
+      reason: reasonSchema,
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
