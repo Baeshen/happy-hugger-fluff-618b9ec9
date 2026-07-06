@@ -196,64 +196,183 @@ function OverviewTab() {
   );
 }
 
+type ApptStatus = "new" | "confirmed" | "completed" | "cancelled" | "no_show";
+
+const APPT_STATUS_STYLES: Record<ApptStatus, string> = {
+  new: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  confirmed: "bg-primary/10 text-primary border-primary/20",
+  completed: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+  no_show: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+};
+
+function StatusBadge({ status }: { status: ApptStatus }) {
+  const label = APPT_STATUS.find((s) => s.value === status)?.label ?? status;
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${APPT_STATUS_STYLES[status]}`}>
+      {label}
+    </span>
+  );
+}
+
 function AppointmentsTab() {
   const listFn = useServerFn(listAppointments);
   const updateFn = useServerFn(updateAppointmentStatus);
   const q = useQuery({ queryKey: ["admin-appts"], queryFn: () => listFn() });
+  const [filter, setFilter] = useState<"all" | ApptStatus>("all");
+  const [search, setSearch] = useState("");
+
   const m = useMutation({
-    mutationFn: (v: { id: string; status: any }) => updateFn({ data: v }),
-    onSuccess: () => { toast.success("تم التحديث"); q.refetch(); },
+    mutationFn: (v: { id: string; status: ApptStatus }) => updateFn({ data: v }),
+    onSuccess: (_d, v) => {
+      const label = APPT_STATUS.find((s) => s.value === v.status)?.label ?? v.status;
+      toast.success(`تم تحديث الحالة إلى: ${label}`);
+      q.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل التحديث"),
   });
 
   if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
-  const rows = q.data ?? [];
+  const all = (q.data ?? []) as any[];
+  const rows = all.filter((r) => {
+    if (filter !== "all" && r.status !== filter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      const hay = `${r.patient_name ?? ""} ${r.patient_phone ?? ""} ${r.national_id ?? ""}`.toLowerCase();
+      if (!hay.includes(s)) return false;
+    }
+    return true;
+  });
+
+  const counts: Record<string, number> = { all: all.length };
+  for (const s of APPT_STATUS) counts[s.value] = all.filter((r) => r.status === s.value).length;
+
+  const chip = (v: "all" | ApptStatus, label: string) => (
+    <button
+      key={v}
+      onClick={() => setFilter(v)}
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+        filter === v
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border text-muted-foreground hover:bg-muted"
+      }`}
+    >
+      {label}
+      <span className="rounded-full bg-background/80 px-1.5 text-[10px] font-semibold">
+        {counts[v] ?? 0}
+      </span>
+    </button>
+  );
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-right text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="px-4 py-3">المريض</th>
-            <th className="px-4 py-3">الهاتف</th>
-            <th className="px-4 py-3">التخصص / الطبيب</th>
-            <th className="px-4 py-3">التاريخ</th>
-            <th className="px-4 py-3">الوقت</th>
-            <th className="px-4 py-3">الحالة</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
-            <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">لا توجد مواعيد</td></tr>
-          )}
-          {rows.map((r: any) => (
-            <tr key={r.id} className="border-t border-border">
-              <td className="px-4 py-3 font-medium">{r.patient_name}</td>
-              <td className="px-4 py-3" dir="ltr">{r.patient_phone}</td>
-              <td className="px-4 py-3">
-                <div>{r.specialties?.name_ar ?? "—"}</div>
-                <div className="text-xs text-muted-foreground">{r.doctors?.name_ar ?? "—"}</div>
-              </td>
-              <td className="px-4 py-3" dir="ltr">{r.appointment_date}</td>
-              <td className="px-4 py-3" dir="ltr">{r.appointment_time}</td>
-              <td className="px-4 py-3">
-                <select
-                  defaultValue={r.status}
-                  onChange={(e) => m.mutate({ id: r.id, status: e.target.value })}
-                  className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                >
-                  {APPT_STATUS.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </td>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {chip("all", "الكل")}
+        {APPT_STATUS.map((s) => chip(s.value, s.label))}
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="بحث بالاسم أو الهاتف…"
+          className="ms-auto w-full max-w-xs rounded-md border border-input bg-background px-3 py-1.5 text-sm sm:w-auto"
+        />
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-right text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">المريض</th>
+              <th className="px-4 py-3">الهاتف</th>
+              <th className="px-4 py-3">التخصص / الطبيب</th>
+              <th className="px-4 py-3">التاريخ</th>
+              <th className="px-4 py-3">الوقت</th>
+              <th className="px-4 py-3">الحالة</th>
+              <th className="px-4 py-3">إجراءات</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">لا توجد مواعيد مطابقة</td></tr>
+            )}
+            {rows.map((r: any) => {
+              const status = r.status as ApptStatus;
+              const pending = m.isPending && m.variables?.id === r.id;
+              const isFinal = status === "completed" || status === "cancelled" || status === "no_show";
+              return (
+                <tr key={r.id} className="border-t border-border">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{r.patient_name}</div>
+                    {r.national_id && <div className="text-xs text-muted-foreground" dir="ltr">{r.national_id}</div>}
+                  </td>
+                  <td className="px-4 py-3" dir="ltr">
+                    <a href={`tel:${r.patient_phone}`} className="hover:text-primary">{r.patient_phone}</a>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div>{r.specialties?.name_ar ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">{r.doctors?.name_ar ?? "—"}</div>
+                  </td>
+                  <td className="px-4 py-3" dir="ltr">{r.appointment_date}</td>
+                  <td className="px-4 py-3" dir="ltr">{r.appointment_time}</td>
+                  <td className="px-4 py-3"><StatusBadge status={status} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {status !== "confirmed" && !isFinal && (
+                        <button
+                          disabled={pending}
+                          onClick={() => m.mutate({ id: r.id, status: "confirmed" })}
+                          className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                        >
+                          تأكيد
+                        </button>
+                      )}
+                      {status === "confirmed" && (
+                        <button
+                          disabled={pending}
+                          onClick={() => m.mutate({ id: r.id, status: "completed" })}
+                          className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2.5 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-60"
+                        >
+                          إنهاء
+                        </button>
+                      )}
+                      {status === "confirmed" && (
+                        <button
+                          disabled={pending}
+                          onClick={() => m.mutate({ id: r.id, status: "no_show" })}
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 px-2.5 py-1 text-xs font-medium text-amber-600 hover:bg-amber-500/10 disabled:opacity-60"
+                        >
+                          لم يحضر
+                        </button>
+                      )}
+                      {!isFinal && (
+                        <button
+                          disabled={pending}
+                          onClick={() => { if (confirm("إلغاء هذا الحجز؟")) m.mutate({ id: r.id, status: "cancelled" }); }}
+                          className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                        >
+                          إلغاء
+                        </button>
+                      )}
+                      {isFinal && (
+                        <button
+                          disabled={pending}
+                          onClick={() => m.mutate({ id: r.id, status: "new" })}
+                          className="inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
+                        >
+                          إعادة فتح
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+
 
 function OrdersTab() {
   const listFn = useServerFn(listOrders);
