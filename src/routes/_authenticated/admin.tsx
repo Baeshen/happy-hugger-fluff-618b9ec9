@@ -13,6 +13,10 @@ import {
   updateOrderStatus,
   listDoctorsAdmin,
   toggleDoctorActive,
+  listSpecialtiesAdmin,
+  createDoctor,
+  updateDoctor,
+  deleteDoctor,
 } from "@/lib/admin.functions";
 import {
   LayoutDashboard,
@@ -23,6 +27,10 @@ import {
   ShieldCheck,
   Users,
   Clock,
+  Plus,
+  Pencil,
+  Trash2,
+  X as XIcon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
