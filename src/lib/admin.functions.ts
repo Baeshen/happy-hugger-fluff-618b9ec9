@@ -75,11 +75,11 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin", "reception"]);
-    const { error } = await context.supabase.rpc("update_appointment_status", {
+    const { error } = await context.supabase.rpc("update_appointment_status" as any, {
       _id: data.id,
       _status: data.status,
       _reason: data.reason ?? null,
-    });
+    } as any);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -96,11 +96,11 @@ export const updateAppointmentNotes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin", "reception"]);
-    const { error } = await context.supabase.rpc("update_appointment_notes", {
+    const { error } = await context.supabase.rpc("update_appointment_notes" as any, {
       _id: data.id,
       _notes: data.notes,
       _reason: data.reason ?? null,
-    });
+    } as any);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
