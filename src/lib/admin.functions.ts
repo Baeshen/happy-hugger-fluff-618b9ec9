@@ -68,7 +68,7 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({
       id: z.string().uuid(),
-      status: z.enum(["pending", "confirmed", "completed", "cancelled", "no_show"]),
+      status: z.enum(["new", "confirmed", "completed", "cancelled", "no_show"]),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
