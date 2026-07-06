@@ -51,11 +51,14 @@ def delete_user(uid):
     except Exception: pass
 
 async def sign_in(page, email, password):
-    await page.goto("http://localhost:8080/auth", wait_until="domcontentloaded")
+    await page.goto("http://localhost:8080/auth", wait_until="networkidle")
     await page.fill('input[type="email"]', email)
     await page.fill('input[type="password"]', password)
     await page.click('button[type="submit"]')
     await page.wait_for_url("**/admin", timeout=15000)
+    await page.wait_for_timeout(800)
+    await page.get_by_text("المواعيد", exact=True).first.click()
+    await page.wait_for_timeout(1200)
 
 REASON_501 = "ب" * 501  # 501 chars, no edge whitespace → length after trim == 501
 
