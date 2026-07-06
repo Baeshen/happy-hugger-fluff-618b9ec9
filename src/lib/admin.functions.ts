@@ -105,33 +105,7 @@ export const listAppointments = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
-/**
- * Allowed appointment status transitions. Kept in-code (defense in depth
- * alongside RLS) so the API rejects illegal moves before touching the DB.
- * - `admin` and `reception` can advance a booking through its lifecycle.
- * - `admin` alone may "reopen" a finalised booking back to `new`.
- * - Anything not listed is denied.
- */
-const APPT_TRANSITIONS: Record<string, { to: string; roles: Role[]; reasonRequired?: boolean }[]> = {
-  new: [
-    { to: "confirmed", roles: ["admin", "reception"] },
-    { to: "cancelled", roles: ["admin", "reception"], reasonRequired: true },
-  ],
-  confirmed: [
-    { to: "completed", roles: ["admin", "reception"] },
-    { to: "no_show",   roles: ["admin", "reception"], reasonRequired: true },
-    { to: "cancelled", roles: ["admin", "reception"], reasonRequired: true },
-  ],
-  completed: [
-    { to: "new", roles: ["admin"] },
-  ],
-  cancelled: [
-    { to: "new", roles: ["admin"] },
-  ],
-  no_show: [
-    { to: "new", roles: ["admin"] },
-  ],
-};
+import { checkAppointmentTransition, type ApptStatus, type StaffRole } from "./appt-transitions";
 
 export const updateAppointmentStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -144,7 +118,7 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     // 1) Authenticated user (middleware) + role gate
-    const roles = await getRoles(context.supabase, context.userId);
+    const roles = (await getRoles(context.supabase, context.userId)) as StaffRole[];
     ensureRole(roles, ["admin", "reception"]);
 
     // 2) Load the target row (RLS-scoped as the caller). Missing / hidden → 404-ish
@@ -156,23 +130,15 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
     if (readErr) throw new Error(humanizeSupabaseError(readErr));
     if (!current) throw new Error("الحجز غير موجود أو لا تملك صلاحية عرضه.");
 
-    // 3) No-op guard
-    if (current.status === data.status) {
-      return { ok: true, unchanged: true };
-    }
-
-    // 4) Transition legality + per-transition role check
-    const allowed = APPT_TRANSITIONS[current.status] ?? [];
-    const transition = allowed.find((t) => t.to === data.status);
-    if (!transition) {
-      throw new Error(`لا يمكن تغيير الحالة من "${current.status}" إلى "${data.status}".`);
-    }
-    if (!roles.some((r) => transition.roles.includes(r))) {
-      throw new Error("ليست لديك الصلاحية لتنفيذ هذا التغيير بالتحديد.");
-    }
-    if (transition.reasonRequired && !data.reason) {
-      throw new Error("السبب مطلوب لهذا الإجراء.");
-    }
+    // 3-4) Transition legality + per-transition role check + reason requirement
+    const check = checkAppointmentTransition(
+      current.status as ApptStatus,
+      data.status as ApptStatus,
+      roles,
+      data.reason,
+    );
+    if (!check.ok) throw new Error(check.message);
+    if (check.unchanged) return { ok: true, unchanged: true };
 
     // 5) Perform the update via RPC (carries reason into the audit trigger)
     const { error } = await context.supabase.rpc("update_appointment_status" as any, {
