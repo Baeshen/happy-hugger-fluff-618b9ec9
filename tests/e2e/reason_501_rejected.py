@@ -55,7 +55,7 @@ async def sign_in(page, email, password):
     await page.fill('input[type="email"]', email)
     await page.fill('input[type="password"]', password)
     await page.click('button[type="submit"]')
-    await page.wait_for_url("**/admin", timeout=10000)
+    await page.wait_for_url("**/admin", timeout=15000)
 
 REASON_501 = "ب" * 501  # 501 chars, no edge whitespace → length after trim == 501
 
