@@ -13,7 +13,6 @@
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "format:check:book": "prettier --check 'src/routes/book.tsx' 'src/routes/api/public/book/**/*.{ts,tsx}'",
     "prepare": "husky"
   },
   "dependencies": {
