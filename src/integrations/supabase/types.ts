@@ -287,6 +287,42 @@ export type Database = {
         }
         Relationships: []
       }
+      security_audit_log: {
+        Row: {
+          action: string
+          actor: string | null
+          appointment_id: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          metadata: Json | null
+          reason: string | null
+          to_status: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          appointment_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          appointment_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          to_status?: string | null
+        }
+        Relationships: []
+      }
       specialties: {
         Row: {
           created_at: string
@@ -358,6 +394,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      log_security_event: {
+        Args: {
+          _action: string
+          _appointment_id?: string
+          _from_status?: string
+          _metadata?: Json
+          _reason?: string
+          _to_status?: string
+        }
+        Returns: undefined
       }
       update_appointment_notes: {
         Args: { _id: string; _notes: string; _reason?: string }
