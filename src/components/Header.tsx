@@ -1,12 +1,22 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X, Globe, Phone } from "lucide-react";
-import { useState } from "react";
+import { Menu, X, Globe, Phone, LayoutDashboard, LogIn } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
+import { supabase } from "@/integrations/supabase/client";
 
 export function Header() {
   const { t, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSignedIn(!!session);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const nav = [
     { to: "/", label: t("nav_home") },
@@ -59,6 +69,15 @@ export function Header() {
           >
             {t("cta_book")}
           </Link>
+          {signedIn ? (
+            <Link to="/admin" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted" title="لوحة التحكم">
+              <LayoutDashboard className="h-3.5 w-3.5" /> لوحة
+            </Link>
+          ) : (
+            <Link to="/auth" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+              <LogIn className="h-3.5 w-3.5" /> دخول
+            </Link>
+          )}
         </div>
 
         <button className="lg:hidden inline-flex items-center justify-center rounded-md p-2 text-foreground" onClick={() => setOpen((v) => !v)} aria-label="menu">
