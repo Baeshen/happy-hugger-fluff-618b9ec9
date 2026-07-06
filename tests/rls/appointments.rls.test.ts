@@ -93,20 +93,20 @@ async function main() {
     // ── ANON ──────────────────────────────────────────────────────────────────
     console.log("\n── anon ──");
     await test("anon can INSERT valid appointment (status/notes sanitized)", async () => {
-      const { data, error } = await anon
-        .from("appointments")
-        .insert({
-          patient_name: "RLS-Anon",
-          patient_phone: "0512345678",
-          appointment_date: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
-          appointment_time: "11:00",
-          status: "confirmed", // trigger should force to 'new'
-          notes: "attempted staff note", // trigger should NULL
-        } as any)
-        .select("id")
-        .single();
+      // Note: anon lacks SELECT, so we cannot use .select() after insert.
+      // Insert with return=minimal, then verify via the admin client.
+      const marker = `RLS-Anon-${Date.now()}`;
+      const { error } = await anon.from("appointments").insert({
+        patient_name: marker,
+        patient_phone: "0512345678",
+        appointment_date: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
+        appointment_time: "11:00",
+        status: "confirmed", // trigger should force to 'new'
+        notes: "attempted staff note", // trigger should NULL
+      } as any);
       assert(!error, `insert failed: ${error?.message}`);
-      const { data: row } = await admin.from("appointments").select("status,notes").eq("id", data!.id).single();
+      const { data: row } = await admin
+        .from("appointments").select("status,notes").eq("patient_name", marker).single();
       assert(row?.status === "new", `status not forced to 'new' (got ${row?.status})`);
       assert(row?.notes === null, "notes not cleared by trigger");
     });
