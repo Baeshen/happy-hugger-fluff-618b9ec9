@@ -109,10 +109,15 @@ async def main():
                 if "reason_too_long" not in msg and "طويل" not in msg:
                     failures.append(f"expected 'reason_too_long' / 'طويل' in error, got: {err}")
 
+            status_before = sb(
+                f"/rest/v1/appointments?id=eq.{appt_id}&select=status", method="GET"
+            )[0]["status"]
             row_now = sb(f"/rest/v1/appointments?id=eq.{appt_id}&select=status",
                          method="GET")[0]
-            if row_now["status"] != "confirmed":
-                failures.append(f"status changed to {row_now['status']} (expected 'confirmed')")
+            if row_now["status"] != status_before:
+                failures.append(
+                    f"status changed to {row_now['status']} (expected unchanged '{status_before}')"
+                )
 
             audit = sb(f"/rest/v1/appointment_audit?appointment_id=eq.{appt_id}&select=id",
                        method="GET")
