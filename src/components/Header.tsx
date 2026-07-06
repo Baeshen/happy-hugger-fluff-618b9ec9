@@ -69,6 +69,15 @@ export function Header() {
           >
             {t("cta_book")}
           </Link>
+          {signedIn ? (
+            <Link to="/admin" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted" title="لوحة التحكم">
+              <LayoutDashboard className="h-3.5 w-3.5" /> لوحة
+            </Link>
+          ) : (
+            <Link to="/auth" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+              <LogIn className="h-3.5 w-3.5" /> دخول
+            </Link>
+          )}
         </div>
 
         <button className="lg:hidden inline-flex items-center justify-center rounded-md p-2 text-foreground" onClick={() => setOpen((v) => !v)} aria-label="menu">
