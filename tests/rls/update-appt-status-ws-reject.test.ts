@@ -128,18 +128,33 @@ let user: { userId: string; email: string; password: string } | null = null;
       }
     }
 
-    // Non-required statuses must still not create an audit row with a blank reason.
-    await test("confirmed + whitespace-only reason: audit.reason is NULL (not blank)", async () => {
+    // Even for statuses where reason is optional, a whitespace-only reason is
+    // still rejected (defensive rule in the trigger — a caller supplied text,
+    // it must not silently normalize to blank).
+    await test("optional-reason status ('new') + whitespace reason → rejected", async () => {
       const a = await newAppt(); created.push(a.id);
-      // First move to 'new' so we have a status change; whitespace reason is optional here.
       const { error } = await c.rpc("update_appointment_status" as any, {
         _id: a.id, _status: "new", _reason: "  \t\n\u00A0  ",
       });
-      assert(!error, `expected success for optional-reason status, got: ${error?.message}`);
+      assert(!!error, "expected DB to reject whitespace-only reason");
+      assert(error!.code === "23514" || /فارغ|blank_after_trim|reason_required/i.test(error!.message),
+        `unexpected error shape: code=${error!.code} message=${error!.message}`);
+      assert((await auditOf(a.id)).length === 0, "no audit row on rejection");
+      assert(await statusOf(a.id) === "confirmed", "status must remain unchanged");
+    });
+
+    // A status change with NO reason (undefined) on an optional-reason status
+    // must succeed and produce an audit row with reason = NULL.
+    await test("optional-reason status ('new') + no reason → success, audit.reason NULL", async () => {
+      const a = await newAppt(); created.push(a.id);
+      const { error } = await c.rpc("update_appointment_status" as any, {
+        _id: a.id, _status: "new",
+      });
+      assert(!error, `expected success, got: ${error?.message}`);
       const rows = await auditOf(a.id);
       assert(rows.length === 1, `expected 1 audit row, got ${rows.length}`);
       assert(rows[0].reason === null,
-        `expected NULL reason after normalization, got ${JSON.stringify(rows[0].reason)}`);
+        `expected NULL reason, got ${JSON.stringify(rows[0].reason)}`);
     });
   } finally {
     console.log("\nCleaning up…");
