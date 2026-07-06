@@ -210,3 +210,120 @@ export const deleteDoctor = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* ---------------- Specialties CRUD ---------------- */
+
+const specialtyInput = z.object({
+  slug: z.string().min(1).regex(/^[a-z0-9-]+$/, "slug lowercase, digits, dashes"),
+  name_ar: z.string().min(1),
+  name_en: z.string().min(1),
+  icon: z.string().nullable().optional(),
+  description_ar: z.string().nullable().optional(),
+  description_en: z.string().nullable().optional(),
+  is_active: z.boolean().default(true),
+  sort_order: z.number().int().default(0),
+});
+
+export const listSpecialtiesFull = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception", "pharmacy"]);
+    const { data, error } = await context.supabase
+      .from("specialties")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const createSpecialty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => specialtyInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { data: row, error } = await context.supabase
+      .from("specialties")
+      .insert(data as any)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const updateSpecialty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).and(specialtyInput.partial()).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { id, ...rest } = data;
+    const { error } = await context.supabase.from("specialties").update(rest as any).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteSpecialty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { error } = await context.supabase.from("specialties").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/* ---------------- Availability ---------------- */
+
+const availabilityInput = z.object({
+  doctor_id: z.string().uuid(),
+  weekday: z.number().int().min(0).max(6),
+  start_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  end_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  slot_minutes: z.number().int().min(5).max(240).default(30),
+});
+
+export const listAvailability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ doctor_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+    const { data: rows, error } = await context.supabase
+      .from("availability")
+      .select("*")
+      .eq("doctor_id", data.doctor_id)
+      .order("weekday", { ascending: true })
+      .order("start_time", { ascending: true });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const createAvailability = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => availabilityInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    if (data.start_time >= data.end_time) throw new Error("وقت البداية يجب أن يسبق النهاية");
+    const { data: row, error } = await context.supabase
+      .from("availability")
+      .insert(data as any)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const deleteAvailability = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { error } = await context.supabase.from("availability").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
