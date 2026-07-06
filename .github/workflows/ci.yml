@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint (book) & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint book routes (guardrails against friendlyInsertError import conflicts)
+        run: bun run lint:book
+
+      - name: TypeScript check
+        run: bun run typecheck
