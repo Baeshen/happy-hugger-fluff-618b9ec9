@@ -17,6 +17,13 @@ import {
   createDoctor,
   updateDoctor,
   deleteDoctor,
+  listSpecialtiesFull,
+  createSpecialty,
+  updateSpecialty,
+  deleteSpecialty,
+  listAvailability,
+  createAvailability,
+  deleteAvailability,
 } from "@/lib/admin.functions";
 import {
   LayoutDashboard,
@@ -31,6 +38,8 @@ import {
   Pencil,
   Trash2,
   X as XIcon,
+  Tag,
+  CalendarClock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
