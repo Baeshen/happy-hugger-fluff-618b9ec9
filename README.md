@@ -34,19 +34,33 @@ SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... \
 
 ## إعداد أسرار Supabase لاختبارات RLS
 
-تتطلّب اختبارات RLS مشروع Supabase حقيقيًا. أضِف الأسرار التالية في بيئة التشغيل أو في GitHub Actions:
+تتطلّب اختبارات RLS مشروع Supabase حقيقيًا. يجب توفّر الأسرار التالية بأسمائها المحدّدة في GitHub Actions (Repository secrets) أو في بيئة التشغيل المحلّية:
 
-| المتغير                     | الغرض                      | مطلوب على `main` | ملاحظات                                          |
+| المتغير                     | الغرض                      | مطلوب على `main` | التوقّعات والتحقق                                |
 | --------------------------- | -------------------------- | ---------------- | ------------------------------------------------ |
-| `SUPABASE_URL`              | عنوان مشروع Supabase       | نعم              | يبدأ بـ `https://` وينتهي بـ `.supabase.co`.     |
-| `SUPABASE_PUBLISHABLE_KEY`  | مفتاح العميل (anon/public) | نعم              | يُستخدم لمحاكاة المستخدمين المجهولين/المسجّلين.  |
-| `SUPABASE_SERVICE_ROLE_KEY` | مفتاح الخدمة               | **نعم**          | يُستخدم لتهيئة البيانات وتنظيفها بعد الاختبارات. |
+| `SUPABASE_URL`              | عنوان مشروع Supabase       | نعم              | يبدأ بـ `https://` وينتهي بـ `.supabase.co`. يُقرأ من `secrets.SUPABASE_URL` ويُتحقق من أنه ليس فارغًا. |
+| `SUPABASE_PUBLISHABLE_KEY`  | مفتاح العميل (anon/public) | نعم              | يُستخدم لمحاكاة المستخدمين المجهولين/المسجّلين. يُقرأ من `secrets.SUPABASE_PUBLISHABLE_KEY`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | مفتاح الخدمة               | **نعم**          | يُستخدم لتهيئة البيانات وتنظيفها بعد الاختبارات. يُقرأ من `secrets.SUPABASE_SERVICE_ROLE_KEY`. |
+
+### التحقق المبكّر قبل `checkout` و `install`
+
+كلتا وظيفتَي CI (`rls-tests-main` و `rls-tests-pr`) تتضمّن خطوة `verify_secrets` تُنفّذ **قبل** `actions/checkout` وقبل `bun install`. تُحقّق الخطوة من أن الأسرار الثلاثة غير فارغة عبر bash:
+
+```bash
+set -e
+missing=()
+[ -z "$SUPABASE_URL" ] && missing+=("SUPABASE_URL")
+[ -z "$SUPABASE_PUBLISHABLE_KEY" ] && missing+=("SUPABASE_PUBLISHABLE_KEY")
+[ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing+=("SUPABASE_SERVICE_ROLE_KEY")
+```
+
+إذا كانت القائمة `missing` غير فارغة، يُكتب ملخّص في `GITHUB_STEP_SUMMARY` ويُعرض `::error::` أو `::warning::` في السجلّ. لا يتم إجراء `checkout` أو تثبيت التبعيات في حال غياب الأسرار؛ والغرض هو الفشل/التخطّي السريع دون إهدار وقت التثبيت.
 
 ### إضافة الأسرار في GitHub
 
 1. افتح المستودع على GitHub.
 2. اذهب إلى **Settings → Secrets and variables → Actions → New repository secret**.
-3. أضِف كل سرٍّ من الأسرار الثلاثة أعلاه.
+3. أضِف كل سرٍّ من الأسرار الثلاثة أعلاه باسمه بالضبط كما في الجدول.
 
 > **تنبيه:** `SUPABASE_SERVICE_ROLE_KEY` غير متاح على Lovable Cloud. إذا كنت تستخدم Lovable Cloud، أنشئ مشروع Supabase منفصلًا خاصًا بالاختبارات لاستخراج مفتاح الخدمة منه.
 
