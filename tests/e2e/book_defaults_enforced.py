@@ -75,6 +75,8 @@ async def main():
             card = page.locator("div.rounded-2xl").first
             await card.wait_for(timeout=8000)
             await card.get_by_role("button", name="الأطفال", exact=True).click()
+            await page.wait_for_timeout(300)
+            await page.screenshot(path=str(SHOTS / "book_step1_after_pick.png"))
             next_btn = page.get_by_role("button", name="التالي")
             await next_btn.wait_for(state="visible", timeout=5000)
             await next_btn.click()
