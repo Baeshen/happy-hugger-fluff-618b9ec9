@@ -70,6 +70,24 @@ jobs:
         run: |
           set -e
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            if [ "$GITHUB_REF" == "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" == "push" ]; then
+              {
+                echo "## ❌ RLS tests failed on main"
+                echo ""
+                echo "Supabase secrets are required on the \`main\` branch."
+                echo ""
+                echo "Add these repository secrets:"
+                echo "- \`SUPABASE_URL\`"
+                echo "- \`SUPABASE_PUBLISHABLE_KEY\`"
+                echo "- \`SUPABASE_SERVICE_ROLE_KEY\`"
+                echo ""
+                echo "Go to: **Settings → Secrets and variables → Actions → New repository secret**"
+                echo ""
+                echo "Note: \`SUPABASE_SERVICE_ROLE_KEY\` is not available on Lovable Cloud. For full tests you need a separate Supabase project."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::RLS tests failed on main — Supabase secrets are missing. See job summary for details."
+              exit 1
+            fi
             {
               echo "## ⚠️ RLS tests skipped"
               echo ""
