@@ -44,13 +44,11 @@ jobs:
       - name: TypeScript check
         run: bun run typecheck
 
-  rls-tests:
-    name: RLS integration tests (live Supabase)
+  rls-tests-main:
+    name: RLS integration tests (main — strict)
     runs-on: ubuntu-latest
-    # Skip on PRs from forks — GitHub Actions redacts secrets there, so
-    # the tests would run without env vars and self-skip anyway. Keeping
-    # them off avoids empty green noise.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # Runs ONLY on push to main. Missing Supabase secrets = hard failure.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -62,7 +60,72 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run tests/rls/* against live Supabase
+      - name: Verify Supabase secrets are present (required on main)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          missing=()
+          [ -z "$SUPABASE_URL" ] && missing+=("SUPABASE_URL")
+          [ -z "$SUPABASE_PUBLISHABLE_KEY" ] && missing+=("SUPABASE_PUBLISHABLE_KEY")
+          [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing+=("SUPABASE_SERVICE_ROLE_KEY")
+          if [ ${#missing[@]} -gt 0 ]; then
+            {
+              echo "## ❌ RLS tests failed on main"
+              echo ""
+              echo "The following Supabase secrets are **required** on the \`main\` branch but are missing:"
+              for s in "${missing[@]}"; do
+                echo "- \`$s\`"
+              done
+              echo ""
+              echo "Add them here: [Repository secrets](https://github.com/${{ github.repository }}/settings/secrets/actions)"
+              echo ""
+              echo "Note: \`SUPABASE_SERVICE_ROLE_KEY\` is not available on Lovable Cloud. For full RLS tests you need a separate Supabase project."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::RLS tests failed on main — missing secrets: ${missing[*]}. See job summary for details."
+            exit 1
+          fi
+          echo "✅ All Supabase secrets present — running full RLS suite."
+
+      - name: Run tests/rls/* against live Supabase (strict)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          failed=0
+          for f in tests/rls/*.test.ts; do
+            echo "── $f ──"
+            if ! bun "$f"; then
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::$failed RLS test file(s) failed."
+            exit 1
+          fi
+
+  rls-tests-pr:
+    name: RLS integration tests (PR — skip mode allowed)
+    runs-on: ubuntu-latest
+    # Runs ONLY on pull requests from the same repo (forks redact secrets).
+    # Missing secrets = clean skip with a clear summary; never fails the PR.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run tests/rls/* against live Supabase (skip if secrets missing)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
@@ -70,39 +133,21 @@ jobs:
         run: |
           set -e
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            if [ "$GITHUB_REF" == "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" == "push" ]; then
-              {
-                echo "## ❌ RLS tests failed on main"
-                echo ""
-                echo "Supabase secrets are required on the \`main\` branch."
-                echo ""
-                echo "Required secrets:"
-                echo "- \`SUPABASE_URL\`"
-                echo "- \`SUPABASE_PUBLISHABLE_KEY\`"
-                echo "- \`SUPABASE_SERVICE_ROLE_KEY\` (required on \`main\`)"
-                echo ""
-                echo "Add them here: [Repository secrets](https://github.com/${{ github.repository }}/settings/secrets/actions)"
-                echo ""
-                echo "Note: \`SUPABASE_SERVICE_ROLE_KEY\` is not available on Lovable Cloud. For full tests you need a separate Supabase project."
-              } >> "$GITHUB_STEP_SUMMARY"
-              echo "::error::RLS tests failed on main — Supabase secrets are missing. See job summary for details."
-              exit 1
-            fi
             {
-              echo "## ⚠️ RLS tests skipped"
+              echo "## ⚠️ RLS tests skipped (PR skip mode)"
               echo ""
-              echo "Supabase secrets are missing on this repository."
+              echo "Supabase secrets are missing — PR runs are allowed to skip; \`main\` is strict."
               echo ""
-              echo "To run the live RLS integration tests, add these repository secrets:"
+              echo "Required secrets:"
               echo "- \`SUPABASE_URL\`"
               echo "- \`SUPABASE_PUBLISHABLE_KEY\`"
-              echo "- \`SUPABASE_SERVICE_ROLE_KEY\` (required on \`main\`)"
+              echo "- \`SUPABASE_SERVICE_ROLE_KEY\`"
               echo ""
               echo "Add them here: [Repository secrets](https://github.com/${{ github.repository }}/settings/secrets/actions)"
               echo ""
-              echo "Note: \`SUPABASE_SERVICE_ROLE_KEY\` is not available on Lovable Cloud. For full tests you need a separate Supabase project; otherwise the tests will continue to skip safely."
+              echo "Note: \`SUPABASE_SERVICE_ROLE_KEY\` is not available on Lovable Cloud. For full tests you need a separate Supabase project; otherwise this job will keep skipping safely on PRs."
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::warning::RLS tests skipped — Supabase secrets are not configured. See job summary for details."
+            echo "::warning::RLS tests skipped on PR — Supabase secrets not configured. See job summary."
             exit 0
           fi
           failed=0
