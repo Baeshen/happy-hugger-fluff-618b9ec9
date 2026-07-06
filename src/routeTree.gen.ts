@@ -20,6 +20,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 
 const SpecialtiesRoute = SpecialtiesRouteImport.update({
   id: '/specialties',
@@ -75,6 +76,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicBookCreateRoute = ApiPublicBookCreateRouteImport.update({
+  id: '/api/public/book/create',
+  path: '/api/public/book/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/pharmacy': typeof PharmacyRoute
   '/specialties': typeof SpecialtiesRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/pharmacy': typeof PharmacyRoute
   '/specialties': typeof SpecialtiesRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/pharmacy': typeof PharmacyRoute
   '/specialties': typeof SpecialtiesRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/specialties'
     | '/admin'
+    | '/api/public/book/create'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/specialties'
     | '/admin'
+    | '/api/public/book/create'
   id:
     | '__root__'
     | '/'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/specialties'
     | '/_authenticated/admin'
+    | '/api/public/book/create'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   PharmacyRoute: typeof PharmacyRoute
   SpecialtiesRoute: typeof SpecialtiesRoute
+  ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -246,6 +259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/book/create': {
+      id: '/api/public/book/create'
+      path: '/api/public/book/create'
+      fullPath: '/api/public/book/create'
+      preLoaderRoute: typeof ApiPublicBookCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -271,6 +291,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   PharmacyRoute: PharmacyRoute,
   SpecialtiesRoute: SpecialtiesRoute,
+  ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
