@@ -80,26 +80,20 @@ async def main():
 
         # Rewrite the outgoing server-fn request body to inject a 501-char reason,
         # bypassing client-side normalizeReason() slicing to 500.
-        async def maybe_rewrite(route, request):
-            if "_serverFn" in request.url and request.method == "POST":
-                try:
-                    body = request.post_data or ""
-                    parsed = json.loads(body) if body else None
-                    if isinstance(parsed, dict) and "reason" in parsed:
+        async def rewrite_reason(route, request):
+            try:
+                body = request.post_data or ""
+                parsed = json.loads(body) if body else None
+                if isinstance(parsed, dict):
+                    if "reason" in parsed:
                         parsed["reason"] = REASON_501
-                        await route.continue_(post_data=json.dumps(parsed))
-                        return
-                    # Some server-fn payloads wrap args under "data"
-                    if isinstance(parsed, dict) and isinstance(parsed.get("data"), dict) \
-                       and "reason" in parsed["data"]:
+                    if isinstance(parsed.get("data"), dict) and "reason" in parsed["data"]:
                         parsed["data"]["reason"] = REASON_501
-                        await route.continue_(post_data=json.dumps(parsed))
-                        return
-                except Exception:
-                    pass
+                    await route.continue_(post_data=json.dumps(parsed))
+                    return
+            except Exception:
+                pass
             await route.continue_()
-
-        await page.route("**/*", maybe_rewrite)
 
         try:
             await sign_in(page, recep_email, recep_pwd)
