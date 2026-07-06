@@ -455,11 +455,13 @@ function AuditModal({
                   <span dir="ltr">{new Date(r.changed_at).toLocaleString("ar-SA")}</span>
                 </div>
                 {(r.old_status || r.new_status) && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">الحالة:</span>{" "}
-                    <span>{statusLabel(r.old_status)}</span>{" "}
-                    <span className="text-muted-foreground">←</span>{" "}
-                    <span className="font-medium">{statusLabel(r.new_status)}</span>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs">
+                      <span className="text-muted-foreground">نوع الانتقال:</span>
+                      <span>{statusLabel(r.old_status)}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-medium">{statusLabel(r.new_status)}</span>
+                    </span>
                   </div>
                 )}
                 {(r.old_notes !== null || r.new_notes !== null) && (r.old_notes !== undefined || r.new_notes !== undefined) && (
