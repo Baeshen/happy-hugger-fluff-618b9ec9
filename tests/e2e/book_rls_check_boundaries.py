@@ -101,8 +101,6 @@ async def run_case(ctx: BrowserContext, label: str, patient: str,
                     def patch(o):
                         if isinstance(o, dict):
                             o["appointment_date"] = yesterday
-                    (patch(x) for x in payload) if isinstance(payload, list) \
-                        else patch(payload)
                     if isinstance(payload, list):
                         for x in payload: patch(x)
                     else:
