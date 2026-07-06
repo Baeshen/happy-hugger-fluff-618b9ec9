@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_audit: {
+        Row: {
+          appointment_id: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_notes: string | null
+          new_status: Database["public"]["Enums"]["appointment_status"] | null
+          old_notes: string | null
+          old_status: Database["public"]["Enums"]["appointment_status"] | null
+          reason: string | null
+        }
+        Insert: {
+          appointment_id: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_notes?: string | null
+          new_status?: Database["public"]["Enums"]["appointment_status"] | null
+          old_notes?: string | null
+          old_status?: Database["public"]["Enums"]["appointment_status"] | null
+          reason?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_notes?: string | null
+          new_status?: Database["public"]["Enums"]["appointment_status"] | null
+          old_notes?: string | null
+          old_status?: Database["public"]["Enums"]["appointment_status"] | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_audit_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -314,6 +358,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      update_appointment_notes: {
+        Args: { _id: string; _notes: string; _reason?: string }
+        Returns: undefined
+      }
+      update_appointment_status: {
+        Args: {
+          _id: string
+          _reason?: string
+          _status: Database["public"]["Enums"]["appointment_status"]
+        }
+        Returns: undefined
       }
     }
     Enums: {
