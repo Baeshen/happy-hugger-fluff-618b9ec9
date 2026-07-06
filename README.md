@@ -110,7 +110,54 @@ SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... \
   - ملاحظة أن `SUPABASE_SERVICE_ROLE_KEY` غير متاح على Lovable Cloud.
 - لا تفشل الوظيفة، ويتم تخطّي خطوات checkout، install، والاختبارات.
 
-إذا كانت جميع الأسرار موجودة، تُكمل الوظيفة نفس مسار `main` وتشغّل كامل الاختبارات.
+### أمثلة لمحتوى `GITHUB_STEP_SUMMARY`
+
+#### مثال على `main` عند غياب `SUPABASE_SERVICE_ROLE_KEY` و `SUPABASE_PUBLISHABLE_KEY`
+
+```markdown
+## ❌ RLS tests failed on main — missing Supabase secrets
+
+This early check runs **before** checkout/install to fail fast on `main`.
+
+The following secrets are **required** but missing:
+- `SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Add them here: [Repository secrets](https://github.com/owner/repo/settings/secrets/actions)
+
+Note: `SUPABASE_SERVICE_ROLE_KEY` is not available on Lovable Cloud. For full RLS tests you need a separate Supabase project.
+```
+
+يعرض سجلّ الوظيفة أيضًا:
+
+```
+::error::RLS tests failed on main — missing secrets: SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY. See job summary for details.
+```
+
+#### مثال على PR عند غياب كل الأسرار
+
+```markdown
+## ⚠️ RLS tests skipped on PR — missing Supabase secrets
+
+This early check runs **before** checkout/install so we skip fast on PRs without wasted work.
+
+The following secrets are missing:
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+PR runs are allowed to skip; `main` is strict.
+
+Add them here: [Repository secrets](https://github.com/owner/repo/settings/secrets/actions)
+
+Note: `SUPABASE_SERVICE_ROLE_KEY` is not available on Lovable Cloud. For full tests you need a separate Supabase project; otherwise this job will keep skipping safely on PRs.
+```
+
+يعرض سجلّ الوظيفة أيضًا:
+
+```
+::warning::RLS tests skipped on PR — missing secrets: SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY. See job summary.
+```
 
 > **ملاحظة:** PRs القادمة من `forks` تُستثنى من هذه الوظيفة لأن GitHub لا يكشف أسرار المستودع الأصلي للـ forks.
 
