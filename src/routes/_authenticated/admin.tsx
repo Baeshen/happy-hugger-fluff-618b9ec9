@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeReason, isEmptyReason, reasonRequiredFor } from "@/lib/reason";
 import {
   getMyRoles,
   getAdminStats,
@@ -236,20 +237,23 @@ function AppointmentsTab() {
   });
 
   // Ask for a reason on destructive/final transitions; optional otherwise.
+  // Normalization (trim / NBSP / length cap) is shared with server + DB via
+  // src/lib/reason.ts so all three layers agree on what counts as empty.
   const changeStatus = (id: string, status: ApptStatus) => {
-    const needsReason = status === "cancelled" || status === "no_show";
+    const needsReason = reasonRequiredFor(status);
     const promptMsg = needsReason
       ? `سبب التغيير إلى "${APPT_STATUS.find((s) => s.value === status)?.label}" (إلزامي):`
       : `سبب التغيير (اختياري):`;
-    const reason = window.prompt(promptMsg, "");
-    if (reason === null) return; // cancelled
-    const trimmed = reason.trim();
-    if (needsReason && !trimmed) {
+    const raw = window.prompt(promptMsg, "");
+    if (raw === null) return; // cancelled
+    const normalized = normalizeReason(raw);
+    if (needsReason && isEmptyReason(normalized)) {
       toast.error("السبب مطلوب لهذا الإجراء");
       return;
     }
-    m.mutate({ id, status, reason: trimmed || undefined });
+    m.mutate({ id, status, reason: isEmptyReason(normalized) ? undefined : normalized });
   };
+
 
   if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
   const all = (q.data ?? []) as any[];
