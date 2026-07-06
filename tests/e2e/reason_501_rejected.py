@@ -86,16 +86,28 @@ async def main():
         async def rewrite_reason(route, request):
             try:
                 body = request.post_data or ""
+                print("  body_in:", body[:200])
                 parsed = json.loads(body) if body else None
-                if isinstance(parsed, dict):
-                    if "reason" in parsed:
-                        parsed["reason"] = REASON_501
-                    if isinstance(parsed.get("data"), dict) and "reason" in parsed["data"]:
-                        parsed["data"]["reason"] = REASON_501
-                    await route.continue_(post_data=json.dumps(parsed))
+                changed = False
+                def walk(obj):
+                    nonlocal changed
+                    if isinstance(obj, dict):
+                        for k, v in list(obj.items()):
+                            if k == "reason" and isinstance(v, str):
+                                obj[k] = REASON_501
+                                changed = True
+                            else:
+                                walk(v)
+                    elif isinstance(obj, list):
+                        for x in obj: walk(x)
+                walk(parsed)
+                if changed:
+                    new_body = json.dumps(parsed)
+                    print("  rewrote reason -> len", len(REASON_501))
+                    await route.continue_(post_data=new_body)
                     return
-            except Exception:
-                pass
+            except Exception as e:
+                print("  interceptor err:", e)
             await route.continue_()
 
         try:
