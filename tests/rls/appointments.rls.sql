@@ -9,23 +9,13 @@
 BEGIN;
 
 -- ── Test fixtures ────────────────────────────────────────────────────────────
--- Two synthetic auth.users so has_role() can resolve; rolled back at end.
-DO $$
-DECLARE
-  admin_id uuid := '11111111-1111-1111-1111-111111111111';
-  recep_id uuid := '22222222-2222-2222-2222-222222222222';
-  patient_id uuid := '33333333-3333-3333-3333-333333333333';
-BEGIN
-  INSERT INTO auth.users (id, email, aud, role, instance_id)
-  VALUES
-    (admin_id,   'rls-admin@test.local',   'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
-    (recep_id,   'rls-recep@test.local',   'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
-    (patient_id, 'rls-patient@test.local', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
-
-  INSERT INTO public.user_roles (user_id, role) VALUES
-    (admin_id, 'admin'),
-    (recep_id, 'reception');
-END $$;
+-- Insert synthetic user_roles rows. FK to auth.users is bypassed via
+-- session_replication_role='replica' (all changes rolled back at end).
+SET LOCAL session_replication_role = 'replica';
+INSERT INTO public.user_roles (user_id, role) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'admin'),
+  ('22222222-2222-2222-2222-222222222222', 'reception');
+SET LOCAL session_replication_role = 'origin';
 
 -- Seed one existing appointment (as service role / superuser) to test read/update/delete paths.
 INSERT INTO public.appointments (id, patient_name, patient_phone, appointment_date, appointment_time, status)
