@@ -11,9 +11,10 @@ reject boundary-violating inputs:
 Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_PUBLISHABLE_KEY
 Run: python3 tests/e2e/book_rls_check_boundaries.py
 """
-import asyncio, os, sys, time, json, urllib.request
+import asyncio, os, sys, time, json, urllib.request, urllib.parse
 from pathlib import Path
 from playwright.async_api import async_playwright, Page, BrowserContext
+
 
 SHOTS = Path(__file__).parent / "screenshots"
 SHOTS.mkdir(parents=True, exist_ok=True)
