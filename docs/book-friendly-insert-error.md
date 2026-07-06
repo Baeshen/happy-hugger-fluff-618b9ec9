@@ -1,6 +1,13 @@
-# استيراد `friendlyInsertError` داخل مسارات book
+# استيراد `friendlyInsertError` داخل مسارات insert
 
-> يشمل: `src/routes/book.tsx` و `src/routes/api/public/book/**/*.{ts,tsx}`
+> يشمل حاليًا:
+>
+> - `src/routes/book.tsx` (نموذج الحجز العام)
+> - `src/routes/api/public/book/**/*.{ts,tsx}` (API الحجز العام)
+> - `src/routes/pharmacy.tsx` (نموذج طلب الدواء)
+>
+> أي مسار جديد يستدعي `.insert(` من `@/integrations/supabase/client` يجب أن يُضاف
+> إلى قائمة `files` في `eslint.config.js` وإلى `lint:inserts` في `package.json`.
 
 ## الطريقة الصحيحة الوحيدة
 
