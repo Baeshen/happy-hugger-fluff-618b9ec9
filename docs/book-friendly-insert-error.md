@@ -49,16 +49,16 @@ import { friendlyInsertError } from "@/lib/insert-errors.local";
 
 يفشل أي تعريف محلي للاسمين داخل مسارات book:
 
+<!-- prettier-ignore -->
 ```ts
 // ✗ خطأ: إعادة تعريف الدالة
-function friendlyInsertError(err: unknown) {
-  return "...";
-}
+function friendlyInsertError(err: unknown) { return "..."; }
 const friendlyInsertError = (err: unknown) => "...";
 
 // ✗ خطأ: نسخة محلية من جدول الرسائل
 const FRIENDLY_INSERT_MESSAGES = { rls: "..." } as const;
 ```
+
 
 الرسالة:
 
