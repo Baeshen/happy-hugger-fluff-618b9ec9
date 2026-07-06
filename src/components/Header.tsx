@@ -1,12 +1,22 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X, Globe, Phone } from "lucide-react";
-import { useState } from "react";
+import { Menu, X, Globe, Phone, LayoutDashboard, LogIn } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
+import { supabase } from "@/integrations/supabase/client";
 
 export function Header() {
   const { t, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSignedIn(!!session);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const nav = [
     { to: "/", label: t("nav_home") },
