@@ -233,7 +233,21 @@ function AppointmentsTab() {
       toast.success(`تم تحديث الحالة إلى: ${label}`);
       q.refetch();
     },
-    onError: (e: any) => toast.error(e?.message ?? "فشل التحديث"),
+    onError: (e: any) => {
+      const msg: string = e?.message ?? "";
+      // Unify DB-side reason failures (empty after trim / whitespace-only incl. \n \t NBSP)
+      // to the same user-facing message used by client-side pre-validation.
+      if (
+        /reason_required_for_/i.test(msg) ||
+        /reason_blank_after_trim/i.test(msg) ||
+        /السبب مطلوب/.test(msg) ||
+        /السبب المُدخل فارغ/.test(msg)
+      ) {
+        toast.error("السبب مطلوب لهذا الإجراء");
+        return;
+      }
+      toast.error(msg || "فشل التحديث");
+    },
   });
 
   // Ask for a reason on destructive/final transitions; optional otherwise.
