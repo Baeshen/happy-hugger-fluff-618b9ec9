@@ -150,11 +150,109 @@ async function main() {
     }
   }
 
+  // ---------- B2. Real 23502 (not-null) via user_roles missing user_id ----------
+  let realNotNull: PGErr | null = null;
+  await test("B2. real 23502 not-null on user_roles.user_id → missing Arabic", async () => {
+    // Cast through unknown so the SDK type-check doesn't block the intentionally
+    // malformed payload we need to reach the DB.
+    const { error } = await admin.from("user_roles").insert(
+      { role: "reception" } as unknown as { user_id: string; role: "reception" },
+    );
+    assert(error, "expected not-null error");
+    realNotNull = error as PGErr;
+    assertEq(realNotNull.code, "23502", "expected code 23502");
+    const mapped = friendlyInsertError(realNotNull);
+    assertEq(mapped, FRIENDLY_INSERT_MESSAGES.missing, "mapped Arabic (missing)");
+    assertNoLeak(mapped, realNotNull, "B2/no-leak");
+  });
+
+  // ---------- B3. Real 23503 (FK) via user_roles with non-existent user_id ----------
+  let realFk: PGErr | null = null;
+  await test("B3. real 23503 FK on user_roles.user_id → reference Arabic", async () => {
+    const { error } = await admin.from("user_roles").insert({
+      user_id: "00000000-0000-0000-0000-000000000000",
+      role: "reception",
+    });
+    assert(error, "expected FK error");
+    realFk = error as PGErr;
+    assertEq(realFk.code, "23503", "expected code 23503");
+    const mapped = friendlyInsertError(realFk);
+    assertEq(mapped, FRIENDLY_INSERT_MESSAGES.reference, "mapped Arabic (reference)");
+    assertNoLeak(mapped, realFk, "B3/no-leak");
+  });
+
+  // ---------- B4. Real 22P02 (invalid enum) via user_roles.role = bogus ----------
+  let realInvalid: PGErr | null = null;
+  let bogusUserId: string | null = null;
+  try {
+    await test("B4. real 22P02 invalid enum value on user_roles.role → invalid Arabic", async () => {
+      const email = `fie-enum-${Date.now()}@test.local`;
+      const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
+      const { data: u, error: uerr } = await admin.auth.admin.createUser({
+        email, password, email_confirm: true,
+      });
+      if (uerr) throw uerr;
+      bogusUserId = u.user.id;
+      const { error } = await admin.from("user_roles").insert(
+        { user_id: bogusUserId, role: "definitely_not_a_role" } as unknown as {
+          user_id: string; role: "reception";
+        },
+      );
+      assert(error, "expected invalid-enum error");
+      realInvalid = error as PGErr;
+      assertEq(realInvalid.code, "22P02", "expected code 22P02");
+      const mapped = friendlyInsertError(realInvalid);
+      assertEq(mapped, FRIENDLY_INSERT_MESSAGES.invalid, "mapped Arabic (invalid)");
+      assertNoLeak(mapped, realInvalid, "B4/no-leak");
+    });
+  } finally {
+    if (bogusUserId) {
+      try { await admin.from("user_roles").delete().eq("user_id", bogusUserId); } catch {}
+      try { await admin.auth.admin.deleteUser(bogusUserId); } catch {}
+    }
+  }
+
   // ---------- C. Shape-only 23514 (no English text) ----------
   await test("C. code-only 23514 (empty message) → check Arabic (code-first mapping)", async () => {
     const fake: PGErr = { code: "23514", message: "" };
     const mapped = friendlyInsertError(fake);
     assertEq(mapped, FRIENDLY_INSERT_MESSAGES.check, "mapped Arabic (check)");
+  });
+
+  // ---------- C2. Shape-only 22001 length overflow → also `check` ----------
+  await test("C2. code-only 22001 (string_data_right_truncation) → check Arabic", async () => {
+    const fake: PGErr = { code: "22001", message: "" };
+    const mapped = friendlyInsertError(fake);
+    assertEq(mapped, FRIENDLY_INSERT_MESSAGES.check, "mapped Arabic (check)");
+  });
+
+  // ---------- C3. Text-only 23502 without code → `missing` ----------
+  await test("C3. text-only null-value message (no code) → missing Arabic", async () => {
+    const fake: PGErr = {
+      message: 'null value in column "user_id" of relation "user_roles" violates not-null constraint',
+    };
+    const mapped = friendlyInsertError(fake);
+    assertEq(mapped, FRIENDLY_INSERT_MESSAGES.missing, "mapped Arabic (missing via text)");
+    assertNoLeak(mapped, fake, "C3/no-leak");
+  });
+
+  // ---------- C4. Text-only 23503 foreign-key message → `reference` ----------
+  await test("C4. text-only foreign-key message (no code) → reference Arabic", async () => {
+    const fake: PGErr = {
+      message:
+        'insert or update on table "user_roles" violates foreign key constraint "user_roles_user_id_fkey"',
+    };
+    const mapped = friendlyInsertError(fake);
+    assertEq(mapped, FRIENDLY_INSERT_MESSAGES.reference, "mapped Arabic (reference via text)");
+    assertNoLeak(mapped, fake, "C4/no-leak");
+  });
+
+  // ---------- C5. Text-only 22P02 invalid input syntax → `invalid` ----------
+  await test("C5. text-only 'invalid input syntax' (no code) → invalid Arabic", async () => {
+    const fake: PGErr = { message: 'invalid input syntax for type uuid: "not-a-uuid"' };
+    const mapped = friendlyInsertError(fake);
+    assertEq(mapped, FRIENDLY_INSERT_MESSAGES.invalid, "mapped Arabic (invalid via text)");
+    assertNoLeak(mapped, fake, "C5/no-leak");
   });
 
   // ---------- D. Text-only 42501 ----------
@@ -200,13 +298,21 @@ async function main() {
     }
   });
 
-  // ---------- H. Global non-leak on both real errors ----------
+  // ---------- H. Global non-leak across every captured real error ----------
   await test("H. real PostgREST errors never leak provider tokens into mapped strings", async () => {
-    assert(realRls, "A did not capture a real 42501");
-    assert(realDup, "B did not capture a real 23505");
-    assertNoLeak(friendlyInsertError(realRls), realRls, "H/rls");
-    assertNoLeak(friendlyInsertError(realDup), realDup, "H/dup");
+    const cases: Array<[string, PGErr | null]> = [
+      ["rls",     realRls],
+      ["dup",     realDup],
+      ["notnull", realNotNull],
+      ["fk",      realFk],
+      ["invalid", realInvalid],
+    ];
+    for (const [label, e] of cases) {
+      assert(e, `no real error captured for ${label}`);
+      assertNoLeak(friendlyInsertError(e), e, `H/${label}`);
+    }
   });
+
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
