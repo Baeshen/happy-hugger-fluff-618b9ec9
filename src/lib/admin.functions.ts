@@ -117,18 +117,49 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const actorId = context.userId;
+
+    const logDenied = async (
+      denyReason: string,
+      fromStatus: string | null,
+      extra?: Record<string, unknown>,
+    ) => {
+      try {
+        await sb.rpc("log_security_event" as any, {
+          _action: "appointment_status_update_denied",
+          _appointment_id: data.id,
+          _from_status: fromStatus,
+          _to_status: data.status,
+          _reason: denyReason,
+          _metadata: { actor: actorId, requested_reason: data.reason ?? null, ...(extra ?? {}) },
+        } as any);
+      } catch (e) {
+        console.error("[security-audit] failed to log denial", e);
+      }
+    };
+
     // 1) Authenticated user (middleware) + role gate
-    const roles = (await getRoles(context.supabase, context.userId)) as StaffRole[];
-    ensureRole(roles, ["admin", "reception"]);
+    const roles = (await getRoles(sb, actorId)) as StaffRole[];
+    if (!roles.some((r) => (["admin", "reception"] as StaffRole[]).includes(r))) {
+      await logDenied("role_denied", null, { roles });
+      throw new Error("ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
+    }
 
     // 2) Load the target row (RLS-scoped as the caller). Missing / hidden → 404-ish
-    const { data: current, error: readErr } = await context.supabase
+    const { data: current, error: readErr } = await sb
       .from("appointments")
       .select("id, status")
       .eq("id", data.id)
       .maybeSingle();
-    if (readErr) throw new Error(humanizeSupabaseError(readErr));
-    if (!current) throw new Error("الحجز غير موجود أو لا تملك صلاحية عرضه.");
+    if (readErr) {
+      await logDenied("read_error", null, { code: readErr.code });
+      throw new Error(humanizeSupabaseError(readErr));
+    }
+    if (!current) {
+      await logDenied("appointment_not_found", null);
+      throw new Error("الحجز غير موجود أو لا تملك صلاحية عرضه.");
+    }
 
     // 3-4) Transition legality + per-transition role check + reason requirement
     const check = checkAppointmentTransition(
@@ -137,16 +168,25 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
       roles,
       data.reason,
     );
-    if (!check.ok) throw new Error(check.message);
+    if (!check.ok) {
+      await logDenied((check as any).code ?? "transition_denied", current.status, {
+        message: check.message,
+        roles,
+      });
+      throw new Error(check.message);
+    }
     if (check.unchanged) return { ok: true, unchanged: true };
 
     // 5) Perform the update via RPC (carries reason into the audit trigger)
-    const { error } = await context.supabase.rpc("update_appointment_status" as any, {
+    const { error } = await sb.rpc("update_appointment_status" as any, {
       _id: data.id,
       _status: data.status,
       _reason: data.reason ?? null,
     } as any);
-    if (error) throw new Error(humanizeSupabaseError(error));
+    if (error) {
+      await logDenied("rpc_error", current.status, { code: error.code });
+      throw new Error(humanizeSupabaseError(error));
+    }
     return { ok: true };
   });
 
