@@ -150,16 +150,6 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-    // 5) Perform the update via RPC (carries reason into the audit trigger)
-    const { error } = await context.supabase.rpc("update_appointment_status" as any, {
-      _id: data.id,
-      _status: data.status,
-      _reason: data.reason ?? null,
-    } as any);
-    if (error) throw new Error(humanizeSupabaseError(error));
-    return { ok: true };
-  });
-
 export const updateAppointmentNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
