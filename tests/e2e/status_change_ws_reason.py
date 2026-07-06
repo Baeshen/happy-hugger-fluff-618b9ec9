@@ -111,28 +111,36 @@ async def main():
             if req.method == "POST" and "_serverFn" in req.url else None))
 
         try:
-            # Create all appointments up-front so we don't reload the page
-            # per iteration (reload resets the active tab and would race the
-            # rerender). Keep a stable per-attempt patient name for locating.
-            plan: list[tuple[str, str, str, str, str]] = []  # (label, db_status, ws_name, ws_raw, patient)
+            # Seed appointments; the DB trigger `force_appointment_defaults`
+            # sanitizes anonymous inserts to status='new'. We then promote each
+            # row to 'confirmed' via service-key SQL so both "إلغاء" and
+            # "لم يحضر" buttons render on the row.
+            plan: list[tuple[str, str, str, str, str, str]] = []
+            # (label, db_status, ws_name, ws_raw, patient, aid)
             for label, db_status in DESTRUCTIVE:
                 for ws_name, ws_raw in WS_INPUTS:
                     patient = f"WS-{db_status}-{ws_name}-{stamp}"
                     aid = new_appt(patient); ids.append(aid)
-                    plan.append((label, db_status, ws_name, ws_raw, patient))
+                    # Promote to 'confirmed' (bypasses force_appointment_defaults,
+                    # which is BEFORE INSERT only). This UPDATE fires the audit
+                    # trigger with an empty reason and a non-required status,
+                    # producing one baseline audit row we account for below.
+                    sb(f"/rest/v1/appointments?id=eq.{aid}",
+                       method="PATCH", body={"status": "confirmed"})
+                    plan.append((label, db_status, ws_name, ws_raw, patient, aid))
 
             await sign_in(page, email, pwd)
-            # Wait until at least one seeded row is visible under the tab.
             first_patient = plan[0][4]
-            await page.locator("tr", has_text=first_patient).first.wait_for(timeout=10000)
+            await page.locator("tr", has_text=first_patient).last.wait_for(timeout=10000)
 
-            for i, (label, db_status, ws_name, ws_raw, patient) in enumerate(plan):
-                aid = ids[i]
-                # Stub prompt for THIS attempt only.
+            for (label, db_status, ws_name, ws_raw, patient, aid) in plan:
+                # Baseline snapshot BEFORE the click.
+                status_before = status_of(aid)
+                audit_before = audit_count(aid)
+
                 js_literal = json.dumps(ws_raw)
                 await page.evaluate(f"() => {{ window.prompt = () => {js_literal}; }}")
 
-                # Prefer the row inside the appointments table (last tr with this text).
                 row = page.locator("tr", has_text=patient).last
                 try:
                     await row.wait_for(timeout=8000)
@@ -142,13 +150,15 @@ async def main():
 
                 btn = row.get_by_role("button", name=label)
                 if await btn.count() == 0:
-                    failures.append(f"[{db_status}/{ws_name}] '{label}' button missing on row")
+                    failures.append(
+                        f"[{db_status}/{ws_name}] '{label}' button missing on row "
+                        f"(status_before={status_before})")
                     continue
 
                 fn_calls.clear()
                 await btn.first.click()
 
-                # (1) toast must appear
+                # (1) toast «السبب مطلوب لهذا الإجراء»
                 toast = page.get_by_text("السبب مطلوب لهذا الإجراء").first
                 try:
                     await toast.wait_for(timeout=4000)
@@ -161,20 +171,23 @@ async def main():
                 # (2) no server-fn call
                 if fn_calls:
                     failures.append(
-                        f"[{db_status}/{ws_name}] server fn was invoked {len(fn_calls)}× (expected 0)")
+                        f"[{db_status}/{ws_name}] server fn was invoked "
+                        f"{len(fn_calls)}× (expected 0)")
 
-                # (3) DB status unchanged
-                now = status_of(aid)
-                if now != "confirmed":
+                # (3) status must NOT change from its pre-click value
+                status_after = status_of(aid)
+                if status_after != status_before:
                     failures.append(
-                        f"[{db_status}/{ws_name}] status changed to {now} (expected 'confirmed')")
+                        f"[{db_status}/{ws_name}] status changed "
+                        f"{status_before} → {status_after}")
 
-                # (4) no audit row
-                ac = audit_count(aid)
-                if ac != 0:
-                    failures.append(f"[{db_status}/{ws_name}] audit rows={ac} (expected 0)")
+                # (4) no NEW audit row (compare against baseline)
+                audit_after = audit_count(aid)
+                if audit_after != audit_before:
+                    failures.append(
+                        f"[{db_status}/{ws_name}] audit rows grew "
+                        f"{audit_before} → {audit_after}")
 
-                # Let the toast dismiss before the next attempt.
                 await page.wait_for_timeout(1200)
 
             await page.screenshot(path=str(SHOTS / "status_ws_final.png"))
