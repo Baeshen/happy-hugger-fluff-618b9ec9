@@ -11,8 +11,50 @@ async function getRoles(supabase: any, userId: string): Promise<Role[]> {
 
 function ensureRole(roles: Role[], allowed: Role[]) {
   if (!roles.some((r) => allowed.includes(r))) {
-    throw new Error("Forbidden");
+    throw new Error("ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
   }
+}
+
+/**
+ * Convert a raw Supabase/PostgREST error into an Arabic user-facing message.
+ * Handles: RLS denials, check-constraint violations, FK/unique conflicts,
+ * missing rows, and network timeouts. Keeps raw details in the log server-side.
+ */
+function humanizeSupabaseError(err: any, fallback = "تعذّر تنفيذ الطلب."): string {
+  if (!err) return fallback;
+  const code: string | undefined = err.code ?? err.details?.code;
+  const msg: string = String(err.message ?? err.details ?? "");
+  console.error("[supabase-error]", { code, msg, hint: err.hint, details: err.details });
+
+  // RLS denial (PostgREST maps to 42501 or PGRST301)
+  if (code === "42501" || code === "PGRST301" || /row-level security|permission denied/i.test(msg)) {
+    return "ليست لديك الصلاحية لتنفيذ هذا الإجراء. الرجاء التواصل مع المسؤول إذا كنت ترى هذا خطأً.";
+  }
+  // CHECK constraint / policy WITH CHECK failure on insert
+  if (code === "23514" || /violates check constraint/i.test(msg)) {
+    return "البيانات المُدخلة غير صالحة. الرجاء مراجعة الحقول والمحاولة مجددًا.";
+  }
+  // Unique violation
+  if (code === "23505" || /duplicate key/i.test(msg)) {
+    return "توجد بيانات مكرّرة تمنع إتمام العملية.";
+  }
+  // Foreign key
+  if (code === "23503" || /foreign key/i.test(msg)) {
+    return "لا يمكن تنفيذ الطلب لوجود سجلات مرتبطة.";
+  }
+  // Not-null
+  if (code === "23502" || /null value in column/i.test(msg)) {
+    return "أحد الحقول المطلوبة مفقود.";
+  }
+  // Auth / session
+  if (/jwt|unauthorized|not authenticated/i.test(msg)) {
+    return "انتهت الجلسة. الرجاء تسجيل الدخول من جديد.";
+  }
+  // Rate limit
+  if (code === "429" || /rate limit/i.test(msg)) {
+    return "عدد المحاولات مرتفع. الرجاء الانتظار قليلًا ثم المحاولة مرة أخرى.";
+  }
+  return fallback;
 }
 
 export const getMyRoles = createServerFn({ method: "GET" })
@@ -59,7 +101,7 @@ export const listAppointments = createServerFn({ method: "GET" })
       .order("appointment_date", { ascending: false })
       .order("appointment_time", { ascending: false })
       .limit(200);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return data ?? [];
   });
 
@@ -80,7 +122,7 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
       _status: data.status,
       _reason: data.reason ?? null,
     } as any);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -101,7 +143,7 @@ export const updateAppointmentNotes = createServerFn({ method: "POST" })
       _notes: data.notes,
       _reason: data.reason ?? null,
     } as any);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -117,7 +159,7 @@ export const listAppointmentAudit = createServerFn({ method: "GET" })
       .eq("appointment_id", data.appointmentId)
       .order("changed_at", { ascending: false })
       .limit(200);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     // Enrich with actor email (best-effort; requires admin)
     const ids = Array.from(new Set((rows ?? []).map((r: any) => r.changed_by).filter(Boolean)));
     let emailById = new Map<string, string>();
@@ -142,7 +184,7 @@ export const listOrders = createServerFn({ method: "GET" })
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return data ?? [];
   });
 
@@ -161,7 +203,7 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
       .from("medicine_orders")
       .update({ status: data.status })
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -174,7 +216,7 @@ export const listDoctorsAdmin = createServerFn({ method: "GET" })
       .from("doctors")
       .select("*, specialties(name_ar,name_en)")
       .order("sort_order", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return data ?? [];
   });
 
@@ -188,7 +230,7 @@ export const toggleDoctorActive = createServerFn({ method: "POST" })
       .from("doctors")
       .update({ is_active: data.is_active })
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -215,7 +257,7 @@ export const listSpecialtiesAdmin = createServerFn({ method: "GET" })
       .from("specialties")
       .select("id, name_ar, name_en")
       .order("sort_order", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return data ?? [];
   });
 
@@ -231,7 +273,7 @@ export const createDoctor = createServerFn({ method: "POST" })
       .insert(payload as any)
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return row;
   });
 
@@ -245,7 +287,7 @@ export const updateDoctor = createServerFn({ method: "POST" })
     const payload: any = { ...rest };
     if ("photo_url" in payload) payload.photo_url = payload.photo_url || null;
     const { error } = await context.supabase.from("doctors").update(payload).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -256,7 +298,7 @@ export const deleteDoctor = createServerFn({ method: "POST" })
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin"]);
     const { error } = await context.supabase.from("doctors").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -282,7 +324,7 @@ export const listSpecialtiesFull = createServerFn({ method: "GET" })
       .from("specialties")
       .select("*")
       .order("sort_order", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return data ?? [];
   });
 
@@ -297,7 +339,7 @@ export const createSpecialty = createServerFn({ method: "POST" })
       .insert(data as any)
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return row;
   });
 
@@ -309,7 +351,7 @@ export const updateSpecialty = createServerFn({ method: "POST" })
     ensureRole(roles, ["admin"]);
     const { id, ...rest } = data;
     const { error } = await context.supabase.from("specialties").update(rest as any).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -320,7 +362,7 @@ export const deleteSpecialty = createServerFn({ method: "POST" })
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin"]);
     const { error } = await context.supabase.from("specialties").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
@@ -346,7 +388,7 @@ export const listAvailability = createServerFn({ method: "GET" })
       .eq("doctor_id", data.doctor_id)
       .order("weekday", { ascending: true })
       .order("start_time", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return rows ?? [];
   });
 
@@ -362,7 +404,7 @@ export const createAvailability = createServerFn({ method: "POST" })
       .insert(data as any)
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return row;
   });
 
@@ -373,7 +415,7 @@ export const deleteAvailability = createServerFn({ method: "POST" })
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin"]);
     const { error } = await context.supabase.from("availability").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
 
