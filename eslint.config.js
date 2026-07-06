@@ -41,7 +41,11 @@ export default tseslint.config(
   // never be redefined locally inside a book route (which is how the previous
   // import conflict slipped in).
   {
-    files: ["src/routes/book.tsx", "src/routes/api/public/book/**/*.{ts,tsx}"],
+    files: [
+      "src/routes/book.tsx",
+      "src/routes/api/public/book/**/*.{ts,tsx}",
+      "src/routes/pharmacy.tsx",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -68,7 +72,7 @@ export default tseslint.config(
           selector:
             "VariableDeclarator[id.name='friendlyInsertError'], FunctionDeclaration[id.name='friendlyInsertError'], VariableDeclarator[id.name='FRIENDLY_INSERT_MESSAGES']",
           message:
-            "لا تعرّف friendlyInsertError أو FRIENDLY_INSERT_MESSAGES محليًا داخل مسارات book — استوردهما من '@/lib/insert-errors'. راجع docs/book-friendly-insert-error.md",
+            "لا تعرّف friendlyInsertError أو FRIENDLY_INSERT_MESSAGES محليًا داخل مسارات insert — استوردهما من '@/lib/insert-errors'. راجع docs/book-friendly-insert-error.md",
         },
         {
           selector:
