@@ -175,6 +175,28 @@ Note: `SUPABASE_SERVICE_ROLE_KEY` is not available on Lovable Cloud. For full te
 
 > **ملاحظة:** PRs القادمة من `forks` تُستثنى من هذه الوظيفة لأن GitHub لا يكشف أسرار المستودع الأصلي للـ forks.
 
+## استكشاف أخطاء CI المتعلقة بالأسرار
+
+| العَرَض | السبب المحتمل | الحل |
+| -------- | -------------- | ---- |
+| `## ❌ RLS tests failed on main — missing Supabase secrets` في `GITHUB_STEP_SUMMARY` | واحد أو أكثر من أسرار Supabase غير مضبوط في Repository secrets | أضِف الأسرار الناقصة في **Settings → Secrets and variables → Actions** بأسمائها بالضبط: `SUPABASE_URL`، `SUPABASE_PUBLISHABLE_KEY`، `SUPABASE_SERVICE_ROLE_KEY`. |
+| `## ⚠️ RLS tests skipped on PR — missing Supabase secrets` | نفس الأسباب السابقة لكن على PR | اختياري على PR؛ إذا أردت تشغيل الاختبارات على PR أضِف الأسرار. إذا كنت تستخدم Lovable Cloud، فالتخطّي المتكرّر متوقّع. |
+| لا يظهر وظيفة `rls-tests-pr` في CI لـ PR | الـ PR قادم من `fork` | الوظيفة تُستثني الـ forks لأن GitHub لا يكشف أسرار المستودع الأصلي للـ forks. ادمج الفرع في المستودع الأصلي أولًا. |
+| الاختبارات تفشل بعد الفحص المبكّر مع خطأ `401 Unauthorized` أو `403 Forbidden` | مفتاح خاطئ أو عنوان مشروع غير صحيح | تأكّد من أن `SUPABASE_URL` يبدأ بـ `https://` وينتهي بـ `.supabase.co`، وأن المفتاح المستخدَم يتطابق مع المشروع (لا تخلط بين مفتاحي `PUBLISHABLE` و `SERVICE_ROLE`). |
+| لا أستطيع الحصول على `SUPABASE_SERVICE_ROLE_KEY` | Lovable Cloud لا يوفّر مفتاح الخدمة | أنشئ مشروع Supabase منفصلًا خاصًا بالاختبارات واستخدم `SUPABASE_SERVICE_ROLE_KEY` الخاص به. |
+| تكرار رسالة التخطّي على كل PR | الأسرار مضبوطة لكن الوظيفة ما زالت تتخطّى | تأكّد أن الأسرار مضبوطة في **Repository secrets** (وليس Environment secrets فقط)، وأن أسماؤها متطابقة تمامًا (حسّاسة لحالة الأحرف). |
+
+### قائمة مرجعية سريعة
+
+1. افتح المستودع على GitHub.
+2. اذهب إلى **Settings → Secrets and variables → Actions**.
+3. تحقّق من وجود الأسرار الثلاثة بالأسماء التالية:
+   - `SUPABASE_URL`
+   - `SUPABASE_PUBLISHABLE_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+4. إذا كانت ناقصة، أضِفها بقيمها الصحيحة.
+5. أعد تشغيل الوظيفة (re-run) في GitHub Actions.
+
 ## حمايات مهمة
 
 - لا يُعرض للمستخدم أي نص خطأ إنجليزي قادم من PostgREST/PL/pgSQL — الرسائل العربية الثابتة فقط.
