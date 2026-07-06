@@ -35,6 +35,7 @@ import { friendlyInsertError } from "@/lib/insert-errors.local";
 ```
 
 الرسالة:
+
 > استورد friendlyInsertError / FRIENDLY_INSERT_MESSAGES من '@/lib/insert-errors' فقط — لا تعيد تعريفها أو تستوردها من مسار آخر.
 
 ### 2. `no-restricted-syntax` — منع إعادة التعريف المحلية
@@ -43,7 +44,9 @@ import { friendlyInsertError } from "@/lib/insert-errors.local";
 
 ```ts
 // ✗ خطأ: إعادة تعريف الدالة
-function friendlyInsertError(err: unknown) { return "..."; }
+function friendlyInsertError(err: unknown) {
+  return "...";
+}
 const friendlyInsertError = (err: unknown) => "...";
 
 // ✗ خطأ: نسخة محلية من جدول الرسائل
@@ -51,31 +54,31 @@ const FRIENDLY_INSERT_MESSAGES = { rls: "..." } as const;
 ```
 
 الرسالة:
+
 > لا تعرّف friendlyInsertError أو FRIENDLY_INSERT_MESSAGES محليًا داخل مسارات book — استوردهما من '@/lib/insert-errors'.
 
 كما يفشل أي `ImportDeclaration` مصدره يحتوي `insert-errors` وليس بالضبط `@/lib/insert-errors` (يمسك أيضًا حالات لم تلتقطها القائمة أعلاه).
 
 ## طبقات الحماية
 
-| الطبقة | الأمر | متى تعمل |
-|--------|-------|----------|
-| Pre-commit hook | `.husky/pre-commit` | تلقائيًا عند `git commit` على أي ملف من book |
-| CI | `.github/workflows/ci.yml` → `bun run lint:book` + `bun run typecheck` | على كل PR وعلى الدمج إلى `main` |
-| Fixture اختبار | `bash tests/lint/book-guardrails.sh` | يدويًا للتأكد أن القواعد نفسها لا تزال فعّالة |
+| الطبقة          | الأمر                                                                  | متى تعمل                                      |
+| --------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
+| Pre-commit hook | `.husky/pre-commit`                                                    | تلقائيًا عند `git commit` على أي ملف من book  |
+| CI              | `.github/workflows/ci.yml` → `bun run lint:book` + `bun run typecheck` | على كل PR وعلى الدمج إلى `main`               |
+| Fixture اختبار  | `bash tests/lint/book-guardrails.sh`                                   | يدويًا للتأكد أن القواعد نفسها لا تزال فعّالة |
 
 ## عند إضافة رسالة جديدة
 
 1. أضف المفتاح والنص العربي في `FRIENDLY_INSERT_MESSAGES` داخل `src/lib/insert-errors.ts`.
 2. أضف الشرط (رمز Postgres أو نمط نصي) داخل `friendlyInsertError`.
 3. غطِّه في `tests/rls/friendly-insert-error.test.ts` (shape + real حين أمكن) وفي `tests/rls/book-api-friendly-errors.test.ts`.
-4. **لا تغيّر شيئًا داخل `src/routes/book.tsx` أو `src/routes/api/public/book/**`** — سيلتقطها كلاهما تلقائيًا لأن الاستيراد واحد.
+4. **لا تغيّر شيئًا داخل `src/routes/book.tsx` أو `src/routes/api/public/book/**`\*\* — سيلتقطها كلاهما تلقائيًا لأن الاستيراد واحد.
 
 ### خطوات عملية مفصّلة
 
 <!-- docs-example-keys: busy -->
 <!-- المفتاح `busy` أدناه افتراضي لغرض الشرح فقط؛ يُستثنى من تحقق
      tests/unit/book-docs-keys.test.ts لأنه غير مسجّل في الكود. -->
-
 
 لنفترض أنك تريد إضافة رسالة لحالة **تجاوز حد التزامن** (SQLSTATE `40001` — `serialization_failure`) برسالة عربية مسموح بها:
 `"النظام مشغول الآن. حاول مرة أخرى بعد لحظات."`
@@ -85,10 +88,10 @@ const FRIENDLY_INSERT_MESSAGES = { rls: "..." } as const;
 ```ts
 export const FRIENDLY_INSERT_MESSAGES = {
   duplicate: "الموعد محجوز مسبقًا. اختر وقتًا آخر.",
-  rls:       "تعذر الحفظ. تأكد من الاسم والهاتف وأن التاريخ ليس في الماضي.",
+  rls: "تعذر الحفظ. تأكد من الاسم والهاتف وأن التاريخ ليس في الماضي.",
   // ... باقي المفاتيح الحالية ...
-  unknown:   "حدث خطأ غير متوقع أثناء الحفظ.",
-  busy:      "النظام مشغول الآن. حاول مرة أخرى بعد لحظات.", // ← جديد
+  unknown: "حدث خطأ غير متوقع أثناء الحفظ.",
+  busy: "النظام مشغول الآن. حاول مرة أخرى بعد لحظات.", // ← جديد
 } as const;
 ```
 
@@ -108,13 +111,18 @@ return FRIENDLY_INSERT_MESSAGES.unknown;
 
 ```ts
 it("يعيد رسالة busy عند رمز 40001", () => {
-  expect(friendlyInsertError({ code: "40001", message: "could not serialize access due to concurrent update" }))
-    .toBe(FRIENDLY_INSERT_MESSAGES.busy);
+  expect(
+    friendlyInsertError({
+      code: "40001",
+      message: "could not serialize access due to concurrent update",
+    }),
+  ).toBe(FRIENDLY_INSERT_MESSAGES.busy);
 });
 
 it("يعيد رسالة busy عند تطابق نصي فقط", () => {
-  expect(friendlyInsertError({ message: "could not serialize access" }))
-    .toBe(FRIENDLY_INSERT_MESSAGES.busy);
+  expect(friendlyInsertError({ message: "could not serialize access" })).toBe(
+    FRIENDLY_INSERT_MESSAGES.busy,
+  );
 });
 ```
 
@@ -127,7 +135,6 @@ it("يعيد رسالة busy عند تطابق نصي فقط", () => {
 ```ts
 // ✗ إعادة تعريف الجدول محليًا لإضافة مفتاح جديد
 const FRIENDLY_INSERT_MESSAGES = { ...imported, busy: "..." } as const;
-
 ```
 
 بدلًا من ذلك اكتفِ باستدعاء واحد:
@@ -193,5 +200,3 @@ bun run lint:book
 bun run typecheck
 bash tests/lint/book-docs-examples.sh
 ```
-
-

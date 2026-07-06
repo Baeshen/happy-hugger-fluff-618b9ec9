@@ -52,7 +52,11 @@ async function run() {
 
   async function createUser(email: string, role: string | null) {
     const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
-    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
     if (error) throw error;
     if (role) await admin.from("user_roles").insert({ user_id: data.user.id, role });
     return { userId: data.user.id, email, password };
@@ -76,7 +80,13 @@ async function run() {
   const notesOf = async (id: string) =>
     (await admin.from("appointments").select("notes").eq("id", id).single()).data?.notes;
   const auditOf = async (id: string) =>
-    (await admin.from("appointment_audit").select("*").eq("appointment_id", id).order("changed_at", { ascending: false })).data ?? [];
+    (
+      await admin
+        .from("appointment_audit")
+        .select("*")
+        .eq("appointment_id", id)
+        .order("changed_at", { ascending: false })
+    ).data ?? [];
 
   console.log("── updateAppointmentNotes integration ──");
   const stamp = Date.now();
@@ -99,10 +109,14 @@ async function run() {
   try {
     // ── Permissions ────────────────────────────────────────────────────────
     await test("reception can update notes; audit row records actor + reason", async () => {
-      const id = await newAppt("new"); created.push(id);
+      const id = await newAppt("new");
+      created.push(id);
       const reason = "تحديث ملاحظات أثناء الاتصال";
-      const { error } = await recepC.rpc("update_appointment_notes" as any,
-        { _id: id, _notes: "المريض يفضل الفترة الصباحية", _reason: reason });
+      const { error } = await recepC.rpc("update_appointment_notes" as any, {
+        _id: id,
+        _notes: "المريض يفضل الفترة الصباحية",
+        _reason: reason,
+      });
       assert(!error, `rpc failed: ${error?.message}`);
       assert((await notesOf(id)) === "المريض يفضل الفترة الصباحية", "notes not saved");
       const audit = await auditOf(id);
@@ -113,10 +127,14 @@ async function run() {
     });
 
     await test("admin can clear notes to NULL; audit captures old value", async () => {
-      const id = await newAppt("new"); created.push(id);
+      const id = await newAppt("new");
+      created.push(id);
       await admin.from("appointments").update({ notes: "قديم" }).eq("id", id);
-      const { error } = await adminC.rpc("update_appointment_notes" as any,
-        { _id: id, _notes: null, _reason: "مسح" });
+      const { error } = await adminC.rpc("update_appointment_notes" as any, {
+        _id: id,
+        _notes: null,
+        _reason: "مسح",
+      });
       assert(!error, `rpc failed: ${error?.message}`);
       assert((await notesOf(id)) === null, "notes not cleared");
       const audit = await auditOf(id);
@@ -124,47 +142,71 @@ async function run() {
     });
 
     await test("pharmacy cannot mutate notes (RLS blocks silently)", async () => {
-      const id = await newAppt("new"); created.push(id);
+      const id = await newAppt("new");
+      created.push(id);
       await admin.from("appointments").update({ notes: "ثابت" }).eq("id", id);
-      await pharmC.rpc("update_appointment_notes" as any,
-        { _id: id, _notes: "محاولة تعديل", _reason: null });
+      await pharmC.rpc("update_appointment_notes" as any, {
+        _id: id,
+        _notes: "محاولة تعديل",
+        _reason: null,
+      });
       assert((await notesOf(id)) === "ثابت", "pharmacy must not be able to change notes");
       assert((await auditOf(id)).length === 0, "no audit row should be written");
     });
 
     await test("patient (no role) cannot mutate notes", async () => {
-      const id = await newAppt("new"); created.push(id);
-      await patC.rpc("update_appointment_notes" as any,
-        { _id: id, _notes: "لست موظفًا", _reason: null });
+      const id = await newAppt("new");
+      created.push(id);
+      await patC.rpc("update_appointment_notes" as any, {
+        _id: id,
+        _notes: "لست موظفًا",
+        _reason: null,
+      });
       assert((await notesOf(id)) == null, "notes must not have been set by patient");
       assert((await auditOf(id)).length === 0, "no audit row expected");
     });
 
     // ── DB-level reason enforcement (trigger) ──────────────────────────────
     await test("DB trigger: cancelled without reason → check_violation", async () => {
-      const id = await newAppt("confirmed"); created.push(id);
-      const { error } = await adminC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "cancelled", _reason: "" });
+      const id = await newAppt("confirmed");
+      created.push(id);
+      const { error } = await adminC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "cancelled",
+        _reason: "",
+      });
       assert(!!error, "expected trigger to reject empty reason");
-      assert(/reason_required_for_cancelled/.test(error!.message) || error!.code === "23514",
-        `unexpected error: ${error?.code} ${error?.message}`);
+      assert(
+        /reason_required_for_cancelled/.test(error!.message) || error!.code === "23514",
+        `unexpected error: ${error?.code} ${error?.message}`,
+      );
       assert((await notesOf(id)) == null, "state must not change");
     });
 
     await test("DB trigger: no_show without reason → check_violation", async () => {
-      const id = await newAppt("confirmed"); created.push(id);
-      const { error } = await adminC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "no_show", _reason: null });
+      const id = await newAppt("confirmed");
+      created.push(id);
+      const { error } = await adminC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "no_show",
+        _reason: null,
+      });
       assert(!!error, "expected trigger to reject NULL reason");
-      assert(/reason_required_for_no_show/.test(error!.message) || error!.code === "23514",
-        `unexpected error: ${error?.code} ${error?.message}`);
+      assert(
+        /reason_required_for_no_show/.test(error!.message) || error!.code === "23514",
+        `unexpected error: ${error?.code} ${error?.message}`,
+      );
     });
 
     await test("DB trigger: cancelled WITH reason succeeds and is audited", async () => {
-      const id = await newAppt("confirmed"); created.push(id);
+      const id = await newAppt("confirmed");
+      created.push(id);
       const reason = "طلب المريض";
-      const { error } = await adminC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "cancelled", _reason: reason });
+      const { error } = await adminC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "cancelled",
+        _reason: reason,
+      });
       assert(!error, `expected success, got: ${error?.message}`);
       const audit = await auditOf(id);
       assert(audit[0].reason === reason, `audit reason wrong: ${audit[0].reason}`);
@@ -180,4 +222,7 @@ async function run() {
   await run();
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

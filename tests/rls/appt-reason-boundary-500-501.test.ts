@@ -24,10 +24,17 @@ if (!URL || !ANON || !SVC) {
 const REASON_MAX = 500;
 const admin = createClient(URL, SVC, { auth: { persistSession: false } });
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
@@ -43,19 +50,28 @@ async function signInAs(email: string, password: string): Promise<SupabaseClient
 async function createAdmin(email: string) {
   const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
   const { data, error } = await admin.auth.admin.createUser({
-    email, password, email_confirm: true,
+    email,
+    password,
+    email_confirm: true,
   });
   if (error) throw error;
   await admin.from("user_roles").insert({ user_id: data.user.id, role: "admin" });
   return { userId: data.user.id, email, password };
 }
-async function newAppt(initialStatus: "confirmed" = "confirmed", initialNotes: string | null = null) {
-  const { data, error } = await admin.from("appointments").insert({
-    patient_name: "ReasonBoundary",
-    patient_phone: "0500000000",
-    appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    appointment_time: "10:00",
-  }).select("id").single();
+async function newAppt(
+  initialStatus: "confirmed" = "confirmed",
+  initialNotes: string | null = null,
+) {
+  const { data, error } = await admin
+    .from("appointments")
+    .insert({
+      patient_name: "ReasonBoundary",
+      patient_phone: "0500000000",
+      appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      appointment_time: "10:00",
+    })
+    .select("id")
+    .single();
   if (error) throw error;
   const patch: Record<string, unknown> = { status: initialStatus };
   if (initialNotes !== null) patch.notes = initialNotes;
@@ -70,8 +86,7 @@ const rowOf = async (id: string) =>
   (await admin.from("appointments").select("status, notes").eq("id", id).single()).data;
 
 // Build "core of length N with edge whitespace padding" — length after edge-trim = N.
-const paddedCore = (n: number, ch = "ا") =>
-  `  \t\n\u00A0${ch.repeat(n)}\u00A0 \r\n`;
+const paddedCore = (n: number, ch = "ا") => `  \t\n\u00A0${ch.repeat(n)}\u00A0 \r\n`;
 
 const stamp = Date.now();
 const created: string[] = [];
@@ -88,9 +103,12 @@ let user: { userId: string; email: string; password: string } | null = null;
 
     // ── update_appointment_status: 500 ACCEPTED ──
     await test("status=cancelled + reason len 500 (with edge padding) → 1 audit row, reason len 500", async () => {
-      const a = await newAppt(); created.push(a.id);
+      const a = await newAppt();
+      created.push(a.id);
       const { error } = await c.rpc("update_appointment_status" as any, {
-        _id: a.id, _status: "cancelled", _reason: paddedCore(REASON_MAX),
+        _id: a.id,
+        _status: "cancelled",
+        _reason: paddedCore(REASON_MAX),
       });
       assert(!error, `expected acceptance, got: ${error?.code} ${error?.message}`);
       assert((await rowOf(a.id))?.status === "cancelled", "status must change to cancelled");
@@ -98,20 +116,28 @@ let user: { userId: string; email: string; password: string } | null = null;
       assert(rows.length === 1, `expected 1 audit row, got ${rows.length}`);
       const stored = rows[0].reason as string;
       assert(stored === core500, "stored reason must equal edge-trimmed core");
-      assert(stored.length === REASON_MAX, `stored reason length must be exactly 500, got ${stored.length}`);
+      assert(
+        stored.length === REASON_MAX,
+        `stored reason length must be exactly 500, got ${stored.length}`,
+      );
     });
 
     // ── update_appointment_status: 501 REJECTED ──
     await test("status=cancelled + reason len 501 (with edge padding) → rejected, no audit row", async () => {
-      const a = await newAppt(); created.push(a.id);
+      const a = await newAppt();
+      created.push(a.id);
       const before = await rowOf(a.id);
       const { error } = await c.rpc("update_appointment_status" as any, {
-        _id: a.id, _status: "cancelled", _reason: paddedCore(REASON_MAX + 1),
+        _id: a.id,
+        _status: "cancelled",
+        _reason: paddedCore(REASON_MAX + 1),
       });
       assert(!!error, "expected rejection, got success");
       assert(error!.code === "23514", `expected 23514, got ${error!.code}: ${error!.message}`);
-      assert(/reason_too_long/i.test(error!.message) || /السبب طويل جدًا/.test(error!.message),
-        `expected reason_too_long signal, got: ${error!.message}`);
+      assert(
+        /reason_too_long/i.test(error!.message) || /السبب طويل جدًا/.test(error!.message),
+        `expected reason_too_long signal, got: ${error!.message}`,
+      );
       const after = await rowOf(a.id);
       assert(after?.status === before?.status, "status must not change");
       assert((await auditOf(a.id)).length === 0, "no audit row must be written");
@@ -119,9 +145,12 @@ let user: { userId: string; email: string; password: string } | null = null;
 
     // ── update_appointment_notes: 500 ACCEPTED ──
     await test("notes update + reason len 500 (with edge padding) → 1 audit row, reason len 500", async () => {
-      const a = await newAppt("confirmed", "قديم"); created.push(a.id);
+      const a = await newAppt("confirmed", "قديم");
+      created.push(a.id);
       const { error } = await c.rpc("update_appointment_notes" as any, {
-        _id: a.id, _notes: "جديد", _reason: paddedCore(REASON_MAX, "ب"),
+        _id: a.id,
+        _notes: "جديد",
+        _reason: paddedCore(REASON_MAX, "ب"),
       });
       assert(!error, `expected acceptance, got: ${error?.code} ${error?.message}`);
       assert((await rowOf(a.id))?.notes === "جديد", "notes must be updated");
@@ -129,20 +158,28 @@ let user: { userId: string; email: string; password: string } | null = null;
       assert(rows.length === 1, `expected 1 audit row, got ${rows.length}`);
       const stored = rows[0].reason as string;
       assert(stored === "ب".repeat(REASON_MAX), "stored reason must equal edge-trimmed core");
-      assert(stored.length === REASON_MAX, `stored reason length must be exactly 500, got ${stored.length}`);
+      assert(
+        stored.length === REASON_MAX,
+        `stored reason length must be exactly 500, got ${stored.length}`,
+      );
     });
 
     // ── update_appointment_notes: 501 REJECTED ──
     await test("notes update + reason len 501 (with edge padding) → rejected, no audit row", async () => {
-      const a = await newAppt("confirmed", "قديم"); created.push(a.id);
+      const a = await newAppt("confirmed", "قديم");
+      created.push(a.id);
       const before = await rowOf(a.id);
       const { error } = await c.rpc("update_appointment_notes" as any, {
-        _id: a.id, _notes: "جديد", _reason: paddedCore(REASON_MAX + 1, "ب"),
+        _id: a.id,
+        _notes: "جديد",
+        _reason: paddedCore(REASON_MAX + 1, "ب"),
       });
       assert(!!error, "expected rejection, got success");
       assert(error!.code === "23514", `expected 23514, got ${error!.code}: ${error!.message}`);
-      assert(/reason_too_long/i.test(error!.message) || /السبب طويل جدًا/.test(error!.message),
-        `expected reason_too_long signal, got: ${error!.message}`);
+      assert(
+        /reason_too_long/i.test(error!.message) || /السبب طويل جدًا/.test(error!.message),
+        `expected reason_too_long signal, got: ${error!.message}`,
+      );
       const after = await rowOf(a.id);
       assert(after?.notes === before?.notes, "notes must not change");
       assert(after?.status === before?.status, "status must not change");
@@ -151,11 +188,17 @@ let user: { userId: string; email: string; password: string } | null = null;
 
     // Sanity: length 501 WITHOUT padding is also rejected (edge trim not required).
     await test("status=no_show + plain reason len 501 (no padding) → rejected, no audit row", async () => {
-      const a = await newAppt(); created.push(a.id);
+      const a = await newAppt();
+      created.push(a.id);
       const { error } = await c.rpc("update_appointment_status" as any, {
-        _id: a.id, _status: "no_show", _reason: core501,
+        _id: a.id,
+        _status: "no_show",
+        _reason: core501,
       });
-      assert(!!error && error.code === "23514", `expected 23514, got: ${error?.code} ${error?.message}`);
+      assert(
+        !!error && error.code === "23514",
+        `expected 23514, got: ${error?.code} ${error?.message}`,
+      );
       assert((await auditOf(a.id)).length === 0, "no audit row must be written");
     });
   } finally {
@@ -166,4 +209,7 @@ let user: { userId: string; email: string; password: string } | null = null;
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

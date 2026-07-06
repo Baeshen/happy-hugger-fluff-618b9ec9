@@ -40,10 +40,7 @@
  * Run:  bun tests/rls/friendly-insert-error.test.ts
  */
 import { createClient } from "@supabase/supabase-js";
-import {
-  friendlyInsertError,
-  FRIENDLY_INSERT_MESSAGES,
-} from "../../src/lib/insert-errors";
+import { friendlyInsertError, FRIENDLY_INSERT_MESSAGES } from "../../src/lib/insert-errors";
 
 const URL = process.env.SUPABASE_URL!;
 const ANON = process.env.SUPABASE_PUBLISHABLE_KEY!;
@@ -63,17 +60,26 @@ type PGErr = {
   hint?: string | null;
 };
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
 }
 function assertEq<T>(actual: T, expected: T, label: string) {
   if (actual !== expected) {
-    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    throw new Error(
+      `${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
   }
 }
 
@@ -129,7 +135,9 @@ async function main() {
       const email = `fie-dup-${Date.now()}@test.local`;
       const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
       const { data: u, error: uerr } = await admin.auth.admin.createUser({
-        email, password, email_confirm: true,
+        email,
+        password,
+        email_confirm: true,
       });
       if (uerr) throw uerr;
       userId = u.user.id;
@@ -145,8 +153,12 @@ async function main() {
     });
   } finally {
     if (userId) {
-      try { await admin.from("user_roles").delete().eq("user_id", userId); } catch {}
-      try { await admin.auth.admin.deleteUser(userId); } catch {}
+      try {
+        await admin.from("user_roles").delete().eq("user_id", userId);
+      } catch {}
+      try {
+        await admin.auth.admin.deleteUser(userId);
+      } catch {}
     }
   }
 
@@ -155,9 +167,9 @@ async function main() {
   await test("B2. real 23502 not-null on user_roles.user_id → missing Arabic", async () => {
     // Cast through unknown so the SDK type-check doesn't block the intentionally
     // malformed payload we need to reach the DB.
-    const { error } = await admin.from("user_roles").insert(
-      { role: "reception" } as unknown as { user_id: string; role: "reception" },
-    );
+    const { error } = await admin
+      .from("user_roles")
+      .insert({ role: "reception" } as unknown as { user_id: string; role: "reception" });
     assert(error, "expected not-null error");
     realNotNull = error as PGErr;
     assertEq(realNotNull.code, "23502", "expected code 23502");
@@ -189,15 +201,19 @@ async function main() {
       const email = `fie-enum-${Date.now()}@test.local`;
       const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
       const { data: u, error: uerr } = await admin.auth.admin.createUser({
-        email, password, email_confirm: true,
+        email,
+        password,
+        email_confirm: true,
       });
       if (uerr) throw uerr;
       bogusUserId = u.user.id;
-      const { error } = await admin.from("user_roles").insert(
-        { user_id: bogusUserId, role: "definitely_not_a_role" } as unknown as {
-          user_id: string; role: "reception";
-        },
-      );
+      const { error } = await admin.from("user_roles").insert({
+        user_id: bogusUserId,
+        role: "definitely_not_a_role",
+      } as unknown as {
+        user_id: string;
+        role: "reception";
+      });
       assert(error, "expected invalid-enum error");
       realInvalid = error as PGErr;
       assertEq(realInvalid.code, "22P02", "expected code 22P02");
@@ -207,8 +223,12 @@ async function main() {
     });
   } finally {
     if (bogusUserId) {
-      try { await admin.from("user_roles").delete().eq("user_id", bogusUserId); } catch {}
-      try { await admin.auth.admin.deleteUser(bogusUserId); } catch {}
+      try {
+        await admin.from("user_roles").delete().eq("user_id", bogusUserId);
+      } catch {}
+      try {
+        await admin.auth.admin.deleteUser(bogusUserId);
+      } catch {}
     }
   }
 
@@ -229,7 +249,8 @@ async function main() {
   // ---------- C3. Text-only 23502 without code → `missing` ----------
   await test("C3. text-only null-value message (no code) → missing Arabic", async () => {
     const fake: PGErr = {
-      message: 'null value in column "user_id" of relation "user_roles" violates not-null constraint',
+      message:
+        'null value in column "user_id" of relation "user_roles" violates not-null constraint',
     };
     const mapped = friendlyInsertError(fake);
     assertEq(mapped, FRIENDLY_INSERT_MESSAGES.missing, "mapped Arabic (missing via text)");
@@ -279,7 +300,11 @@ async function main() {
     assertEq(mapped, FRIENDLY_INSERT_MESSAGES.unknown, "mapped Arabic (unknown)");
     // Also: nullish inputs must not throw and must return the fallback.
     assertEq(friendlyInsertError(null), FRIENDLY_INSERT_MESSAGES.unknown, "null → unknown");
-    assertEq(friendlyInsertError(undefined), FRIENDLY_INSERT_MESSAGES.unknown, "undefined → unknown");
+    assertEq(
+      friendlyInsertError(undefined),
+      FRIENDLY_INSERT_MESSAGES.unknown,
+      "undefined → unknown",
+    );
     assertEq(friendlyInsertError({}), FRIENDLY_INSERT_MESSAGES.unknown, "{} → unknown");
   });
 
@@ -301,10 +326,10 @@ async function main() {
   // ---------- H. Global non-leak across every captured real error ----------
   await test("H. real PostgREST errors never leak provider tokens into mapped strings", async () => {
     const cases: Array<[string, PGErr | null]> = [
-      ["rls",     realRls],
-      ["dup",     realDup],
+      ["rls", realRls],
+      ["dup", realDup],
       ["notnull", realNotNull],
-      ["fk",      realFk],
+      ["fk", realFk],
       ["invalid", realInvalid],
     ];
     for (const [label, e] of cases) {
@@ -313,9 +338,11 @@ async function main() {
     }
   });
 
-
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

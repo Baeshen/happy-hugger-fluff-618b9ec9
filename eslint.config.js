@@ -77,7 +77,6 @@ export default tseslint.config(
             "استورد من '@/lib/insert-errors' فقط بدون مسارات نسبية أو مكررة. راجع docs/book-friendly-insert-error.md",
         },
       ],
-
     },
   },
   eslintPluginPrettier,

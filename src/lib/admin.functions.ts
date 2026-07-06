@@ -27,7 +27,11 @@ function humanizeSupabaseError(err: any, fallback = "تعذّر تنفيذ ال�
   console.error("[supabase-error]", { code, msg, hint: err.hint, details: err.details });
 
   // RLS denial (PostgREST maps to 42501 or PGRST301)
-  if (code === "42501" || code === "PGRST301" || /row-level security|permission denied/i.test(msg)) {
+  if (
+    code === "42501" ||
+    code === "PGRST301" ||
+    /row-level security|permission denied/i.test(msg)
+  ) {
     return "ليست لديك الصلاحية لتنفيذ هذا الإجراء. الرجاء التواصل مع المسؤول إذا كنت ترى هذا خطأً.";
   }
   // CHECK constraint / policy WITH CHECK failure on insert
@@ -72,14 +76,18 @@ export const getAdminStats = createServerFn({ method: "GET" })
     const sb = context.supabase;
     const today = new Date().toISOString().slice(0, 10);
 
-    const [appts, todayAppts, pendingAppts, orders, pendingOrders, doctorsCount] = await Promise.all([
-      sb.from("appointments").select("id", { count: "exact", head: true }),
-      sb.from("appointments").select("id", { count: "exact", head: true }).eq("appointment_date", today),
-      sb.from("appointments").select("id", { count: "exact", head: true }).eq("status", "new"),
-      sb.from("medicine_orders").select("id", { count: "exact", head: true }),
-      sb.from("medicine_orders").select("id", { count: "exact", head: true }).eq("status", "new"),
-      sb.from("doctors").select("id", { count: "exact", head: true }).eq("is_active", true),
-    ]);
+    const [appts, todayAppts, pendingAppts, orders, pendingOrders, doctorsCount] =
+      await Promise.all([
+        sb.from("appointments").select("id", { count: "exact", head: true }),
+        sb
+          .from("appointments")
+          .select("id", { count: "exact", head: true })
+          .eq("appointment_date", today),
+        sb.from("appointments").select("id", { count: "exact", head: true }).eq("status", "new"),
+        sb.from("medicine_orders").select("id", { count: "exact", head: true }),
+        sb.from("medicine_orders").select("id", { count: "exact", head: true }).eq("status", "new"),
+        sb.from("doctors").select("id", { count: "exact", head: true }).eq("is_active", true),
+      ]);
     return {
       appointmentsTotal: appts.count ?? 0,
       appointmentsToday: todayAppts.count ?? 0,
@@ -111,11 +119,13 @@ import { reasonSchema } from "./reason";
 export const updateAppointmentStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      id: z.string().uuid(),
-      status: z.enum(["new", "confirmed", "completed", "cancelled", "no_show"]),
-      reason: reasonSchema,
-    }).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["new", "confirmed", "completed", "cancelled", "no_show"]),
+        reason: reasonSchema,
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
@@ -127,14 +137,17 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
       extra?: Record<string, unknown>,
     ) => {
       try {
-        await sb.rpc("log_security_event" as any, {
-          _action: "appointment_status_update_denied",
-          _appointment_id: data.id,
-          _from_status: fromStatus,
-          _to_status: data.status,
-          _reason: denyReason,
-          _metadata: { actor: actorId, requested_reason: data.reason ?? null, ...(extra ?? {}) },
-        } as any);
+        await sb.rpc(
+          "log_security_event" as any,
+          {
+            _action: "appointment_status_update_denied",
+            _appointment_id: data.id,
+            _from_status: fromStatus,
+            _to_status: data.status,
+            _reason: denyReason,
+            _metadata: { actor: actorId, requested_reason: data.reason ?? null, ...(extra ?? {}) },
+          } as any,
+        );
       } catch (e) {
         console.error("[security-audit] failed to log denial", e);
       }
@@ -179,11 +192,14 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
     if (check.unchanged) return { ok: true, unchanged: true };
 
     // 5) Perform the update via RPC (carries reason into the audit trigger)
-    const { error } = await sb.rpc("update_appointment_status" as any, {
-      _id: data.id,
-      _status: data.status,
-      _reason: data.reason ?? null,
-    } as any);
+    const { error } = await sb.rpc(
+      "update_appointment_status" as any,
+      {
+        _id: data.id,
+        _status: data.status,
+        _reason: data.reason ?? null,
+      } as any,
+    );
     if (error) {
       await logDenied("rpc_error", current.status, { code: error.code });
       throw new Error(humanizeSupabaseError(error));
@@ -194,20 +210,25 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
 export const updateAppointmentNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      id: z.string().uuid(),
-      notes: z.string().trim().max(2000).nullable(),
-      reason: reasonSchema,
-    }).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        notes: z.string().trim().max(2000).nullable(),
+        reason: reasonSchema,
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin", "reception"]);
-    const { error } = await context.supabase.rpc("update_appointment_notes" as any, {
-      _id: data.id,
-      _notes: data.notes,
-      _reason: data.reason ?? null,
-    } as any);
+    const { error } = await context.supabase.rpc(
+      "update_appointment_notes" as any,
+      {
+        _id: data.id,
+        _notes: data.notes,
+        _reason: data.reason ?? null,
+      } as any,
+    );
     if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
@@ -230,12 +251,14 @@ export const listAppointmentAudit = createServerFn({ method: "GET" })
     let emailById = new Map<string, string>();
     if (ids.length) {
       const { data: profs } = await context.supabase
-        .from("profiles").select("id, full_name").in("id", ids);
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", ids);
       for (const p of profs ?? []) emailById.set(p.id, p.full_name ?? "");
     }
     return (rows ?? []).map((r: any) => ({
       ...r,
-      changed_by_name: r.changed_by ? emailById.get(r.changed_by) ?? null : null,
+      changed_by_name: r.changed_by ? (emailById.get(r.changed_by) ?? null) : null,
     }));
   });
 
@@ -256,10 +279,12 @@ export const listOrders = createServerFn({ method: "GET" })
 export const updateOrderStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      id: z.string().uuid(),
-      status: z.enum(["new", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"]),
-    }).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["new", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"]),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const roles = await getRoles(context.supabase, context.userId);
@@ -370,7 +395,10 @@ export const deleteDoctor = createServerFn({ method: "POST" })
 /* ---------------- Specialties CRUD ---------------- */
 
 const specialtyInput = z.object({
-  slug: z.string().min(1).regex(/^[a-z0-9-]+$/, "slug lowercase, digits, dashes"),
+  slug: z
+    .string()
+    .min(1)
+    .regex(/^[a-z0-9-]+$/, "slug lowercase, digits, dashes"),
   name_ar: z.string().min(1),
   name_en: z.string().min(1),
   icon: z.string().nullable().optional(),
@@ -415,7 +443,10 @@ export const updateSpecialty = createServerFn({ method: "POST" })
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin"]);
     const { id, ...rest } = data;
-    const { error } = await context.supabase.from("specialties").update(rest as any).eq("id", id);
+    const { error } = await context.supabase
+      .from("specialties")
+      .update(rest as any)
+      .eq("id", id);
     if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
@@ -483,4 +514,3 @@ export const deleteAvailability = createServerFn({ method: "POST" })
     if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
-

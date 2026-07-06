@@ -68,7 +68,9 @@ function AuthPage() {
     <div className="container-app min-h-[70vh] py-16">
       <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
         <div className="text-center">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">ب</div>
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">
+            ب
+          </div>
           <h1 className="mt-4 text-2xl font-bold">
             {mode === "signin" ? "تسجيل الدخول" : "إنشاء حساب"}
           </h1>

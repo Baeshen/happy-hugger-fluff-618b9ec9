@@ -23,10 +23,17 @@ if (!URL || !ANON || !SVC) {
 const REASON_MAX = 500;
 const admin = createClient(URL, SVC, { auth: { persistSession: false } });
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
@@ -42,7 +49,9 @@ async function signInAs(email: string, password: string): Promise<SupabaseClient
 async function createAdmin(email: string) {
   const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
   const { data, error } = await admin.auth.admin.createUser({
-    email, password, email_confirm: true,
+    email,
+    password,
+    email_confirm: true,
   });
   if (error) throw error;
   await admin.from("user_roles").insert({ user_id: data.user.id, role: "admin" });
@@ -52,16 +61,22 @@ async function newAppt(initialNotes: string | null = null) {
   // Insert (trigger sanitizes notes to null for non-staff service-role insert),
   // then set initial notes via service-role UPDATE, then wipe audit rows so
   // the RPC under test is measured in isolation.
-  const { data, error } = await admin.from("appointments").insert({
-    patient_name: "AdminNotesAuditSingle",
-    patient_phone: "0500000000",
-    appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    appointment_time: "10:00",
-  }).select("id").single();
+  const { data, error } = await admin
+    .from("appointments")
+    .insert({
+      patient_name: "AdminNotesAuditSingle",
+      patient_phone: "0500000000",
+      appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      appointment_time: "10:00",
+    })
+    .select("id")
+    .single();
   if (error) throw error;
   if (initialNotes !== null) {
-    const { error: uerr } = await admin.from("appointments")
-      .update({ notes: initialNotes }).eq("id", data.id);
+    const { error: uerr } = await admin
+      .from("appointments")
+      .update({ notes: initialNotes })
+      .eq("id", data.id);
     if (uerr) throw uerr;
   }
   await admin.from("appointment_audit").delete().eq("appointment_id", data.id);
@@ -84,35 +99,65 @@ let user: { userId: string; email: string; password: string } | null = null;
   try {
     const CORE = "ملاحظة الطبيب\tالمريض بحاجة\nمتابعة  خلال أسبوع"; // internal ws must survive
     const cases: Array<{
-      label: string; initial: string | null; raw: string; expected: string;
-      reason?: string; expectedReason?: string | null;
+      label: string;
+      initial: string | null;
+      raw: string;
+      expected: string;
+      reason?: string;
+      expectedReason?: string | null;
     }> = [
-      { label: "set notes from null (plain)",
-        initial: null, raw: CORE, expected: CORE, expectedReason: null },
-      { label: "set notes with edge whitespace trimmed",
-        initial: null, raw: `  \t\n\u00A0${CORE}\u00A0 \r\n`, expected: CORE, expectedReason: null },
-      { label: "replace existing notes",
-        initial: "قديم", raw: "  جديد  ", expected: "جديد", expectedReason: null },
-      { label: "notes with optional reason recorded",
-        initial: null, raw: "  ملاحظة مهمة  ", expected: "ملاحظة مهمة",
+      {
+        label: "set notes from null (plain)",
+        initial: null,
+        raw: CORE,
+        expected: CORE,
+        expectedReason: null,
+      },
+      {
+        label: "set notes with edge whitespace trimmed",
+        initial: null,
+        raw: `  \t\n\u00A0${CORE}\u00A0 \r\n`,
+        expected: CORE,
+        expectedReason: null,
+      },
+      {
+        label: "replace existing notes",
+        initial: "قديم",
+        raw: "  جديد  ",
+        expected: "جديد",
+        expectedReason: null,
+      },
+      {
+        label: "notes with optional reason recorded",
+        initial: null,
+        raw: "  ملاحظة مهمة  ",
+        expected: "ملاحظة مهمة",
         reason: "  تعديل بناءً على مراجعة الطبيب  ",
-        expectedReason: "تعديل بناءً على مراجعة الطبيب" },
-      { label: "500-char core with whitespace padding",
-        initial: null, raw: `\n\t \u00A0${"ن".repeat(REASON_MAX)}\u00A0 \r\n`,
-        expected: "ن".repeat(REASON_MAX), expectedReason: null },
+        expectedReason: "تعديل بناءً على مراجعة الطبيب",
+      },
+      {
+        label: "500-char core with whitespace padding",
+        initial: null,
+        raw: `\n\t \u00A0${"ن".repeat(REASON_MAX)}\u00A0 \r\n`,
+        expected: "ن".repeat(REASON_MAX),
+        expectedReason: null,
+      },
     ];
 
     for (const { label, initial, raw, expected, reason, expectedReason } of cases) {
       await test(label, async () => {
-        const a = await newAppt(initial); created.push(a.id);
+        const a = await newAppt(initial);
+        created.push(a.id);
 
         const { error } = await c.rpc("update_appointment_notes" as any, {
-          _id: a.id, _notes: raw, _reason: reason ?? null,
+          _id: a.id,
+          _notes: raw,
+          _reason: reason ?? null,
         });
         assert(!error, `rpc failed: ${error?.code} ${error?.message}`);
 
         // Notes updated on the row
-        assert(await notesOf(a.id) === expected, `notes not updated to expected value`);
+        assert((await notesOf(a.id)) === expected, `notes not updated to expected value`);
 
         // Exactly ONE audit row
         const rows = await auditOf(a.id);
@@ -120,25 +165,37 @@ let user: { userId: string; email: string; password: string } | null = null;
         const r = rows[0];
 
         // status columns untouched
-        assert(r.old_status === null && r.new_status === null,
-          `status should not be recorded (got old=${r.old_status} new=${r.new_status})`);
+        assert(
+          r.old_status === null && r.new_status === null,
+          `status should not be recorded (got old=${r.old_status} new=${r.new_status})`,
+        );
 
         // notes transition recorded
-        assert(r.old_notes === initial,
-          `old_notes mismatch: expected ${JSON.stringify(initial)}, got ${JSON.stringify(r.old_notes)}`);
-        assert(r.new_notes === expected,
-          `new_notes mismatch\n      expected(${expected.length})=${JSON.stringify(expected)}\n      got     (${r.new_notes?.length})=${JSON.stringify(r.new_notes)}`);
+        assert(
+          r.old_notes === initial,
+          `old_notes mismatch: expected ${JSON.stringify(initial)}, got ${JSON.stringify(r.old_notes)}`,
+        );
+        assert(
+          r.new_notes === expected,
+          `new_notes mismatch\n      expected(${expected.length})=${JSON.stringify(expected)}\n      got     (${r.new_notes?.length})=${JSON.stringify(r.new_notes)}`,
+        );
         assert((r.new_notes as string).length <= REASON_MAX, `new_notes > 500 chars`);
-        assert(!/^[\s\u00A0]|[\s\u00A0]$/.test(r.new_notes as string),
-          `new_notes edges must not contain whitespace: ${JSON.stringify(r.new_notes)}`);
+        assert(
+          !/^[\s\u00A0]|[\s\u00A0]$/.test(r.new_notes as string),
+          `new_notes edges must not contain whitespace: ${JSON.stringify(r.new_notes)}`,
+        );
 
         // reason: trimmed if provided, null otherwise
-        assert(r.reason === expectedReason,
-          `reason mismatch: expected ${JSON.stringify(expectedReason)}, got ${JSON.stringify(r.reason)}`);
+        assert(
+          r.reason === expectedReason,
+          `reason mismatch: expected ${JSON.stringify(expectedReason)}, got ${JSON.stringify(r.reason)}`,
+        );
         if (typeof r.reason === "string") {
           assert(r.reason.length <= REASON_MAX, `reason > 500 chars`);
-          assert(!/^[\s\u00A0]|[\s\u00A0]$/.test(r.reason),
-            `reason edges must not contain whitespace: ${JSON.stringify(r.reason)}`);
+          assert(
+            !/^[\s\u00A0]|[\s\u00A0]$/.test(r.reason),
+            `reason edges must not contain whitespace: ${JSON.stringify(r.reason)}`,
+          );
         }
 
         // changed_by is the admin caller
@@ -153,4 +210,7 @@ let user: { userId: string; email: string; password: string } | null = null;
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

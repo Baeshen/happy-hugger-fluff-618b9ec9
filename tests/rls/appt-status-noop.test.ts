@@ -53,19 +53,29 @@ async function run() {
   }
   async function createUser(email: string, role: string | null) {
     const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
-    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
     if (error) throw error;
     if (role) await admin.from("user_roles").insert({ user_id: data.user.id, role });
     return { userId: data.user.id, email, password };
   }
-  async function newAppt(status: "new" | "confirmed" | "completed" | "cancelled" | "no_show" = "new") {
-    const { data, error } = await admin.from("appointments").insert({
-      patient_name: "NOOP-Test",
-      patient_phone: "0500000000",
-      appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-      appointment_time: "10:00",
-      status,
-    }).select("id").single();
+  async function newAppt(
+    status: "new" | "confirmed" | "completed" | "cancelled" | "no_show" = "new",
+  ) {
+    const { data, error } = await admin
+      .from("appointments")
+      .insert({
+        patient_name: "NOOP-Test",
+        patient_phone: "0500000000",
+        appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+        appointment_time: "10:00",
+        status,
+      })
+      .select("id")
+      .single();
     if (error) throw error;
     return data.id as string;
   }
@@ -91,13 +101,17 @@ async function run() {
 
     for (const s of ["new", "confirmed", "cancelled", "completed", "no_show"] as const) {
       await test(`RPC with same status (${s}) → 0 audit rows, status unchanged`, async () => {
-        const id = await newAppt(s); created.push(id);
+        const id = await newAppt(s);
+        created.push(id);
         const client = s === "cancelled" || s === "completed" || s === "no_show" ? adminC : recepC;
         // reason is required only when NEW status is cancel/no_show AND the
         // status changes; for a no-op the trigger short-circuits before the
         // enforcement, so passing null is safe here too.
-        const { error } = await client.rpc("update_appointment_status" as any,
-          { _id: id, _status: s, _reason: null });
+        const { error } = await client.rpc("update_appointment_status" as any, {
+          _id: id,
+          _status: s,
+          _reason: null,
+        });
         assert(!error, `rpc failed: ${error?.message}`);
         assert((await statusOf(id)) === s, "status must remain the same");
         const rows = await auditOf(id);
@@ -106,18 +120,28 @@ async function run() {
     }
 
     await test("real change AFTER a no-op still produces exactly one audit row", async () => {
-      const id = await newAppt("new"); created.push(id);
+      const id = await newAppt("new");
+      created.push(id);
       // First: no-op
-      await recepC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "new", _reason: null });
+      await recepC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "new",
+        _reason: null,
+      });
       assert((await auditOf(id)).length === 0, "no-op leaked an audit row");
       // Then: real transition
-      const { error } = await recepC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "confirmed", _reason: null });
+      const { error } = await recepC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "confirmed",
+        _reason: null,
+      });
       assert(!error, `rpc failed: ${error?.message}`);
       const rows = await auditOf(id);
       assert(rows.length === 1, `expected 1 audit row after real change, got ${rows.length}`);
-      assert(rows[0].old_status === "new" && rows[0].new_status === "confirmed", "audit content wrong");
+      assert(
+        rows[0].old_status === "new" && rows[0].new_status === "confirmed",
+        "audit content wrong",
+      );
     });
   } finally {
     console.log("\nCleaning up…");
@@ -129,4 +153,7 @@ async function run() {
   await run();
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

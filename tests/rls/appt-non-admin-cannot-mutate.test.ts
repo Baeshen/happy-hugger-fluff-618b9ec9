@@ -28,10 +28,17 @@ if (!URL || !ANON || !SVC) {
 
 const admin = createClient(URL, SVC, { auth: { persistSession: false } });
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
@@ -47,20 +54,26 @@ async function signInAs(email: string, password: string): Promise<SupabaseClient
 async function createUser(email: string, role: string | null) {
   const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
   const { data, error } = await admin.auth.admin.createUser({
-    email, password, email_confirm: true,
+    email,
+    password,
+    email_confirm: true,
   });
   if (error) throw error;
   if (role) await admin.from("user_roles").insert({ user_id: data.user.id, role });
   return { userId: data.user.id, email, password };
 }
 async function newAppt(): Promise<string> {
-  const { data, error } = await admin.from("appointments").insert({
-    patient_name: "NoRoleGuard",
-    patient_phone: "0500000000",
-    appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    appointment_time: "10:00",
-    status: "confirmed",
-  }).select("id").single();
+  const { data, error } = await admin
+    .from("appointments")
+    .insert({
+      patient_name: "NoRoleGuard",
+      patient_phone: "0500000000",
+      appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      appointment_time: "10:00",
+      status: "confirmed",
+    })
+    .select("id")
+    .single();
   if (error) throw error;
   // Seed initial notes via a service-role UPDATE, then wipe any audit rows
   // it may have generated so our assertions measure only the RPC under test.
@@ -79,33 +92,36 @@ const auditOf = async (id: string) =>
 const stamp = Date.now();
 const created: string[] = [];
 let pharmU: Awaited<ReturnType<typeof createUser>> | null = null;
-let patU:   Awaited<ReturnType<typeof createUser>> | null = null;
+let patU: Awaited<ReturnType<typeof createUser>> | null = null;
 let adminU: Awaited<ReturnType<typeof createUser>> | null = null;
 
 (async () => {
   console.log("── non-admin roles cannot mutate status/notes ──");
   pharmU = await createUser(`ng-pharm-${stamp}@test.local`, "pharmacy");
-  patU   = await createUser(`ng-pat-${stamp}@test.local`,   null);
+  patU = await createUser(`ng-pat-${stamp}@test.local`, null);
   adminU = await createUser(`ng-admin-${stamp}@test.local`, "admin");
   const pharmC = await signInAs(pharmU.email, pharmU.password);
-  const patC   = await signInAs(patU.email,   patU.password);
+  const patC = await signInAs(patU.email, patU.password);
   const adminC = await signInAs(adminU.email, adminU.password);
-  const anonC  = createClient(URL, ANON, { auth: { persistSession: false } });
+  const anonC = createClient(URL, ANON, { auth: { persistSession: false } });
 
   const roles: Array<{ label: string; client: SupabaseClient }> = [
-    { label: "pharmacy",       client: pharmC },
-    { label: "patient (none)", client: patC   },
-    { label: "anonymous",      client: anonC  },
+    { label: "pharmacy", client: pharmC },
+    { label: "patient (none)", client: patC },
+    { label: "anonymous", client: anonC },
   ];
 
   try {
     // ── STATUS: update_appointment_status must be a no-op for non-privileged roles ──
     for (const { label, client } of roles) {
       await test(`${label} → update_appointment_status is silently blocked (no state, no audit)`, async () => {
-        const id = await newAppt(); created.push(id);
+        const id = await newAppt();
+        created.push(id);
         const before = await stateOf(id);
         const { error } = await client.rpc("update_appointment_status" as any, {
-          _id: id, _status: "cancelled", _reason: "محاولة إلغاء",
+          _id: id,
+          _status: "cancelled",
+          _reason: "محاولة إلغاء",
         });
         // Non-privileged callers get no error — RLS filters the UPDATE to zero
         // rows. The proof of blocking is state + audit, not the error object.
@@ -114,69 +130,97 @@ let adminU: Awaited<ReturnType<typeof createUser>> | null = null;
           // An error here is acceptable — the important thing is nothing changed.
         }
         const after = await stateOf(id);
-        assert(after.status === before.status,
-          `status changed: ${before.status} → ${after.status}`);
+        assert(
+          after.status === before.status,
+          `status changed: ${before.status} → ${after.status}`,
+        );
         assert(after.notes === before.notes, "notes changed unexpectedly");
-        assert((await auditOf(id)).length === 0,
-          "appointment_audit must NOT have a row for a blocked caller");
+        assert(
+          (await auditOf(id)).length === 0,
+          "appointment_audit must NOT have a row for a blocked caller",
+        );
       });
     }
 
     // ── NOTES: update_appointment_notes must be a no-op for non-privileged roles ──
     for (const { label, client } of roles) {
       await test(`${label} → update_appointment_notes is silently blocked (no state, no audit)`, async () => {
-        const id = await newAppt(); created.push(id);
+        const id = await newAppt();
+        created.push(id);
         const before = await stateOf(id);
         const { error } = await client.rpc("update_appointment_notes" as any, {
-          _id: id, _notes: "محاولة تعديل ملاحظة", _reason: "غير مصرح",
+          _id: id,
+          _notes: "محاولة تعديل ملاحظة",
+          _reason: "غير مصرح",
         });
-        if (error) { /* tolerated; state + audit are the source of truth */ }
+        if (error) {
+          /* tolerated; state + audit are the source of truth */
+        }
         const after = await stateOf(id);
-        assert(after.notes === before.notes,
-          `notes changed: ${JSON.stringify(before.notes)} → ${JSON.stringify(after.notes)}`);
+        assert(
+          after.notes === before.notes,
+          `notes changed: ${JSON.stringify(before.notes)} → ${JSON.stringify(after.notes)}`,
+        );
         assert(after.status === before.status, "status changed unexpectedly");
-        assert((await auditOf(id)).length === 0,
-          "appointment_audit must NOT have a row for a blocked caller");
+        assert(
+          (await auditOf(id)).length === 0,
+          "appointment_audit must NOT have a row for a blocked caller",
+        );
       });
 
       await test(`${label} → cannot clear notes via _notes=NULL either`, async () => {
-        const id = await newAppt(); created.push(id);
+        const id = await newAppt();
+        created.push(id);
         const before = await stateOf(id);
         await client.rpc("update_appointment_notes" as any, {
-          _id: id, _notes: null, _reason: null,
+          _id: id,
+          _notes: null,
+          _reason: null,
         });
         const after = await stateOf(id);
-        assert(after.notes === before.notes,
-          `notes cleared by non-privileged caller: ${JSON.stringify(after.notes)}`);
+        assert(
+          after.notes === before.notes,
+          `notes cleared by non-privileged caller: ${JSON.stringify(after.notes)}`,
+        );
         assert((await auditOf(id)).length === 0, "no audit row expected");
       });
     }
 
     // ── Control: admin CAN mutate both and IS audited ──
     await test("control: admin can update_appointment_status → state changes + audit row", async () => {
-      const id = await newAppt(); created.push(id);
+      const id = await newAppt();
+      created.push(id);
       const { error } = await adminC.rpc("update_appointment_status" as any, {
-        _id: id, _status: "cancelled", _reason: "طلب المريض",
+        _id: id,
+        _status: "cancelled",
+        _reason: "طلب المريض",
       });
       assert(!error, `admin rpc failed: ${error?.message}`);
       const after = await stateOf(id);
       assert(after.status === "cancelled", `admin status not applied: ${after.status}`);
       const rows = await auditOf(id);
-      assert(rows.length === 1 && rows[0].new_status === "cancelled" && rows[0].reason === "طلب المريض",
-        `admin audit not written correctly: ${JSON.stringify(rows)}`);
+      assert(
+        rows.length === 1 && rows[0].new_status === "cancelled" && rows[0].reason === "طلب المريض",
+        `admin audit not written correctly: ${JSON.stringify(rows)}`,
+      );
     });
 
     await test("control: admin can update_appointment_notes → state changes + audit row", async () => {
-      const id = await newAppt(); created.push(id);
+      const id = await newAppt();
+      created.push(id);
       const { error } = await adminC.rpc("update_appointment_notes" as any, {
-        _id: id, _notes: "ملاحظة جديدة", _reason: "تحديث",
+        _id: id,
+        _notes: "ملاحظة جديدة",
+        _reason: "تحديث",
       });
       assert(!error, `admin rpc failed: ${error?.message}`);
       const after = await stateOf(id);
       assert(after.notes === "ملاحظة جديدة", `admin notes not applied: ${after.notes}`);
       const rows = await auditOf(id);
-      assert(rows.length === 1 && rows[0].new_notes === "ملاحظة جديدة" && rows[0].reason === "تحديث",
-        `admin audit not written correctly: ${JSON.stringify(rows)}`);
+      assert(
+        rows.length === 1 && rows[0].new_notes === "ملاحظة جديدة" && rows[0].reason === "تحديث",
+        `admin audit not written correctly: ${JSON.stringify(rows)}`,
+      );
     });
   } finally {
     console.log("\nCleaning up…");
@@ -186,4 +230,7 @@ let adminU: Awaited<ReturnType<typeof createUser>> | null = null;
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

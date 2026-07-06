@@ -1,66 +1,92 @@
-# خطة: تصلّب واجهة الحجز العامة (`/book`)
+# المرحلة التالية — تصلّب شامل
 
-## الوضع الحالي
+ثلاثة مسارات مستقلة، مرتّبة من الأقل مخاطرة إلى الأعلى. كل مسار قابل للتنفيذ منفردًا.
 
-- `/book` يستدعي `supabase.from("appointments").insert(...)` مباشرةً من العميل بدون مستخدم مُصادق (دور `anon`).
-- الدفاعات القائمة في DB:
-  - RLS `anyone create appointments` WITH CHECK: `patient_name` طوله 2-120، `patient_phone` طوله 6-32، `appointment_date >= CURRENT_DATE`.
-  - Trigger `trg_force_appointment_defaults` (BEFORE INSERT): يفرض `status='new'` و`notes=NULL` عند غياب الدور الموظف.
-  - RLS SELECT/UPDATE/DELETE: staff فقط. `anon` لا يقرأ.
-- ثغرات:
-  - العميل لا يفرض حدود طول على `reason`/`national_id`/`gender`/الاسم/الهاتف قبل الإرسال.
-  - `specialty_id`/`doctor_id`/`appointment_time` غير مربوطين بفحص وجود/توفر على مستوى DB.
-  - رسائل الخطأ من DB تُعرض حرفيًا للمستخدم (`toast.error(error.message)`).
-  - لا حدود على `reason` قد يقبل نصًا طويلًا جدًا يمر بلا حدّ من الطول.
+---
 
-## المخرجات
+## المسار 1 — توسيع `format:check` للمشروع كاملًا
 
-### 1) اختبارات e2e تُثبّت الدفاعات الحالية (خطر انحدار)
+### الحالة الحالية
+- CI يشغّل `format:check:book` فقط (نطاق ضيّق: ملفّي book).
+- تشغيل `bunx prettier --check .` محليًا يفشل على **56 ملفًا** قديمًا (معظمها `tests/rls/*` و `src/styles.css` وبعض المكوّنات).
 
-جميعها ضد `/book` عبر Playwright كـ `anon`:
+### التنفيذ
+1. `bun run format` على المشروع كاملًا → إعادة تنسيق الـ56 ملفًا مرة واحدة.
+2. حذف السكربت الضيّق `format:check:book` من `package.json` وإبقاء `format:check` فقط.
+3. تعديل `.github/workflows/ci.yml`: استبدال `bun run format:check:book` بـ `bun run format:check`.
+4. التحقق: `bun run format:check && bun run lint:book && bun run typecheck`.
 
-- `tests/e2e/book_defaults_enforced.py` — يحقن `status:"confirmed"` و`notes:"leaked"` في جسم طلب إدراج `appointments` عبر `page.route`. يتحقق أن الصف المُنشأ في DB يظهر `status='new'` و`notes=NULL`.
-- `tests/e2e/book_rls_check_boundaries.py` — يجرّب من الواجهة:
-  - اسم قصير جدًا (`ا`) → توست خطأ + لا صف.
-  - هاتف قصير (`123`) → مرفوض.
-  - تاريخ في الماضي (اعتراض الطلب وتبديل `appointment_date` إلى أمس) → مرفوض.
-- `tests/e2e/book_anon_cannot_read.py` — بعد إنشاء موعد، يتأكد أن `supabase.from("appointments").select(...)` من نفس صفحة `/book` بجلسة `anon` يُعيد صفرًا.
+### مخاطر
+- تغييرات تنسيقية واسعة داخل commit واحد (لا تغيير سلوكي).
 
-### 2) اختبارات تكامل RPC-Level (سريعة، بدون متصفح)
+---
 
-`tests/rls/book_anon_insert_hardening.test.ts`:
-- إدراج بمفتاح `anon` مع `status`/`notes` قيم عبثية → القيم مُطبّعة.
-- إدراج بتاريخ الأمس → 42501 أو 42501 من RLS WITH CHECK.
-- اسم مكوّن من فراغات فقط (`   `) → مرفوض (`btrim` طوله 0).
-- SELECT بـ `anon` بعد INSERT → مصفوفة فارغة.
+## المسار 2 — تعميم نمط `friendlyInsertError` على مسارات insert أخرى
 
-### 3) تشديد جانب العميل + السيرفر
+### النطاق المكتشف
+مسارات تحتوي `.insert(` خارج book:
+- `src/routes/pharmacy.tsx` — طلبات دواء (medicine_orders) من المستخدم.
+- `src/lib/admin.functions.ts` — server functions إدارية.
 
-- `src/routes/book.tsx`:
-  - Zod `bookingFormSchema`: `name` 2-120، `phone` 6-32 مع regex أرقام+`+`، `national_id` 5-20، `gender ∈ {male,female}`، `reason` 0-500 (يطابق `REASON_MAX`).
-  - قبل الإرسال: `parse()` وعرض أول رسالة خطأ بالعربية.
-  - استبدال `toast.error(error.message)` برسائل عربية مصنّفة (RLS / تعارض / شبكة / عام) عبر خريطة صغيرة — لا نسرّب نصوص PostgREST/PL/pgSQL.
-- إضافة `maxLength` على `<input>`/`<textarea>` مطابقة لـ Zod كطبقة أولى.
+### التنفيذ
+1. **ربط pharmacy.tsx بـ `@/lib/insert-errors`:** استبدال أي تعامل يدوي مع أخطاء الـ insert بـ `toast.error(friendlyInsertError(error))`.
+2. **مراجعة `admin.functions.ts`:** إن كانت الأخطاء تعود إلى الواجهة، نفس المعاملة؛ إن كانت داخلية فقط تُترك كما هي (تبقى `.throw()`).
+3. **توسيع eslint guardrails في `eslint.config.js`:** تعميم block الحالي المخصّص لـ book ليشمل `src/routes/pharmacy.tsx` (ومسارات insert مستقبلية عبر نمط glob). أو إضافة block ثانٍ بنفس القواعد وبنفس الرسالة.
+4. **توسيع سكربت lint:** إضافة `"lint:inserts": "eslint <book files> src/routes/pharmacy.tsx --max-warnings=0"` وربطه بـ CI. الإبقاء على `lint:book` كاسم مألوف (alias).
+5. **توسيع سكربت prettier:** `format:check:inserts` بنفس النطاق (مؤقتًا حتى ينتهي المسار 1؛ يُلغى بعده).
+6. **توسيع التوثيق:** تعديل `docs/book-friendly-insert-error.md` — تغيير العنوان إلى "استيراد `friendlyInsertError` داخل مسارات insert"، وتحديث قائمة المسارات المشمولة (book + pharmacy + …). اختبار `book-docs-examples.sh` لا يتغيّر (الأمثلة نفسها لا تزال تفشل بنفس الطريقة).
+7. **اختبارات:** إضافة اختبار end-to-end في `tests/rls/pharmacy-friendly-errors.test.ts` على غرار `book-api-friendly-errors.test.ts` (يستفزّ RLS/duplicate ويؤكد رسالة عربية).
 
-### 4) اختياري — لا نبنيه الآن، فقط نُدرجه للنقاش لاحقًا
+### مخاطر
+- تغيير سلوك رسائل الأخطاء لمستخدم pharmacy (رسائل موحّدة بدل نص المزوّد).
 
-- ربط `specialty_id`/`doctor_id`/`appointment_time` بفحص وجود/توفر عبر server route عام (`/api/public/book`) بدل `insert` مباشر — يفتح باب rate-limiting وCAPTCHA وحلقة تحقق سلوت زمني حقيقي.
-- Rate-limit anonymous inserts (نقطة مطلوبة قبل الإنتاج).
+---
 
-## تفاصيل تقنية
+## المسار 3 — تشغيل `tests/rls/*` داخل CI
 
-- الاعتراض في الاختبارات: نفس نمط `reason_501_rejected.py` — `page.route("**/*", ...)` يعدّل `post_data` قبل إرسال طلبات `/rest/v1/appointments` أو `/_serverFn/*`.
-- التنظيف: كل اختبار يحذف صفوفه في `appointments`/`appointment_audit` عبر `SERVICE_ROLE_KEY`.
-- خريطة الأخطاء العربية:
-  ```text
-  new row violates row-level security  → "تعذر الحفظ. تحقق من الاسم/الهاتف/التاريخ."
-  duplicate key value                  → "الموعد محجوز مسبقًا."
-  Failed to fetch / NetworkError       → "تعذر الاتصال بالخادم."
-  <fallback>                            → "حدث خطأ غير متوقع."
-  ```
+### المتطلّبات (يحتاج تدخّل يدوي منك)
+اختبارات RLS تصل إلى Supabase الحيّ وتحتاج ثلاثة أسرار GitHub Actions repo secrets:
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-## خارج النطاق
+**لا يمكنني إضافتها من هنا** — تُضاف من GitHub → Settings → Secrets and variables → Actions → New repository secret. القيم موجودة في Lovable Cloud فقط ولا تُعرض في هذا السياق (خاصة SERVICE_ROLE_KEY).
 
-- تغييرات schema أو سياسات RLS جديدة.
-- ربط CAPTCHA أو رسائل SMS للتأكيد.
-- نقل المسار إلى server route (يُطرح في مرحلة لاحقة).
+### التنفيذ
+1. **job جديدة** `rls-tests` في `.github/workflows/ci.yml` بجوار `lint-and-typecheck` (متوازية، لا تعتمد عليها).
+2. تشغيل كل ملفّات `tests/rls/*.test.ts` بحلقة `bun` واحدة:
+   ```yaml
+   - name: RLS tests
+     env:
+       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+       SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+     run: |
+       set -e
+       for f in tests/rls/*.test.ts; do
+         echo "── $f ──"
+         bun "$f"
+       done
+   ```
+   (إن كانت الأسرار غائبة، الاختبارات تطبع `(skipping — missing Supabase env vars)` وتخرج بنجاح — الحماية موجودة أصلًا في الملفات.)
+3. **قرار تشغيل شرطي:** الخيار الأنظف هو ربط الـ job بحدث `push` على `main` فقط (وليس على PRs من فروع خارجية لأسباب أمنية — GitHub Actions يخفي secrets عن PRs من forks). تشغيلها أيضًا على PRs داخلية (workflow: `pull_request` لكن مع فحص `secrets.SUPABASE_URL != ''`).
+
+### مخاطر
+- الاختبارات تكتب في DB الإنتاج نفسه (تنشئ users مؤقتين، تحذفهم في `finally`). راجع الملفات — التنظيف موجود لكنه أفضل جهد.
+- مدة CI ستزيد (اختبارات RLS بطيئة نسبيًا).
+
+### قرار مطلوب
+هل تريد تشغيل RLS على:
+- **A)** كل PR + push على main (يتطلّب أسرار GitHub جاهزة).
+- **B)** push على main فقط.
+- **C)** يدويًا عبر `workflow_dispatch` (زر Run في GitHub Actions).
+
+---
+
+## الترتيب المقترح للتنفيذ
+
+1. **المسار 1 أولًا** — يمهّد للتنسيق الموحّد قبل أي refactor لـ pharmacy.
+2. **المسار 2** — refactor + guardrails + اختبار جديد.
+3. **المسار 3** — أخيرًا، بعد أن تُضيف أسرار GitHub.
+
+هل أبدأ بالثلاثة بالترتيب، أم بمسار واحد فقط؟ وأي خيار (A/B/C) للمسار 3؟

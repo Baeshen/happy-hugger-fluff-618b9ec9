@@ -23,13 +23,13 @@
 
 export const FRIENDLY_INSERT_MESSAGES = {
   duplicate: "الموعد محجوز مسبقًا. اختر وقتًا آخر.",
-  rls:       "تعذر الحفظ. تأكد من الاسم والهاتف وأن التاريخ ليس في الماضي.",
-  check:     "بيانات غير مقبولة. راجع الحقول ثم حاول مرة أخرى.",
-  missing:   "بيانات ناقصة. رجاءً املأ الحقول المطلوبة ثم حاول مرة أخرى.",
+  rls: "تعذر الحفظ. تأكد من الاسم والهاتف وأن التاريخ ليس في الماضي.",
+  check: "بيانات غير مقبولة. راجع الحقول ثم حاول مرة أخرى.",
+  missing: "بيانات ناقصة. رجاءً املأ الحقول المطلوبة ثم حاول مرة أخرى.",
   reference: "قيمة مرجعية غير صالحة. تأكد من الاختيارات ثم حاول مرة أخرى.",
-  invalid:   "قيمة غير صالحة في أحد الحقول. راجع المدخلات ثم حاول مرة أخرى.",
-  network:   "تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.",
-  unknown:   "حدث خطأ غير متوقع أثناء الحفظ.",
+  invalid: "قيمة غير صالحة في أحد الحقول. راجع المدخلات ثم حاول مرة أخرى.",
+  network: "تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.",
+  unknown: "حدث خطأ غير متوقع أثناء الحفظ.",
 } as const;
 
 export type FriendlyInsertKey = keyof typeof FRIENDLY_INSERT_MESSAGES;
@@ -37,20 +37,24 @@ export type FriendlyInsertKey = keyof typeof FRIENDLY_INSERT_MESSAGES;
 export function friendlyInsertError(
   err: { message?: string; code?: string } | null | undefined,
 ): string {
-  const msg  = (err?.message ?? "").toLowerCase();
+  const msg = (err?.message ?? "").toLowerCase();
   const code = err?.code ?? "";
 
   if (code === "23505" || msg.includes("duplicate key")) return FRIENDLY_INSERT_MESSAGES.duplicate;
 
-  if (code === "42501"
-      || msg.includes("row-level security")
-      || msg.includes("violates row-level")) {
+  if (
+    code === "42501" ||
+    msg.includes("row-level security") ||
+    msg.includes("violates row-level")
+  ) {
     return FRIENDLY_INSERT_MESSAGES.rls;
   }
 
-  if (code === "23502"
-      || msg.includes("null value in column")
-      || msg.includes("not-null constraint")) {
+  if (
+    code === "23502" ||
+    msg.includes("null value in column") ||
+    msg.includes("not-null constraint")
+  ) {
     return FRIENDLY_INSERT_MESSAGES.missing;
   }
 
@@ -60,21 +64,24 @@ export function friendlyInsertError(
 
   // Length overflow (22001) is a data-shape rejection; folded into `check`
   // because the user's remedy is identical: "review your inputs".
-  if (code === "23514" || code === "22001"
-      || msg.includes("check constraint")
-      || msg.includes("value too long")) {
+  if (
+    code === "23514" ||
+    code === "22001" ||
+    msg.includes("check constraint") ||
+    msg.includes("value too long")
+  ) {
     return FRIENDLY_INSERT_MESSAGES.check;
   }
 
-  if (code === "22P02"
-      || msg.includes("invalid input syntax")
-      || msg.includes("invalid input value")) {
+  if (
+    code === "22P02" ||
+    msg.includes("invalid input syntax") ||
+    msg.includes("invalid input value")
+  ) {
     return FRIENDLY_INSERT_MESSAGES.invalid;
   }
 
-  if (msg.includes("failed to fetch")
-      || msg.includes("networkerror")
-      || msg.includes("network")) {
+  if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network")) {
     return FRIENDLY_INSERT_MESSAGES.network;
   }
 
