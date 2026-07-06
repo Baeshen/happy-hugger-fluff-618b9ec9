@@ -90,14 +90,19 @@ async def main():
             # Step 3: date grid, then time grid.
             await page.wait_for_timeout(600)
             await page.screenshot(path=str(SHOTS / "book_step3.png"))
-            date_btn = page.locator("div.grid button").first
-            await date_btn.wait_for(timeout=8000)
-            await date_btn.click()
-            await page.wait_for_timeout(500)
-            # After a date is picked, a second grid (times) appears.
-            time_btn = page.locator("div.grid").nth(1).locator("button").first
-            await time_btn.wait_for(timeout=6000)
-            await time_btn.click()
+            # Date buttons live in the ONLY grid on this step-3 card. Scope
+            # to the card to avoid matching header/nav grids.
+            date_grid = card.locator("div.grid").first
+            await date_grid.locator("button").first.wait_for(timeout=8000)
+            await date_grid.locator("button").first.click()
+            await page.wait_for_timeout(600)
+            await page.screenshot(path=str(SHOTS / "book_step3_after_date.png"))
+            # After a date is picked, a SECOND grid (times) appears in the card.
+            time_grid = card.locator("div.grid").nth(1)
+            await time_grid.locator("button").first.wait_for(timeout=6000)
+            await time_grid.locator("button").first.click()
+            await page.wait_for_timeout(400)
+            await page.screenshot(path=str(SHOTS / "book_step3_after_time.png"))
             await page.locator('button:has-text("التالي")').click()
 
             # Step 4: patient info + submit.
