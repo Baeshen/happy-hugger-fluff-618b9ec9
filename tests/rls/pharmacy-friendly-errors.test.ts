@@ -51,7 +51,9 @@ function assert(cond: unknown, msg: string): asserts cond {
 }
 function assertEq<T>(actual: T, expected: T, label: string) {
   if (actual !== expected) {
-    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    throw new Error(
+      `${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
   }
 }
 function assertNoLeak(mapped: string, err: PGErr, label: string) {
@@ -109,12 +111,10 @@ async function main() {
 
   // C. Not-null 23502 — patient_phone missing
   await test("C. anon insert with missing patient_phone → missing Arabic (23502)", async () => {
-    const { error } = await anon.from("medicine_orders").insert(
-      {
-        patient_name: `${MARKER}-missing`,
-        delivery_type: "delivery",
-      } as unknown as { patient_name: string; patient_phone: string; delivery_type: "delivery" },
-    );
+    const { error } = await anon.from("medicine_orders").insert({
+      patient_name: `${MARKER}-missing`,
+      delivery_type: "delivery",
+    } as unknown as { patient_name: string; patient_phone: string; delivery_type: "delivery" });
     assert(error, "expected not-null error");
     // Depending on policy ordering this may surface as 23502 (not-null) or
     // 42501 (RLS check on trimmed phone length). Both are valid; both must
