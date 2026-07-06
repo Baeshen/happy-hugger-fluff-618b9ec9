@@ -118,41 +118,63 @@ jobs:
     # Missing secrets = clean skip with a clear summary; never fails the PR.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Run tests/rls/* against live Supabase (skip if secrets missing)
+      - name: Verify Supabase secrets are present (early check — skip mode on PRs)
+        id: verify_secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -e
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+          missing=()
+          [ -z "$SUPABASE_URL" ] && missing+=("SUPABASE_URL")
+          [ -z "$SUPABASE_PUBLISHABLE_KEY" ] && missing+=("SUPABASE_PUBLISHABLE_KEY")
+          [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing+=("SUPABASE_SERVICE_ROLE_KEY")
+          if [ ${#missing[@]} -gt 0 ]; then
             {
-              echo "## ⚠️ RLS tests skipped (PR skip mode)"
+              echo "## ⚠️ RLS tests skipped on PR — missing Supabase secrets"
               echo ""
-              echo "Supabase secrets are missing — PR runs are allowed to skip; \`main\` is strict."
+              echo "This early check runs **before** checkout/install so we skip fast on PRs without wasted work."
               echo ""
-              echo "Required secrets:"
-              echo "- \`SUPABASE_URL\`"
-              echo "- \`SUPABASE_PUBLISHABLE_KEY\`"
-              echo "- \`SUPABASE_SERVICE_ROLE_KEY\`"
+              echo "The following secrets are missing:"
+              for s in "${missing[@]}"; do
+                echo "- \`$s\`"
+              done
+              echo ""
+              echo "PR runs are allowed to skip; \`main\` is strict."
               echo ""
               echo "Add them here: [Repository secrets](https://github.com/${{ github.repository }}/settings/secrets/actions)"
               echo ""
               echo "Note: \`SUPABASE_SERVICE_ROLE_KEY\` is not available on Lovable Cloud. For full tests you need a separate Supabase project; otherwise this job will keep skipping safely on PRs."
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::warning::RLS tests skipped on PR — Supabase secrets not configured. See job summary."
-            exit 0
+            echo "::warning::RLS tests skipped on PR — missing secrets: ${missing[*]}. See job summary."
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+            echo "✅ All Supabase secrets present — proceeding with checkout, install, and full RLS suite."
           fi
+
+      - uses: actions/checkout@v4
+        if: steps.verify_secrets.outputs.has_secrets == 'true'
+
+      - name: Setup Bun
+        if: steps.verify_secrets.outputs.has_secrets == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        if: steps.verify_secrets.outputs.has_secrets == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Run tests/rls/* against live Supabase
+        if: steps.verify_secrets.outputs.has_secrets == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
           failed=0
           for f in tests/rls/*.test.ts; do
             echo "── $f ──"
