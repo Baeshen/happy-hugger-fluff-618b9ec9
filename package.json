@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "lint:book": "eslint src/routes/book.tsx 'src/routes/api/public/book/**/*.{ts,tsx}' --max-warnings=0",
+    "typecheck": "tsgo --noEmit",
     "format": "prettier --write ."
   },
   "dependencies": {
