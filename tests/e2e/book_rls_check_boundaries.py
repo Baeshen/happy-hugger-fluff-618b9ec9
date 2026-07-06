@@ -69,9 +69,8 @@ async def submit(page: Page, name: str, phone: str):
 
 
 async def count_rows(patient: str) -> int:
-    rows = sb(
-        f"/rest/v1/appointments?patient_name=eq.{patient}&select=id"
-    ) or []
+    q = urllib.parse.quote(patient, safe="")
+    rows = sb(f"/rest/v1/appointments?patient_name=eq.{q}&select=id") or []
     return len(rows)
 
 
