@@ -9,6 +9,7 @@ import {
   getAdminStats,
   listAppointments,
   updateAppointmentStatus,
+  listAppointmentAudit,
   listOrders,
   updateOrderStatus,
   listDoctorsAdmin,
@@ -40,6 +41,7 @@ import {
   X as XIcon,
   Tag,
   CalendarClock,
+  History,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -221,9 +223,10 @@ function AppointmentsTab() {
   const q = useQuery({ queryKey: ["admin-appts"], queryFn: () => listFn() });
   const [filter, setFilter] = useState<"all" | ApptStatus>("all");
   const [search, setSearch] = useState("");
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
   const m = useMutation({
-    mutationFn: (v: { id: string; status: ApptStatus }) => updateFn({ data: v }),
+    mutationFn: (v: { id: string; status: ApptStatus; reason?: string }) => updateFn({ data: v }),
     onSuccess: (_d, v) => {
       const label = APPT_STATUS.find((s) => s.value === v.status)?.label ?? v.status;
       toast.success(`تم تحديث الحالة إلى: ${label}`);
@@ -231,6 +234,22 @@ function AppointmentsTab() {
     },
     onError: (e: any) => toast.error(e?.message ?? "فشل التحديث"),
   });
+
+  // Ask for a reason on destructive/final transitions; optional otherwise.
+  const changeStatus = (id: string, status: ApptStatus) => {
+    const needsReason = status === "cancelled" || status === "no_show";
+    const promptMsg = needsReason
+      ? `سبب التغيير إلى "${APPT_STATUS.find((s) => s.value === status)?.label}" (إلزامي):`
+      : `سبب التغيير (اختياري):`;
+    const reason = window.prompt(promptMsg, "");
+    if (reason === null) return; // cancelled
+    const trimmed = reason.trim();
+    if (needsReason && !trimmed) {
+      toast.error("السبب مطلوب لهذا الإجراء");
+      return;
+    }
+    m.mutate({ id, status, reason: trimmed || undefined });
+  };
 
   if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
   const all = (q.data ?? []) as any[];
@@ -319,7 +338,7 @@ function AppointmentsTab() {
                       {status !== "confirmed" && !isFinal && (
                         <button
                           disabled={pending}
-                          onClick={() => m.mutate({ id: r.id, status: "confirmed" })}
+                          onClick={() => changeStatus(r.id, "confirmed")}
                           className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                         >
                           تأكيد
@@ -328,7 +347,7 @@ function AppointmentsTab() {
                       {status === "confirmed" && (
                         <button
                           disabled={pending}
-                          onClick={() => m.mutate({ id: r.id, status: "completed" })}
+                          onClick={() => changeStatus(r.id, "completed")}
                           className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2.5 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-60"
                         >
                           إنهاء
@@ -337,7 +356,7 @@ function AppointmentsTab() {
                       {status === "confirmed" && (
                         <button
                           disabled={pending}
-                          onClick={() => m.mutate({ id: r.id, status: "no_show" })}
+                          onClick={() => changeStatus(r.id, "no_show")}
                           className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 px-2.5 py-1 text-xs font-medium text-amber-600 hover:bg-amber-500/10 disabled:opacity-60"
                         >
                           لم يحضر
@@ -346,7 +365,7 @@ function AppointmentsTab() {
                       {!isFinal && (
                         <button
                           disabled={pending}
-                          onClick={() => { if (confirm("إلغاء هذا الحجز؟")) m.mutate({ id: r.id, status: "cancelled" }); }}
+                          onClick={() => changeStatus(r.id, "cancelled")}
                           className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-60"
                         >
                           إلغاء
@@ -355,12 +374,20 @@ function AppointmentsTab() {
                       {isFinal && (
                         <button
                           disabled={pending}
-                          onClick={() => m.mutate({ id: r.id, status: "new" })}
+                          onClick={() => changeStatus(r.id, "new")}
                           className="inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
                         >
                           إعادة فتح
                         </button>
                       )}
+                      <button
+                        onClick={() => setHistoryFor({ id: r.id, name: r.patient_name })}
+                        className="inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
+                        title="سجل التغييرات"
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        السجل
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -368,6 +395,90 @@ function AppointmentsTab() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {historyFor && (
+        <AuditModal
+          appointmentId={historyFor.id}
+          patientName={historyFor.name}
+          onClose={() => setHistoryFor(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AuditModal({
+  appointmentId,
+  patientName,
+  onClose,
+}: {
+  appointmentId: string;
+  patientName: string;
+  onClose: () => void;
+}) {
+  const fn = useServerFn(listAppointmentAudit);
+  const q = useQuery({
+    queryKey: ["appt-audit", appointmentId],
+    queryFn: () => fn({ data: { appointmentId } }),
+  });
+  const rows = (q.data ?? []) as any[];
+  const statusLabel = (v: string | null) =>
+    v ? APPT_STATUS.find((s) => s.value === v)?.label ?? v : "—";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-background p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">سجل تغييرات الحجز</h3>
+            <p className="text-sm text-muted-foreground">{patientName}</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-muted">
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        {q.isLoading ? (
+          <div className="py-8 text-center text-muted-foreground">جارٍ التحميل…</div>
+        ) : rows.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">لا توجد تغييرات مسجّلة بعد</div>
+        ) : (
+          <ol className="space-y-3">
+            {rows.map((r) => (
+              <li key={r.id} className="rounded-lg border border-border bg-card p-3 text-sm">
+                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{r.changed_by_name ?? "مستخدم غير معروف"}</span>
+                  <span dir="ltr">{new Date(r.changed_at).toLocaleString("ar-SA")}</span>
+                </div>
+                {(r.old_status || r.new_status) && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">الحالة:</span>{" "}
+                    <span>{statusLabel(r.old_status)}</span>{" "}
+                    <span className="text-muted-foreground">←</span>{" "}
+                    <span className="font-medium">{statusLabel(r.new_status)}</span>
+                  </div>
+                )}
+                {(r.old_notes !== null || r.new_notes !== null) && (r.old_notes !== undefined || r.new_notes !== undefined) && (
+                  <div className="mt-1 text-xs">
+                    <div className="text-muted-foreground">الملاحظات قبل:</div>
+                    <div className="whitespace-pre-wrap rounded bg-muted/50 p-2">{r.old_notes ?? "—"}</div>
+                    <div className="mt-1 text-muted-foreground">الملاحظات بعد:</div>
+                    <div className="whitespace-pre-wrap rounded bg-muted/50 p-2">{r.new_notes ?? "—"}</div>
+                  </div>
+                )}
+                {r.reason && (
+                  <div className="mt-2 rounded bg-primary/5 p-2 text-xs">
+                    <span className="font-medium text-primary">السبب:</span> {r.reason}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     </div>
   );
