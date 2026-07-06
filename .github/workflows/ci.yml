@@ -24,5 +24,11 @@ jobs:
       - name: Lint book routes (guardrails against friendlyInsertError import conflicts)
         run: bun run lint:book
 
+      - name: Verify docs examples match lint:book rules
+        run: bash tests/lint/book-docs-examples.sh
+
+      - name: Verify FRIENDLY_INSERT_MESSAGES keys mentioned in docs exist & are wired
+        run: bun tests/unit/book-docs-keys.test.ts
+
       - name: TypeScript check
         run: bun run typecheck
