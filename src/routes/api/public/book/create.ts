@@ -22,40 +22,42 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
-import {
-  friendlyInsertError,
-  FRIENDLY_INSERT_MESSAGES,
-} from "@/lib/insert-errors";
+import { friendlyInsertError, FRIENDLY_INSERT_MESSAGES } from "@/lib/insert-errors";
 
 // Mirrors the client-side caps in src/routes/book.tsx so both paths reject
 // identically. Any change here MUST also update book.tsx (and vice versa).
-const NAME_MIN = 2, NAME_MAX = 120;
-const PHONE_MIN = 6, PHONE_MAX = 32;
+const NAME_MIN = 2,
+  NAME_MAX = 120;
+const PHONE_MIN = 6,
+  PHONE_MAX = 32;
 const NID_MAX = 20;
 const REASON_MAX = 500;
 const PHONE_RE = /^[+0-9\s\-()]+$/;
 
 const bookingCreateSchema = z.object({
-  patient_name: z.string().trim()
+  patient_name: z
+    .string()
+    .trim()
     .min(NAME_MIN, "الاسم قصير جدًا (٢ أحرف على الأقل)")
     .max(NAME_MAX, "الاسم طويل جدًا"),
-  patient_phone: z.string().trim()
+  patient_phone: z
+    .string()
+    .trim()
     .min(PHONE_MIN, "رقم الهاتف قصير جدًا")
     .max(PHONE_MAX, "رقم الهاتف طويل جدًا")
     .regex(PHONE_RE, "رقم الهاتف يحتوي على أحرف غير مسموحة"),
-  national_id: z.string().trim().max(NID_MAX, "رقم الهوية طويل جدًا")
-    .optional().nullable(),
-  gender: z.enum(["male", "female"], { message: "الجنس غير صالح" })
-    .optional(),
+  national_id: z.string().trim().max(NID_MAX, "رقم الهوية طويل جدًا").optional().nullable(),
+  gender: z.enum(["male", "female"], { message: "الجنس غير صالح" }).optional(),
   specialty_id: z.string().uuid("قيمة غير صالحة").optional().nullable(),
   doctor_id: z.string().uuid("قيمة غير صالحة").optional().nullable(),
-  appointment_date: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "تاريخ غير صالح"),
-  appointment_time: z.string()
-    .regex(/^\d{2}:\d{2}(:\d{2})?$/, "وقت غير صالح"),
-  reason: z.string().trim()
+  appointment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاريخ غير صالح"),
+  appointment_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "وقت غير صالح"),
+  reason: z
+    .string()
+    .trim()
     .max(REASON_MAX, `السبب طويل جدًا (الحد الأقصى ${REASON_MAX} حرفًا)`)
-    .optional().nullable(),
+    .optional()
+    .nullable(),
 });
 
 function json(status: number, body: Record<string, unknown>) {
