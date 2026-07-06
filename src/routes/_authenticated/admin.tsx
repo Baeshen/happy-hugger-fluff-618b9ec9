@@ -9,6 +9,7 @@ import {
   getAdminStats,
   listAppointments,
   updateAppointmentStatus,
+  listAppointmentAudit,
   listOrders,
   updateOrderStatus,
   listDoctorsAdmin,
@@ -40,6 +41,7 @@ import {
   X as XIcon,
   Tag,
   CalendarClock,
+  History,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
