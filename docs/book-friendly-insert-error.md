@@ -140,3 +140,53 @@ bun run typecheck              # يتحقق من نوع FriendlyInsertKey
 bash tests/lint/book-docs-examples.sh   # أمثلة هذه الوثيقة لا تزال متزامنة مع القواعد
 ```
 
+## قالب جاهز لإضافة `FRIENDLY_INSERT_MESSAGES` جديدة
+
+انسخ القالب التالي وعوّض الأماكن المحددة بالقيم الفعلية:
+
+- `{{FILE}}` — اسم الملف: `src/lib/insert-errors.ts`
+- `{{KEY}}` — مفتاح الرسالة بالإنجليزية (مثلاً `busy`)
+- `{{VALUE}}` — النص العربي المسموح به (مثلاً `"النظام مشغول الآن. حاول مرة أخرى بعد لحظات."`)
+
+### 1) الملف والمفتاح والقيمة
+
+```ts
+// {{FILE}}
+export const FRIENDLY_INSERT_MESSAGES = {
+  // ... المفاتيح الحالية ...
+  {{KEY}}: {{VALUE}}, // ← جديد
+} as const;
+```
+
+### 2) الشرط المطابق داخل `friendlyInsertError`
+
+```ts
+// {{FILE}}
+if (code === "{{POSTGRES_CODE}}" || msg.includes("{{POSTGRES_MESSAGE}}")) {
+  return FRIENDLY_INSERT_MESSAGES.{{KEY}};
+}
+
+return FRIENDLY_INSERT_MESSAGES.unknown;
+```
+
+> **ملاحظة:** استبدل `{{POSTGRES_CODE}}` و `{{POSTGRES_MESSAGE}}` بقيمة Postgres الفعلية المرتبطة بالرسالة. إذا لم تكن هناك حاجة لرمز SQLSTATE، احذف `code === "..." ||`.
+
+### 3) اختبار الشكل في `tests/rls/friendly-insert-error.test.ts`
+
+```ts
+// tests/rls/friendly-insert-error.test.ts
+it("يعيد رسالة {{KEY}} عند {{CONDITION}}", () => {
+  expect(friendlyInsertError({ code: "{{POSTGRES_CODE}}", message: "{{POSTGRES_MESSAGE}}" }))
+    .toBe(FRIENDLY_INSERT_MESSAGES.{{KEY}});
+});
+```
+
+### 4) التحقق من القواعد
+
+```bash
+bun run lint:book
+bun run typecheck
+bash tests/lint/book-docs-examples.sh
+```
+
+
