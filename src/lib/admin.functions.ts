@@ -178,7 +178,7 @@ export const createDoctor = createServerFn({ method: "POST" })
     const payload = { ...data, photo_url: data.photo_url || null };
     const { data: row, error } = await context.supabase
       .from("doctors")
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     if (error) throw new Error(error.message);
