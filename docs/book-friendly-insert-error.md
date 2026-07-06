@@ -120,10 +120,9 @@ it("يعيد رسالة busy عند تطابق نصي فقط", () => {
 كلاهما يستدعي `friendlyInsertError(err)` بدون معرفة المفاتيح، فيلتقط `busy` تلقائيًا. أي محاولة لإضافة نص الرسالة أو المفتاح يدويًا داخل هذه المسارات ستُرفض من `bun run lint:book`:
 
 ```ts
-// ✗ لا تفعل هذا داخل book.tsx
-if (err.code === "40001") toast.error("النظام مشغول الآن. حاول مرة أخرى بعد لحظات.");
-// ✗ ولا هذا
-const FRIENDLY_INSERT_MESSAGES = { ...imported, busy: "..." };
+// ✗ إعادة تعريف الجدول محليًا لإضافة مفتاح جديد
+const FRIENDLY_INSERT_MESSAGES = { ...imported, busy: "..." } as const;
+
 ```
 
 بدلًا من ذلك اكتفِ باستدعاء واحد:
