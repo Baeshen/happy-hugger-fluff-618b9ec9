@@ -10,6 +10,7 @@ import {
   getAdminStats,
   listAppointments,
   updateAppointmentStatus,
+  updateAppointmentNotes,
   listAppointmentAudit,
   listOrders,
   updateOrderStatus,
