@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "appointments" | "orders" | "doctors";
+type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability";
 
 const APPT_STATUS: { value: "new" | "confirmed" | "completed" | "cancelled" | "no_show"; label: string }[] = [
   { value: "new", label: "جديد" },
