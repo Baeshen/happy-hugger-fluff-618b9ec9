@@ -87,6 +87,8 @@ async def main():
         async def rewrite_reason(route, request):
             try:
                 body = request.post_data or ""
+                if body:
+                    print("  req:", request.url[:80], "hasSentinel=", SENTINEL in body)
                 if SENTINEL in body:
                     new_body = body.replace(SENTINEL, REASON_501)
                     await route.continue_(post_data=new_body)
