@@ -59,7 +59,6 @@ const friendlyInsertError = (err: unknown) => "...";
 const FRIENDLY_INSERT_MESSAGES = { rls: "..." } as const;
 ```
 
-
 الرسالة:
 
 > لا تعرّف friendlyInsertError أو FRIENDLY_INSERT_MESSAGES محليًا داخل مسارات book — استوردهما من '@/lib/insert-errors'.
