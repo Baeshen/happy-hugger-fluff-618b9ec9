@@ -222,6 +222,7 @@ function StatusBadge({ status }: { status: ApptStatus }) {
 function AppointmentsTab() {
   const listFn = useServerFn(listAppointments);
   const updateFn = useServerFn(updateAppointmentStatus);
+  const updateNotesFn = useServerFn(updateAppointmentNotes);
   const q = useQuery({ queryKey: ["admin-appts"], queryFn: () => listFn() });
   const [filter, setFilter] = useState<"all" | ApptStatus>("all");
   const [search, setSearch] = useState("");
@@ -256,6 +257,26 @@ function AppointmentsTab() {
     },
   });
 
+  const notesM = useMutation({
+    mutationFn: (v: { id: string; notes: string | null; reason?: string }) => updateNotesFn({ data: v }),
+    onSuccess: () => {
+      toast.success("تم تحديث الملاحظات");
+      q.refetch();
+    },
+    onError: (e: any) => {
+      const msg: string = e?.message ?? "";
+      if (/notes_too_long/i.test(msg) || /الملاحظات طويلة جدًا/.test(msg)) {
+        toast.error("الملاحظات طويلة جدًا (الحد الأقصى 500 حرفًا)");
+        return;
+      }
+      if (/reason_too_long/i.test(msg) || /السبب طويل جدًا/.test(msg)) {
+        toast.error("السبب طويل جدًا (الحد الأقصى 500 حرفًا)");
+        return;
+      }
+      toast.error(msg || "فشل تحديث الملاحظات");
+    },
+  });
+
   // Ask for a reason on destructive/final transitions; optional otherwise.
   // Normalization (trim / NBSP / length cap) is shared with server + DB via
   // src/lib/reason.ts so all three layers agree on what counts as empty.
@@ -273,6 +294,20 @@ function AppointmentsTab() {
     }
     m.mutate({ id, status, reason: isEmptyReason(normalized) ? undefined : normalized });
   };
+
+  // Edit the row's notes via prompt. Empty-after-trim clears the field
+  // (persisted as NULL); interior whitespace is preserved verbatim by the
+  // DB-side normalize_reason() helper.
+  const editNotes = (id: string, current: string | null) => {
+    const raw = window.prompt("الملاحظات (اتركها فارغة للمسح):", current ?? "");
+    if (raw === null) return; // cancelled
+    const trimmed = normalizeReason(raw);
+    notesM.mutate({
+      id,
+      notes: isEmptyReason(trimmed) ? null : (trimmed as string),
+    });
+  };
+
 
 
   if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
