@@ -36,5 +36,47 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  // Guardrails for book routes: friendlyInsertError / FRIENDLY_INSERT_MESSAGES
+  // must always come from the canonical module `@/lib/insert-errors`, and must
+  // never be redefined locally inside a book route (which is how the previous
+  // import conflict slipped in).
+  {
+    files: ["src/routes/book.tsx", "src/routes/api/public/book/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "server-only",
+              message:
+                "TanStack Start does not use the Next.js `server-only` package. Rename the module to `*.server.ts` or mark it with `@tanstack/react-start/server-only`.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["*insert-errors*", "!@/lib/insert-errors"],
+              message:
+                "استورد friendlyInsertError / FRIENDLY_INSERT_MESSAGES من '@/lib/insert-errors' فقط — لا تعيد تعريفها أو تستوردها من مسار آخر.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "VariableDeclarator[id.name='friendlyInsertError'], FunctionDeclaration[id.name='friendlyInsertError'], VariableDeclarator[id.name='FRIENDLY_INSERT_MESSAGES']",
+          message:
+            "لا تعرّف friendlyInsertError أو FRIENDLY_INSERT_MESSAGES محليًا داخل مسارات book — استوردهما من '@/lib/insert-errors'.",
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value=/insert-errors/]:not([source.value='@/lib/insert-errors'])",
+          message: "استورد من '@/lib/insert-errors' فقط بدون مسارات نسبية أو مكررة.",
+        },
+      ],
+    },
+  },
   eslintPluginPrettier,
 );
