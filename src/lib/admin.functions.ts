@@ -11,7 +11,7 @@ async function getRoles(supabase: any, userId: string): Promise<Role[]> {
 
 function ensureRole(roles: Role[], allowed: Role[]) {
   if (!roles.some((r) => allowed.includes(r))) {
-    throw new Error("FORBIDDEN: ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
+    throw new Error("ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
   }
 }
 
