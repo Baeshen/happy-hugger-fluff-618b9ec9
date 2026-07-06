@@ -48,19 +48,23 @@ async function createAdmin(email: string) {
   return { userId: data.user.id, email, password };
 }
 async function newAppt(initialStatus: "confirmed" | "new" = "confirmed") {
-  // Insert as anon-ish default then upgrade status via service role so no
-  // audit row exists yet (trigger sees no auth.uid so audit is skipped for
-  // this seed path — but to be safe we wipe audit for this id).
+  // Insert (force_appointment_defaults sanitizes status to 'new' for non-staff),
+  // then set the desired status via service-role UPDATE, then wipe audit rows
+  // so the RPC under test is measured in isolation.
   const { data, error } = await admin.from("appointments").insert({
     patient_name: "AdminAuditSingle",
     patient_phone: "0500000000",
     appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
     appointment_time: "10:00",
-    status: initialStatus,
-  }).select("id, status").single();
+  }).select("id").single();
   if (error) throw error;
+  if (initialStatus !== "new") {
+    const { error: uerr } = await admin.from("appointments")
+      .update({ status: initialStatus }).eq("id", data.id);
+    if (uerr) throw uerr;
+  }
   await admin.from("appointment_audit").delete().eq("appointment_id", data.id);
-  return data as { id: string; status: string };
+  return { id: data.id as string, status: initialStatus };
 }
 const auditOf = async (id: string) =>
   (await admin.from("appointment_audit").select("*").eq("appointment_id", id)).data ?? [];
