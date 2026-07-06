@@ -77,15 +77,16 @@ const users: Array<{ userId: string; email: string; password: string }> = [];
 (async () => {
   console.log("── non-admin status/notes updates: 0 audit rows ──");
 
-  const recep   = await createUser(`nad-recep-${stamp}@test.local`, "reception");
   const pharm   = await createUser(`nad-pharm-${stamp}@test.local`, "pharmacy");
   const patient = await createUser(`nad-patient-${stamp}@test.local`, null);
   const adminU  = await createUser(`nad-admin-${stamp}@test.local`, "admin");
-  users.push(recep, pharm, patient, adminU);
+  users.push(pharm, patient, adminU);
 
   try {
+    // Note: `reception` is deliberately excluded — reception legitimately
+    // updates appointments and IS expected to write audit rows. This test
+    // targets roles that MUST be blocked entirely.
     const clients: Array<{ label: string; client: SupabaseClient }> = [
-      { label: "reception", client: await signInAs(recep.email, recep.password) },
       { label: "pharmacy",  client: await signInAs(pharm.email, pharm.password) },
       { label: "patient",   client: await signInAs(patient.email, patient.password) },
       { label: "anon",      client: anon },
