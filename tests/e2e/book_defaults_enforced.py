@@ -98,14 +98,14 @@ async def main():
             time_btn = page.locator("div.grid").nth(1).locator("button").first
             await time_btn.wait_for(timeout=6000)
             await time_btn.click()
-            await page.get_by_role("button", name="التالي").click()
+            await page.locator('button:has-text("التالي")').click()
 
             # Step 4: patient info + submit.
             await page.wait_for_timeout(400)
             await page.screenshot(path=str(SHOTS / "book_step4.png"))
             await page.locator("input").nth(0).fill(patient)
             await page.locator("input").nth(1).fill("0501234567")
-            await page.get_by_role("button", name="تأكيد الحجز").click()
+            await page.locator('button:has-text("تأكيد الحجز")').click()
 
             # Wait for success screen (booking_success translation).
             try:
