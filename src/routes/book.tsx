@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Check, ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User } from "lucide-react";
+import { friendlyInsertError } from "@/lib/insert-errors";
 
 const search = z.object({
   specialty: z.string().optional(),
@@ -33,26 +34,8 @@ const bookingFormSchema = z.object({
   reason: z.string().trim().max(REASON_MAX, `السبب طويل جدًا (الحد الأقصى ${REASON_MAX} حرفًا)`).optional().or(z.literal("")),
 });
 
-/**
- * Map raw Supabase/PostgREST errors from an anonymous appointments insert to
- * short Arabic messages. We never surface raw provider text to the public —
- * it can leak schema/policy names and confuses non-technical patients.
- */
-function friendlyInsertError(err: { message?: string; code?: string } | null | undefined): string {
-  const msg = (err?.message ?? "").toLowerCase();
-  const code = err?.code ?? "";
-  if (code === "23505" || msg.includes("duplicate key")) return "الموعد محجوز مسبقًا. اختر وقتًا آخر.";
-  if (code === "42501" || msg.includes("row-level security") || msg.includes("violates row-level")) {
-    return "تعذر الحفظ. تأكد من الاسم والهاتف وأن التاريخ ليس في الماضي.";
-  }
-  if (code === "23514" || msg.includes("check constraint")) {
-    return "بيانات غير مقبولة. راجع الحقول ثم حاول مرة أخرى.";
-  }
-  if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network")) {
-    return "تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
-  }
-  return "حدث خطأ غير متوقع أثناء الحفظ.";
-}
+
+
 
 /**
  * Generate an RFC-4122 v4 uuid client-side so we can set the appointment id
