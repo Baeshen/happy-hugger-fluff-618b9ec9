@@ -77,14 +77,15 @@ async def main():
             await card.get_by_role("button", name="الأطفال", exact=True).click()
             await page.wait_for_timeout(300)
             await page.screenshot(path=str(SHOTS / "book_step1_after_pick.png"))
-            next_btn = page.get_by_role("button", name="التالي")
+            next_btn = page.locator('button:has-text("التالي")')
             await next_btn.wait_for(state="visible", timeout=5000)
             await next_btn.click()
 
             # Step 2: "any available doctor"
             await page.wait_for_timeout(300)
             await card.get_by_role("button", name="أي طبيب متاح", exact=True).click()
-            await next_btn.click()
+            await page.wait_for_timeout(200)
+            await page.locator('button:has-text("التالي")').click()
 
             # Step 3: date grid, then time grid.
             await page.wait_for_timeout(600)
