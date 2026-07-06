@@ -69,17 +69,67 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
     z.object({
       id: z.string().uuid(),
       status: z.enum(["new", "confirmed", "completed", "cancelled", "no_show"]),
+      reason: z.string().trim().max(500).optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const roles = await getRoles(context.supabase, context.userId);
     ensureRole(roles, ["admin", "reception"]);
-    const { error } = await context.supabase
-      .from("appointments")
-      .update({ status: data.status })
-      .eq("id", data.id);
+    const { error } = await context.supabase.rpc("update_appointment_status", {
+      _id: data.id,
+      _status: data.status,
+      _reason: data.reason ?? null,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const updateAppointmentNotes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      id: z.string().uuid(),
+      notes: z.string().trim().max(2000).nullable(),
+      reason: z.string().trim().max(500).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+    const { error } = await context.supabase.rpc("update_appointment_notes", {
+      _id: data.id,
+      _notes: data.notes,
+      _reason: data.reason ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const listAppointmentAudit = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ appointmentId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+    const { data: rows, error } = await context.supabase
+      .from("appointment_audit")
+      .select("*")
+      .eq("appointment_id", data.appointmentId)
+      .order("changed_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    // Enrich with actor email (best-effort; requires admin)
+    const ids = Array.from(new Set((rows ?? []).map((r: any) => r.changed_by).filter(Boolean)));
+    let emailById = new Map<string, string>();
+    if (ids.length) {
+      const { data: profs } = await context.supabase
+        .from("profiles").select("id, full_name").in("id", ids);
+      for (const p of profs ?? []) emailById.set(p.id, p.full_name ?? "");
+    }
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      changed_by_name: r.changed_by ? emailById.get(r.changed_by) ?? null : null,
+    }));
   });
 
 export const listOrders = createServerFn({ method: "GET" })
