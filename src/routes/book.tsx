@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Check, ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User } from "lucide-react";
+import { friendlyInsertError } from "@/lib/insert-errors";
 
 const search = z.object({
   specialty: z.string().optional(),
