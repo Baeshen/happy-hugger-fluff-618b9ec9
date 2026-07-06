@@ -52,7 +52,7 @@ function PharmacyPage() {
       const { error: upErr } = await supabase.storage.from("prescriptions").upload(path, file);
       if (upErr) {
         setSubmitting(false);
-        toast.error(upErr.message);
+        toast.error(friendlyInsertError(upErr));
         return;
       }
       prescription_url = path;
