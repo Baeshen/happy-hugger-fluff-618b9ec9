@@ -12,6 +12,66 @@ const search = z.object({
   doctor: z.string().optional(),
 });
 
+// Public booking input caps. Kept intentionally in sync with the DB RLS
+// WITH CHECK constraints on `public.appointments`:
+//   patient_name : btrim length 2-120
+//   patient_phone: btrim length 6-32
+// `reason` mirrors REASON_MAX (500) from src/lib/reason.ts so a rejected
+// audit-reason cap can never differ from what the booking form allowed.
+const NAME_MIN = 2, NAME_MAX = 120;
+const PHONE_MIN = 6, PHONE_MAX = 32;
+const NID_MAX = 20;
+const REASON_MAX = 500;
+const PHONE_RE = /^[+0-9\s\-()]+$/;
+
+const bookingFormSchema = z.object({
+  name: z.string().trim().min(NAME_MIN, "الاسم قصير جدًا (٢ أحرف على الأقل)").max(NAME_MAX, "الاسم طويل جدًا"),
+  phone: z.string().trim().min(PHONE_MIN, "رقم الهاتف قصير جدًا").max(PHONE_MAX, "رقم الهاتف طويل جدًا")
+    .regex(PHONE_RE, "رقم الهاتف يحتوي على أحرف غير مسموحة"),
+  national_id: z.string().trim().max(NID_MAX, "رقم الهوية طويل جدًا").optional().or(z.literal("")),
+  gender: z.enum(["male", "female"], { message: "الجنس غير صالح" }),
+  reason: z.string().trim().max(REASON_MAX, `السبب طويل جدًا (الحد الأقصى ${REASON_MAX} حرفًا)`).optional().or(z.literal("")),
+});
+
+/**
+ * Map raw Supabase/PostgREST errors from an anonymous appointments insert to
+ * short Arabic messages. We never surface raw provider text to the public —
+ * it can leak schema/policy names and confuses non-technical patients.
+ */
+function friendlyInsertError(err: { message?: string; code?: string } | null | undefined): string {
+  const msg = (err?.message ?? "").toLowerCase();
+  const code = err?.code ?? "";
+  if (code === "23505" || msg.includes("duplicate key")) return "الموعد محجوز مسبقًا. اختر وقتًا آخر.";
+  if (code === "42501" || msg.includes("row-level security") || msg.includes("violates row-level")) {
+    return "تعذر الحفظ. تأكد من الاسم والهاتف وأن التاريخ ليس في الماضي.";
+  }
+  if (code === "23514" || msg.includes("check constraint")) {
+    return "بيانات غير مقبولة. راجع الحقول ثم حاول مرة أخرى.";
+  }
+  if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network")) {
+    return "تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
+  }
+  return "حدث خطأ غير متوقع أثناء الحفظ.";
+}
+
+/**
+ * Generate an RFC-4122 v4 uuid client-side so we can set the appointment id
+ * before insert and skip the returning-representation round trip (anon
+ * cannot SELECT `appointments`). Uses `crypto.randomUUID` when available.
+ */
+function randomId(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c?.randomUUID) return c.randomUUID();
+  const bytes = new Uint8Array(16);
+  c!.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
+
+
 export const Route = createFileRoute("/book")({
   validateSearch: search,
   head: () => ({
@@ -113,29 +173,50 @@ function BookPage() {
   }, [date, availability]);
 
   const submit = async () => {
-    if (!form.name || !form.phone || !date || !time) {
-      toast.error(lang === "ar" ? "يرجى تعبئة كل الحقول المطلوبة" : "Please fill required fields");
+    if (!date || !time) {
+      toast.error(lang === "ar" ? "يرجى اختيار التاريخ والوقت" : "Please pick a date and time");
       return;
     }
+    const parsed = bookingFormSchema.safeParse(form);
+    if (!parsed.success) {
+      // Surface the first validation issue in Arabic; keeps UI simple and
+      // prevents a raw Zod path/JSON blob from leaking into the toast.
+      toast.error(parsed.error.issues[0]?.message ?? "بيانات غير صالحة");
+      return;
+    }
+    const v = parsed.data;
     setSubmitting(true);
-    const { data, error } = await supabase.from("appointments").insert({
-      patient_name: form.name,
-      patient_phone: form.phone,
-      national_id: form.national_id || null,
-      gender: form.gender,
+    // Generate the id client-side so we can show a reference to the patient
+    // WITHOUT relying on `Prefer: return=representation` — anon has no SELECT
+    // policy on `appointments`, so `.select("id").single()` after insert
+    // would trip RLS and the whole insert would roll back. Since the DB
+    // default is also `gen_random_uuid()`, providing our own value here is
+    // just a way to avoid the read-back round trip.
+    const newId = randomId();
+    // NOTE: `status` and `notes` are intentionally omitted from the payload;
+    // even if a client injected them, `trg_force_appointment_defaults`
+    // rewrites them to 'new'/NULL for anon inserts.
+    const { error } = await supabase.from("appointments").insert({
+      id: newId,
+      patient_name: v.name,
+      patient_phone: v.phone,
+      national_id: v.national_id ? v.national_id : null,
+      gender: v.gender,
       specialty_id: specialtyId,
       doctor_id: doctorId,
       appointment_date: date,
       appointment_time: time,
-      reason: form.reason || null,
-    }).select("id").single();
+      reason: v.reason ? v.reason : null,
+    });
     setSubmitting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(friendlyInsertError(error));
       return;
     }
-    setConfirmed({ ref: data.id.slice(0, 8).toUpperCase() });
+    setConfirmed({ ref: newId.slice(0, 8).toUpperCase() });
   };
+
+
 
   if (confirmed) {
     return (
@@ -257,13 +338,13 @@ function BookPage() {
               <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User className="h-5 w-5" /> {t("patient_info")}</h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t("name")} required>
-                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={NAME_MAX} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                 </Field>
                 <Field label={t("phone")} required>
-                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" maxLength={PHONE_MAX} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                 </Field>
                 <Field label={t("national_id")}>
-                  <input value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  <input value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} maxLength={NID_MAX} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                 </Field>
                 <Field label={t("gender")}>
                   <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
@@ -273,7 +354,7 @@ function BookPage() {
                 </Field>
                 <div className="sm:col-span-2">
                   <Field label={t("reason")}>
-                    <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                    <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} maxLength={REASON_MAX} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                   </Field>
                 </div>
               </div>
