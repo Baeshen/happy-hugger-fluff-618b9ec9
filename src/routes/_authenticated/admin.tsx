@@ -246,6 +246,11 @@ function AppointmentsTab() {
         toast.error("السبب مطلوب لهذا الإجراء");
         return;
       }
+      // Reason exceeds the 500-char cap (mirrors Zod .max(500)).
+      if (/reason_too_long/i.test(msg) || /السبب طويل جدًا/.test(msg)) {
+        toast.error("السبب طويل جدًا (الحد الأقصى 500 حرفًا)");
+        return;
+      }
       toast.error(msg || "فشل التحديث");
     },
   });
