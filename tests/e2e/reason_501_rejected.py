@@ -102,10 +102,8 @@ async def main():
             await sign_in(page, recep_email, recep_pwd)
 
             # Register interceptor AFTER sign-in so it only affects server-fn calls.
-            await page.route("**/*_serverFn*", rewrite_reason)
-
-            # Return a short valid reason from prompt so client-side check passes;
-            # the route interceptor will swap it for a 501-char string.
+            await page.route("**/*", rewrite_reason)
+            page.on("request", lambda r: r.method == "POST" and print("POST:", r.url))
             await page.evaluate("() => { window.prompt = () => 'سبب صالح للاختبار'; }")
 
             row = page.locator("tr", has_text=f"Reason501-{stamp}")
