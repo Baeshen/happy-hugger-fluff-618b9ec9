@@ -92,8 +92,8 @@ async def sign_in(page, email, password):
 # (button label, target status, success-toast fragment, provided reason, expected reason)
 CORE = "قرار المريض\tإلغاء بسبب  السفر\nمهم"      # interior ws MUST survive
 CASES = [
-    ("إلغاء", "cancelled", "ملغى",   f"  \t\n\u00A0{CORE}\u00A0 \r\n", CORE),
-    ("إنهاء", "completed", "مكتمل",  "  تم الحضور والفحص  ",           "تم الحضور والفحص"),
+    ("إلغاء", "cancelled", "ملغي",  f"  \t\n\u00A0{CORE}\u00A0 \r\n", CORE),
+    ("إنهاء", "completed", "منتهي", "  تم الحضور والفحص  ",           "تم الحضور والفحص"),
 ]
 
 async def main():
