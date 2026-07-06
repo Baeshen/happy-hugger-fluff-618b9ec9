@@ -613,3 +613,341 @@ function Field({ label, children, full }: { label: string; children: React.React
   );
 }
 
+/* ---------------- Specialties Tab ---------------- */
+
+type SpecialtyForm = {
+  id?: string;
+  slug: string;
+  name_ar: string;
+  name_en: string;
+  icon: string;
+  description_ar: string;
+  description_en: string;
+  is_active: boolean;
+  sort_order: number;
+};
+
+const emptySpecialty: SpecialtyForm = {
+  slug: "",
+  name_ar: "",
+  name_en: "",
+  icon: "",
+  description_ar: "",
+  description_en: "",
+  is_active: true,
+  sort_order: 0,
+};
+
+function SpecialtiesTab() {
+  const listFn = useServerFn(listSpecialtiesFull);
+  const createFn = useServerFn(createSpecialty);
+  const updateFn = useServerFn(updateSpecialty);
+  const deleteFn = useServerFn(deleteSpecialty);
+
+  const q = useQuery({ queryKey: ["admin-specialties-full"], queryFn: () => listFn() });
+  const [editing, setEditing] = useState<SpecialtyForm | null>(null);
+
+  const deleteM = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("تم الحذف"); q.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الحذف"),
+  });
+  const saveM = useMutation({
+    mutationFn: async (f: SpecialtyForm) => {
+      const payload = {
+        slug: f.slug.trim(),
+        name_ar: f.name_ar.trim(),
+        name_en: f.name_en.trim(),
+        icon: f.icon.trim() || null,
+        description_ar: f.description_ar.trim() || null,
+        description_en: f.description_en.trim() || null,
+        is_active: f.is_active,
+        sort_order: Number(f.sort_order) || 0,
+      };
+      if (f.id) return updateFn({ data: { id: f.id, ...payload } });
+      return createFn({ data: payload });
+    },
+    onSuccess: () => { toast.success("تم الحفظ"); setEditing(null); q.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الحفظ"),
+  });
+
+  if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
+  const rows = q.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          onClick={() => setEditing({ ...emptySpecialty })}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" /> إضافة تخصص
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-right text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">التخصص</th>
+              <th className="px-4 py-3">Slug</th>
+              <th className="px-4 py-3">الأيقونة</th>
+              <th className="px-4 py-3">الترتيب</th>
+              <th className="px-4 py-3">الحالة</th>
+              <th className="px-4 py-3">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">لا توجد تخصصات</td></tr>
+            )}
+            {rows.map((r: any) => (
+              <tr key={r.id} className="border-t border-border">
+                <td className="px-4 py-3">
+                  <div className="font-medium">{r.name_ar}</div>
+                  <div className="text-xs text-muted-foreground" dir="ltr">{r.name_en}</div>
+                </td>
+                <td className="px-4 py-3 text-xs" dir="ltr">{r.slug}</td>
+                <td className="px-4 py-3 text-xs">{r.icon ?? "—"}</td>
+                <td className="px-4 py-3 text-xs" dir="ltr">{r.sort_order}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${r.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    {r.is_active ? "نشط" : "متوقف"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditing({
+                        id: r.id,
+                        slug: r.slug ?? "",
+                        name_ar: r.name_ar ?? "",
+                        name_en: r.name_en ?? "",
+                        icon: r.icon ?? "",
+                        description_ar: r.description_ar ?? "",
+                        description_en: r.description_en ?? "",
+                        is_active: !!r.is_active,
+                        sort_order: r.sort_order ?? 0,
+                      })}
+                      className="inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs hover:bg-muted"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> تعديل
+                    </button>
+                    <button
+                      onClick={() => { if (confirm(`حذف "${r.name_ar}"؟ سيؤثر ذلك على الأطباء المرتبطين.`)) deleteM.mutate(r.id); }}
+                      className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> حذف
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && (
+        <SpecialtyFormModal
+          value={editing}
+          saving={saveM.isPending}
+          onCancel={() => setEditing(null)}
+          onSave={(v) => saveM.mutate(v)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SpecialtyFormModal({ value, saving, onCancel, onSave }: {
+  value: SpecialtyForm; saving: boolean; onCancel: () => void; onSave: (v: SpecialtyForm) => void;
+}) {
+  const [form, setForm] = useState<SpecialtyForm>(value);
+  const set = <K extends keyof SpecialtyForm>(k: K, v: SpecialtyForm[K]) => setForm((p) => ({ ...p, [k]: v }));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-lg font-bold">{form.id ? "تعديل تخصص" : "إضافة تخصص"}</h2>
+          <button onClick={onCancel} className="rounded-md p-1 hover:bg-muted"><XIcon className="h-4 w-4" /></button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!form.slug.trim() || !form.name_ar.trim() || !form.name_en.trim()) {
+              toast.error("Slug والاسم بالعربي والإنجليزي مطلوبة");
+              return;
+            }
+            onSave(form);
+          }}
+          className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2"
+        >
+          <Field label="Slug (بالإنجليزي، بدون مسافات) *">
+            <input required dir="ltr" value={form.slug} onChange={(e) => set("slug", e.target.value.toLowerCase())} className={inputCls} placeholder="cardiology" />
+          </Field>
+          <Field label="أيقونة (اسم Lucide)">
+            <input dir="ltr" value={form.icon} onChange={(e) => set("icon", e.target.value)} className={inputCls} placeholder="Heart" />
+          </Field>
+          <Field label="الاسم (عربي) *">
+            <input required value={form.name_ar} onChange={(e) => set("name_ar", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Name (English) *">
+            <input required dir="ltr" value={form.name_en} onChange={(e) => set("name_en", e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="وصف (عربي)" full>
+            <textarea value={form.description_ar} onChange={(e) => set("description_ar", e.target.value)} className={inputCls} rows={2} />
+          </Field>
+          <Field label="Description (English)" full>
+            <textarea dir="ltr" value={form.description_en} onChange={(e) => set("description_en", e.target.value)} className={inputCls} rows={2} />
+          </Field>
+          <Field label="الترتيب">
+            <input type="number" value={form.sort_order} onChange={(e) => set("sort_order", Number(e.target.value))} className={inputCls} />
+          </Field>
+          <Field label="الحالة">
+            <label className="mt-2 inline-flex items-center gap-2">
+              <input type="checkbox" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+              <span className="text-sm">نشط</span>
+            </label>
+          </Field>
+          <div className="sm:col-span-2 mt-2 flex justify-end gap-2 border-t border-border pt-4">
+            <button type="button" onClick={onCancel} className="rounded-md border border-input px-4 py-2 text-sm">إلغاء</button>
+            <button type="submit" disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+              {saving ? "جارٍ الحفظ…" : "حفظ"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Availability Tab ---------------- */
+
+const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+function AvailabilityTab() {
+  const doctorsFn = useServerFn(listDoctorsAdmin);
+  const listFn = useServerFn(listAvailability);
+  const createFn = useServerFn(createAvailability);
+  const deleteFn = useServerFn(deleteAvailability);
+
+  const doctorsQ = useQuery({ queryKey: ["admin-doctors"], queryFn: () => doctorsFn() });
+  const [doctorId, setDoctorId] = useState<string>("");
+
+  const slotsQ = useQuery({
+    queryKey: ["admin-availability", doctorId],
+    queryFn: () => listFn({ data: { doctor_id: doctorId } }),
+    enabled: !!doctorId,
+  });
+
+  const [weekday, setWeekday] = useState(0);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("13:00");
+  const [slotMinutes, setSlotMinutes] = useState(30);
+
+  const addM = useMutation({
+    mutationFn: () => createFn({ data: { doctor_id: doctorId, weekday, start_time: startTime, end_time: endTime, slot_minutes: slotMinutes } }),
+    onSuccess: () => { toast.success("تمت إضافة الفترة"); slotsQ.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الإضافة"),
+  });
+  const delM = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("تم الحذف"); slotsQ.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الحذف"),
+  });
+
+  const doctors = doctorsQ.data ?? [];
+  const slots = slotsQ.data ?? [];
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-border bg-card p-5">
+        <label className="block text-sm font-medium">اختر الطبيب</label>
+        <select
+          value={doctorId}
+          onChange={(e) => setDoctorId(e.target.value)}
+          className={`${inputCls} mt-2 max-w-md`}
+        >
+          <option value="">— اختر —</option>
+          {doctors.map((d: any) => (
+            <option key={d.id} value={d.id}>
+              {d.name_ar} {d.specialties?.name_ar ? `— ${d.specialties.name_ar}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {doctorId && (
+        <>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h3 className="mb-4 text-sm font-bold">إضافة فترة دوام</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <Field label="اليوم">
+                <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} className={inputCls}>
+                  {WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                </select>
+              </Field>
+              <Field label="من">
+                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="إلى">
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="مدة الحجز (دقيقة)">
+                <input type="number" min={5} max={240} value={slotMinutes} onChange={(e) => setSlotMinutes(Number(e.target.value))} className={inputCls} />
+              </Field>
+              <div className="flex items-end">
+                <button
+                  onClick={() => addM.mutate()}
+                  disabled={addM.isPending}
+                  className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  <Plus className="inline h-4 w-4 -mt-0.5" /> إضافة
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-right text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3">اليوم</th>
+                  <th className="px-4 py-3">من</th>
+                  <th className="px-4 py-3">إلى</th>
+                  <th className="px-4 py-3">مدة الحجز</th>
+                  <th className="px-4 py-3">إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slotsQ.isLoading && (
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">جارٍ التحميل…</td></tr>
+                )}
+                {!slotsQ.isLoading && slots.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">لا توجد فترات لهذا الطبيب</td></tr>
+                )}
+                {slots.map((s: any) => (
+                  <tr key={s.id} className="border-t border-border">
+                    <td className="px-4 py-3 font-medium">{WEEKDAYS[s.weekday]}</td>
+                    <td className="px-4 py-3" dir="ltr">{s.start_time}</td>
+                    <td className="px-4 py-3" dir="ltr">{s.end_time}</td>
+                    <td className="px-4 py-3" dir="ltr">{s.slot_minutes} د</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => { if (confirm("حذف هذه الفترة؟")) delM.mutate(s.id); }}
+                        className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> حذف
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
