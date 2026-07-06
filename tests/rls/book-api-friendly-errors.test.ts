@@ -42,17 +42,26 @@ if (!URL || !SVC) {
 
 const admin = createClient(URL, SVC, { auth: { persistSession: false } });
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
 }
 function assertEq<T>(actual: T, expected: T, label: string) {
   if (actual !== expected) {
-    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    throw new Error(
+      `${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
   }
 }
 
@@ -74,23 +83,44 @@ async function post(body: unknown, opts: { raw?: string } = {}) {
     body: opts.raw ?? JSON.stringify(body),
   });
   let json: { ok?: boolean; kind?: string; message?: string } | null = null;
-  try { json = await res.json(); } catch { /* empty body */ }
+  try {
+    json = await res.json();
+  } catch {
+    /* empty body */
+  }
   return { status: res.status, json };
 }
 
 // English/technical tokens that must never appear in any /book response.
 const LEAK_MARKERS = [
-  "row-level", "row level", "violates", "policy", "postgres", "pgrst",
-  "42501", "23505", "23514", "constraint", "duplicate key",
-  "public.appointments", "rest/v1", "http://", "https://", '"details"',
-  '"hint"', "column", "relation ",
+  "row-level",
+  "row level",
+  "violates",
+  "policy",
+  "postgres",
+  "pgrst",
+  "42501",
+  "23505",
+  "23514",
+  "constraint",
+  "duplicate key",
+  "public.appointments",
+  "rest/v1",
+  "http://",
+  "https://",
+  '"details"',
+  '"hint"',
+  "column",
+  "relation ",
 ];
 
 function assertNoLeak(bodyText: string, label: string) {
   const lower = bodyText.toLowerCase();
   for (const m of LEAK_MARKERS) {
     if (lower.includes(m.toLowerCase())) {
-      throw new Error(`${label}: response leaked forbidden token ${JSON.stringify(m)}: ${bodyText}`);
+      throw new Error(
+        `${label}: response leaked forbidden token ${JSON.stringify(m)}: ${bodyText}`,
+      );
     }
   }
 }
@@ -155,8 +185,10 @@ async function main() {
     assertEq(json?.message, FRIENDLY_INSERT_MESSAGES.rls, "message");
     assertNoLeak(JSON.stringify(json), "D1");
     // No row must have landed (defense in depth against a bad server change).
-    const { data } = await admin.from("appointments")
-      .select("id").eq("patient_name", body.patient_name);
+    const { data } = await admin
+      .from("appointments")
+      .select("id")
+      .eq("patient_name", body.patient_name);
     assert(!data || data.length === 0, `unexpected row for ${body.patient_name}`);
   });
 
@@ -166,9 +198,14 @@ async function main() {
     const { status, json } = await post(body);
     assertEq(status, 200, "status");
     assertEq(json?.ok, true, "ok");
-    const { data } = await admin.from("appointments")
-      .select("id,status,notes").eq("patient_name", body.patient_name);
-    assert(data && data.length === 1, `expected 1 row for ${body.patient_name}, got ${data?.length ?? 0}`);
+    const { data } = await admin
+      .from("appointments")
+      .select("id,status,notes")
+      .eq("patient_name", body.patient_name);
+    assert(
+      data && data.length === 1,
+      `expected 1 row for ${body.patient_name}, got ${data?.length ?? 0}`,
+    );
     assertEq(data![0].status, "new", "status");
     assertEq(data![0].notes, null, "notes");
     // Cleanup.
@@ -180,4 +217,7 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

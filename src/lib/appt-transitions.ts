@@ -23,17 +23,21 @@ export const APPT_TRANSITIONS: Record<ApptStatus, TransitionRule[]> = {
   ],
   confirmed: [
     { to: "completed", roles: ["admin", "reception"] },
-    { to: "no_show",   roles: ["admin", "reception"], reasonRequired: true },
+    { to: "no_show", roles: ["admin", "reception"], reasonRequired: true },
     { to: "cancelled", roles: ["admin", "reception"], reasonRequired: true },
   ],
   completed: [{ to: "new", roles: ["admin"] }],
   cancelled: [{ to: "new", roles: ["admin"] }],
-  no_show:   [{ to: "new", roles: ["admin"] }],
+  no_show: [{ to: "new", roles: ["admin"] }],
 };
 
 export type TransitionCheck =
   | { ok: true; unchanged?: boolean }
-  | { ok: false; code: "ILLEGAL_TRANSITION" | "FORBIDDEN_ROLE" | "REASON_REQUIRED"; message: string };
+  | {
+      ok: false;
+      code: "ILLEGAL_TRANSITION" | "FORBIDDEN_ROLE" | "REASON_REQUIRED";
+      message: string;
+    };
 
 /** Pure validator: mirrors the checks the server function performs (steps 3–4 in its handler). */
 export function checkAppointmentTransition(

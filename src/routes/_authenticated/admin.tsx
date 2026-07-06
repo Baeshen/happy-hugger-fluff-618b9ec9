@@ -48,17 +48,17 @@ import {
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
-    meta: [
-      { title: "لوحة التحكم | مجمع باعشن الطبي" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "لوحة التحكم | مجمع باعشن الطبي" }, { name: "robots", content: "noindex" }],
   }),
   component: AdminDashboard,
 });
 
 type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability";
 
-const APPT_STATUS: { value: "new" | "confirmed" | "completed" | "cancelled" | "no_show"; label: string }[] = [
+const APPT_STATUS: {
+  value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
+  label: string;
+}[] = [
   { value: "new", label: "جديد" },
   { value: "confirmed", label: "مؤكد" },
   { value: "completed", label: "منتهي" },
@@ -66,7 +66,10 @@ const APPT_STATUS: { value: "new" | "confirmed" | "completed" | "cancelled" | "n
   { value: "no_show", label: "لم يحضر" },
 ];
 
-const ORDER_STATUS: { value: "new" | "preparing" | "ready" | "out_for_delivery" | "delivered" | "cancelled"; label: string }[] = [
+const ORDER_STATUS: {
+  value: "new" | "preparing" | "ready" | "out_for_delivery" | "delivered" | "cancelled";
+  label: string;
+}[] = [
   { value: "new", label: "جديد" },
   { value: "preparing", label: "قيد التحضير" },
   { value: "ready", label: "جاهز" },
@@ -95,7 +98,9 @@ function AdminDashboard() {
   }
 
   if (rolesQuery.isLoading) {
-    return <div className="container-app py-16 text-center text-muted-foreground">جارٍ التحميل…</div>;
+    return (
+      <div className="container-app py-16 text-center text-muted-foreground">جارٍ التحميل…</div>
+    );
   }
 
   if (roles.length === 0) {
@@ -118,14 +123,19 @@ function AdminDashboard() {
     );
   }
 
-  const tabs: { id: Tab; label: string; icon: any; show: boolean }[] = ([
+  const tabs: { id: Tab; label: string; icon: any; show: boolean }[] = [
     { id: "overview" as Tab, label: "نظرة عامة", icon: LayoutDashboard, show: true },
     { id: "appointments" as Tab, label: "المواعيد", icon: CalendarDays, show: canSeeAppts },
     { id: "orders" as Tab, label: "طلبات الأدوية", icon: Pill, show: canSeeOrders },
     { id: "doctors" as Tab, label: "الأطباء", icon: Stethoscope, show: isAdmin },
     { id: "specialties" as Tab, label: "التخصصات", icon: Tag, show: isAdmin },
-    { id: "availability" as Tab, label: "فترات الدوام", icon: CalendarClock, show: isAdmin || isReception },
-  ]).filter((t) => t.show);
+    {
+      id: "availability" as Tab,
+      label: "فترات الدوام",
+      icon: CalendarClock,
+      show: isAdmin || isReception,
+    },
+  ].filter((t) => t.show);
 
   return (
     <div className="container-app py-10">
@@ -133,12 +143,28 @@ function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-bold">لوحة التحكم</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            أدوارك: {roles.map((r) => <span key={r} className="mx-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{r}</span>)}
+            أدوارك:{" "}
+            {roles.map((r) => (
+              <span
+                key={r}
+                className="mx-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+              >
+                {r}
+              </span>
+            ))}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/" className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted">الموقع</Link>
-          <button onClick={handleSignOut} className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted">
+          <Link
+            to="/"
+            className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            الموقع
+          </Link>
+          <button
+            onClick={handleSignOut}
+            className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
             <LogOut className="h-4 w-4" /> خروج
           </button>
         </div>
@@ -171,7 +197,17 @@ function AdminDashboard() {
   );
 }
 
-function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: string; value: number; icon: any; tone?: string }) {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "primary",
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  tone?: string;
+}) {
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
@@ -213,7 +249,9 @@ const APPT_STATUS_STYLES: Record<ApptStatus, string> = {
 function StatusBadge({ status }: { status: ApptStatus }) {
   const label = APPT_STATUS.find((s) => s.value === status)?.label ?? status;
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${APPT_STATUS_STYLES[status]}`}>
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${APPT_STATUS_STYLES[status]}`}
+    >
       {label}
     </span>
   );
@@ -258,7 +296,8 @@ function AppointmentsTab() {
   });
 
   const notesM = useMutation({
-    mutationFn: (v: { id: string; notes: string | null; reason?: string }) => updateNotesFn({ data: v }),
+    mutationFn: (v: { id: string; notes: string | null; reason?: string }) =>
+      updateNotesFn({ data: v }),
     onSuccess: () => {
       toast.success("تم تحديث الملاحظات");
       q.refetch();
@@ -308,15 +347,14 @@ function AppointmentsTab() {
     });
   };
 
-
-
   if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
   const all = (q.data ?? []) as any[];
   const rows = all.filter((r) => {
     if (filter !== "all" && r.status !== filter) return false;
     if (search) {
       const s = search.toLowerCase();
-      const hay = `${r.patient_name ?? ""} ${r.patient_phone ?? ""} ${r.national_id ?? ""}`.toLowerCase();
+      const hay =
+        `${r.patient_name ?? ""} ${r.patient_phone ?? ""} ${r.national_id ?? ""}`.toLowerCase();
       if (!hay.includes(s)) return false;
     }
     return true;
@@ -370,28 +408,45 @@ function AppointmentsTab() {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">لا توجد مواعيد مطابقة</td></tr>
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                  لا توجد مواعيد مطابقة
+                </td>
+              </tr>
             )}
             {rows.map((r: any) => {
               const status = r.status as ApptStatus;
               const pending = m.isPending && m.variables?.id === r.id;
-              const isFinal = status === "completed" || status === "cancelled" || status === "no_show";
+              const isFinal =
+                status === "completed" || status === "cancelled" || status === "no_show";
               return (
                 <tr key={r.id} className="border-t border-border">
                   <td className="px-4 py-3">
                     <div className="font-medium">{r.patient_name}</div>
-                    {r.national_id && <div className="text-xs text-muted-foreground" dir="ltr">{r.national_id}</div>}
+                    {r.national_id && (
+                      <div className="text-xs text-muted-foreground" dir="ltr">
+                        {r.national_id}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3" dir="ltr">
-                    <a href={`tel:${r.patient_phone}`} className="hover:text-primary">{r.patient_phone}</a>
+                    <a href={`tel:${r.patient_phone}`} className="hover:text-primary">
+                      {r.patient_phone}
+                    </a>
                   </td>
                   <td className="px-4 py-3">
                     <div>{r.specialties?.name_ar ?? "—"}</div>
                     <div className="text-xs text-muted-foreground">{r.doctors?.name_ar ?? "—"}</div>
                   </td>
-                  <td className="px-4 py-3" dir="ltr">{r.appointment_date}</td>
-                  <td className="px-4 py-3" dir="ltr">{r.appointment_time}</td>
-                  <td className="px-4 py-3"><StatusBadge status={status} /></td>
+                  <td className="px-4 py-3" dir="ltr">
+                    {r.appointment_date}
+                  </td>
+                  <td className="px-4 py-3" dir="ltr">
+                    {r.appointment_time}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={status} />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {status !== "confirmed" && !isFinal && (
@@ -492,10 +547,13 @@ function AuditModal({
   });
   const rows = (q.data ?? []) as any[];
   const statusLabel = (v: string | null) =>
-    v ? APPT_STATUS.find((s) => s.value === v)?.label ?? v : "—";
+    v ? (APPT_STATUS.find((s) => s.value === v)?.label ?? v) : "—";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
       <div
         className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-background p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
@@ -532,14 +590,19 @@ function AuditModal({
                     </span>
                   </div>
                 )}
-                {(r.old_notes !== null || r.new_notes !== null) && (r.old_notes !== undefined || r.new_notes !== undefined) && (
-                  <div className="mt-1 text-xs">
-                    <div className="text-muted-foreground">الملاحظات قبل:</div>
-                    <div className="whitespace-pre-wrap rounded bg-muted/50 p-2">{r.old_notes ?? "—"}</div>
-                    <div className="mt-1 text-muted-foreground">الملاحظات بعد:</div>
-                    <div className="whitespace-pre-wrap rounded bg-muted/50 p-2">{r.new_notes ?? "—"}</div>
-                  </div>
-                )}
+                {(r.old_notes !== null || r.new_notes !== null) &&
+                  (r.old_notes !== undefined || r.new_notes !== undefined) && (
+                    <div className="mt-1 text-xs">
+                      <div className="text-muted-foreground">الملاحظات قبل:</div>
+                      <div className="whitespace-pre-wrap rounded bg-muted/50 p-2">
+                        {r.old_notes ?? "—"}
+                      </div>
+                      <div className="mt-1 text-muted-foreground">الملاحظات بعد:</div>
+                      <div className="whitespace-pre-wrap rounded bg-muted/50 p-2">
+                        {r.new_notes ?? "—"}
+                      </div>
+                    </div>
+                  )}
                 {r.reason && (
                   <div className="mt-2 rounded bg-primary/5 p-2 text-xs">
                     <span className="font-medium text-primary">السبب:</span> {r.reason}
@@ -554,14 +617,16 @@ function AuditModal({
   );
 }
 
-
 function OrdersTab() {
   const listFn = useServerFn(listOrders);
   const updateFn = useServerFn(updateOrderStatus);
   const q = useQuery({ queryKey: ["admin-orders"], queryFn: () => listFn() });
   const m = useMutation({
     mutationFn: (v: { id: string; status: any }) => updateFn({ data: v }),
-    onSuccess: () => { toast.success("تم التحديث"); q.refetch(); },
+    onSuccess: () => {
+      toast.success("تم التحديث");
+      q.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل التحديث"),
   });
 
@@ -583,12 +648,18 @@ function OrdersTab() {
         </thead>
         <tbody>
           {rows.length === 0 && (
-            <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">لا توجد طلبات</td></tr>
+            <tr>
+              <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                لا توجد طلبات
+              </td>
+            </tr>
           )}
           {rows.map((r: any) => (
             <tr key={r.id} className="border-t border-border">
               <td className="px-4 py-3 font-medium">{r.patient_name}</td>
-              <td className="px-4 py-3" dir="ltr">{r.patient_phone}</td>
+              <td className="px-4 py-3" dir="ltr">
+                {r.patient_phone}
+              </td>
               <td className="px-4 py-3">
                 <div>{r.district ?? "—"}</div>
                 <div className="text-xs text-muted-foreground">{r.address ?? ""}</div>
@@ -596,8 +667,17 @@ function OrdersTab() {
               <td className="px-4 py-3">{r.delivery_type}</td>
               <td className="px-4 py-3">
                 {r.prescription_image_url ? (
-                  <a href={r.prescription_image_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">عرض</a>
-                ) : <span className="text-muted-foreground">—</span>}
+                  <a
+                    href={r.prescription_image_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    عرض
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </td>
               <td className="px-4 py-3">
                 <select
@@ -606,7 +686,9 @@ function OrdersTab() {
                   className="rounded-md border border-input bg-background px-2 py-1 text-xs"
                 >
                   {ORDER_STATUS.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
                   ))}
                 </select>
               </td>
@@ -662,12 +744,18 @@ function DoctorsTab() {
 
   const toggleM = useMutation({
     mutationFn: (v: { id: string; is_active: boolean }) => toggleFn({ data: v }),
-    onSuccess: () => { toast.success("تم التحديث"); q.refetch(); },
+    onSuccess: () => {
+      toast.success("تم التحديث");
+      q.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل التحديث"),
   });
   const deleteM = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("تم الحذف"); q.refetch(); },
+    onSuccess: () => {
+      toast.success("تم الحذف");
+      q.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل الحذف"),
   });
   const saveM = useMutation({
@@ -681,7 +769,10 @@ function DoctorsTab() {
         photo_url: form.photo_url.trim(),
         bio_ar: form.bio_ar.trim() || null,
         bio_en: form.bio_en.trim() || null,
-        languages: form.languages.split(",").map((s) => s.trim()).filter(Boolean),
+        languages: form.languages
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
         is_active: form.is_active,
         sort_order: Number(form.sort_order) || 0,
       };
@@ -725,14 +816,22 @@ function DoctorsTab() {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">لا يوجد أطباء</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  لا يوجد أطباء
+                </td>
+              </tr>
             )}
             {rows.map((r: any) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {r.photo_url && (
-                      <img src={r.photo_url} alt={r.name_ar} className="h-9 w-9 rounded-full object-cover" />
+                      <img
+                        src={r.photo_url}
+                        alt={r.name_ar}
+                        className="h-9 w-9 rounded-full object-cover"
+                      />
                     )}
                     <div>
                       <div className="font-medium">{r.name_ar}</div>
@@ -742,7 +841,9 @@ function DoctorsTab() {
                 </td>
                 <td className="px-4 py-3">{r.specialties?.name_ar ?? "—"}</td>
                 <td className="px-4 py-3 text-xs">{(r.languages ?? []).join(", ")}</td>
-                <td className="px-4 py-3 text-xs" dir="ltr">{r.sort_order}</td>
+                <td className="px-4 py-3 text-xs" dir="ltr">
+                  {r.sort_order}
+                </td>
                 <td className="px-4 py-3">
                   <button
                     onClick={() => toggleM.mutate({ id: r.id, is_active: !r.is_active })}
@@ -823,14 +924,19 @@ function DoctorFormModal({
     setForm((p) => ({ ...p, [k]: v }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onCancel}
+    >
       <div
         className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-bold">{form.id ? "تعديل طبيب" : "إضافة طبيب"}</h2>
-          <button onClick={onCancel} className="rounded-md p-1 hover:bg-muted"><XIcon className="h-4 w-4" /></button>
+          <button onClick={onCancel} className="rounded-md p-1 hover:bg-muted">
+            <XIcon className="h-4 w-4" />
+          </button>
         </div>
 
         <form
@@ -845,16 +951,36 @@ function DoctorFormModal({
           className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2"
         >
           <Field label="الاسم (عربي) *">
-            <input required value={form.name_ar} onChange={(e) => set("name_ar", e.target.value)} className={inputCls} />
+            <input
+              required
+              value={form.name_ar}
+              onChange={(e) => set("name_ar", e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="Name (English) *">
-            <input required dir="ltr" value={form.name_en} onChange={(e) => set("name_en", e.target.value)} className={inputCls} />
+            <input
+              required
+              dir="ltr"
+              value={form.name_en}
+              onChange={(e) => set("name_en", e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="المسمى (عربي)">
-            <input value={form.title_ar} onChange={(e) => set("title_ar", e.target.value)} className={inputCls} />
+            <input
+              value={form.title_ar}
+              onChange={(e) => set("title_ar", e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="Title (English)">
-            <input dir="ltr" value={form.title_en} onChange={(e) => set("title_en", e.target.value)} className={inputCls} />
+            <input
+              dir="ltr"
+              value={form.title_en}
+              onChange={(e) => set("title_en", e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="التخصص">
             <select
@@ -864,35 +990,80 @@ function DoctorFormModal({
             >
               <option value="">— بدون —</option>
               {specialties.map((s) => (
-                <option key={s.id} value={s.id}>{s.name_ar}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name_ar}
+                </option>
               ))}
             </select>
           </Field>
           <Field label="اللغات (مفصولة بفاصلة)">
-            <input dir="ltr" value={form.languages} onChange={(e) => set("languages", e.target.value)} className={inputCls} placeholder="ar,en" />
+            <input
+              dir="ltr"
+              value={form.languages}
+              onChange={(e) => set("languages", e.target.value)}
+              className={inputCls}
+              placeholder="ar,en"
+            />
           </Field>
           <Field label="رابط الصورة" full>
-            <input dir="ltr" type="url" value={form.photo_url} onChange={(e) => set("photo_url", e.target.value)} className={inputCls} placeholder="https://…" />
+            <input
+              dir="ltr"
+              type="url"
+              value={form.photo_url}
+              onChange={(e) => set("photo_url", e.target.value)}
+              className={inputCls}
+              placeholder="https://…"
+            />
           </Field>
           <Field label="نبذة (عربي)" full>
-            <textarea value={form.bio_ar} onChange={(e) => set("bio_ar", e.target.value)} className={inputCls} rows={2} />
+            <textarea
+              value={form.bio_ar}
+              onChange={(e) => set("bio_ar", e.target.value)}
+              className={inputCls}
+              rows={2}
+            />
           </Field>
           <Field label="Bio (English)" full>
-            <textarea dir="ltr" value={form.bio_en} onChange={(e) => set("bio_en", e.target.value)} className={inputCls} rows={2} />
+            <textarea
+              dir="ltr"
+              value={form.bio_en}
+              onChange={(e) => set("bio_en", e.target.value)}
+              className={inputCls}
+              rows={2}
+            />
           </Field>
           <Field label="الترتيب">
-            <input type="number" value={form.sort_order} onChange={(e) => set("sort_order", Number(e.target.value))} className={inputCls} />
+            <input
+              type="number"
+              value={form.sort_order}
+              onChange={(e) => set("sort_order", Number(e.target.value))}
+              className={inputCls}
+            />
           </Field>
           <Field label="الحالة">
             <label className="mt-2 inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) => set("is_active", e.target.checked)}
+              />
               <span className="text-sm">نشط</span>
             </label>
           </Field>
 
           <div className="sm:col-span-2 mt-2 flex justify-end gap-2 border-t border-border pt-4">
-            <button type="button" onClick={onCancel} className="rounded-md border border-input px-4 py-2 text-sm">إلغاء</button>
-            <button type="submit" disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-md border border-input px-4 py-2 text-sm"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
               {saving ? "جارٍ الحفظ…" : "حفظ"}
             </button>
           </div>
@@ -904,7 +1075,15 @@ function DoctorFormModal({
 
 const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
 
-function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function Field({
+  label,
+  children,
+  full,
+}: {
+  label: string;
+  children: React.ReactNode;
+  full?: boolean;
+}) {
   return (
     <div className={full ? "sm:col-span-2" : ""}>
       <label className="mb-1 block text-sm font-medium">{label}</label>
@@ -949,7 +1128,10 @@ function SpecialtiesTab() {
 
   const deleteM = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("تم الحذف"); q.refetch(); },
+    onSuccess: () => {
+      toast.success("تم الحذف");
+      q.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل الحذف"),
   });
   const saveM = useMutation({
@@ -967,7 +1149,11 @@ function SpecialtiesTab() {
       if (f.id) return updateFn({ data: { id: f.id, ...payload } });
       return createFn({ data: payload });
     },
-    onSuccess: () => { toast.success("تم الحفظ"); setEditing(null); q.refetch(); },
+    onSuccess: () => {
+      toast.success("تم الحفظ");
+      setEditing(null);
+      q.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل الحفظ"),
   });
 
@@ -999,42 +1185,59 @@ function SpecialtiesTab() {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">لا توجد تخصصات</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  لا توجد تخصصات
+                </td>
+              </tr>
             )}
             {rows.map((r: any) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-4 py-3">
                   <div className="font-medium">{r.name_ar}</div>
-                  <div className="text-xs text-muted-foreground" dir="ltr">{r.name_en}</div>
+                  <div className="text-xs text-muted-foreground" dir="ltr">
+                    {r.name_en}
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-xs" dir="ltr">{r.slug}</td>
+                <td className="px-4 py-3 text-xs" dir="ltr">
+                  {r.slug}
+                </td>
                 <td className="px-4 py-3 text-xs">{r.icon ?? "—"}</td>
-                <td className="px-4 py-3 text-xs" dir="ltr">{r.sort_order}</td>
+                <td className="px-4 py-3 text-xs" dir="ltr">
+                  {r.sort_order}
+                </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${r.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${r.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                  >
                     {r.is_active ? "نشط" : "متوقف"}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setEditing({
-                        id: r.id,
-                        slug: r.slug ?? "",
-                        name_ar: r.name_ar ?? "",
-                        name_en: r.name_en ?? "",
-                        icon: r.icon ?? "",
-                        description_ar: r.description_ar ?? "",
-                        description_en: r.description_en ?? "",
-                        is_active: !!r.is_active,
-                        sort_order: r.sort_order ?? 0,
-                      })}
+                      onClick={() =>
+                        setEditing({
+                          id: r.id,
+                          slug: r.slug ?? "",
+                          name_ar: r.name_ar ?? "",
+                          name_en: r.name_en ?? "",
+                          icon: r.icon ?? "",
+                          description_ar: r.description_ar ?? "",
+                          description_en: r.description_en ?? "",
+                          is_active: !!r.is_active,
+                          sort_order: r.sort_order ?? 0,
+                        })
+                      }
                       className="inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs hover:bg-muted"
                     >
                       <Pencil className="h-3.5 w-3.5" /> تعديل
                     </button>
                     <button
-                      onClick={() => { if (confirm(`حذف "${r.name_ar}"؟ سيؤثر ذلك على الأطباء المرتبطين.`)) deleteM.mutate(r.id); }}
+                      onClick={() => {
+                        if (confirm(`حذف "${r.name_ar}"؟ سيؤثر ذلك على الأطباء المرتبطين.`))
+                          deleteM.mutate(r.id);
+                      }}
                       className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> حذف
@@ -1059,17 +1262,34 @@ function SpecialtiesTab() {
   );
 }
 
-function SpecialtyFormModal({ value, saving, onCancel, onSave }: {
-  value: SpecialtyForm; saving: boolean; onCancel: () => void; onSave: (v: SpecialtyForm) => void;
+function SpecialtyFormModal({
+  value,
+  saving,
+  onCancel,
+  onSave,
+}: {
+  value: SpecialtyForm;
+  saving: boolean;
+  onCancel: () => void;
+  onSave: (v: SpecialtyForm) => void;
 }) {
   const [form, setForm] = useState<SpecialtyForm>(value);
-  const set = <K extends keyof SpecialtyForm>(k: K, v: SpecialtyForm[K]) => setForm((p) => ({ ...p, [k]: v }));
+  const set = <K extends keyof SpecialtyForm>(k: K, v: SpecialtyForm[K]) =>
+    setForm((p) => ({ ...p, [k]: v }));
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-bold">{form.id ? "تعديل تخصص" : "إضافة تخصص"}</h2>
-          <button onClick={onCancel} className="rounded-md p-1 hover:bg-muted"><XIcon className="h-4 w-4" /></button>
+          <button onClick={onCancel} className="rounded-md p-1 hover:bg-muted">
+            <XIcon className="h-4 w-4" />
+          </button>
         </div>
         <form
           onSubmit={(e) => {
@@ -1083,35 +1303,89 @@ function SpecialtyFormModal({ value, saving, onCancel, onSave }: {
           className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2"
         >
           <Field label="Slug (بالإنجليزي، بدون مسافات) *">
-            <input required dir="ltr" value={form.slug} onChange={(e) => set("slug", e.target.value.toLowerCase())} className={inputCls} placeholder="cardiology" />
+            <input
+              required
+              dir="ltr"
+              value={form.slug}
+              onChange={(e) => set("slug", e.target.value.toLowerCase())}
+              className={inputCls}
+              placeholder="cardiology"
+            />
           </Field>
           <Field label="أيقونة (اسم Lucide)">
-            <input dir="ltr" value={form.icon} onChange={(e) => set("icon", e.target.value)} className={inputCls} placeholder="Heart" />
+            <input
+              dir="ltr"
+              value={form.icon}
+              onChange={(e) => set("icon", e.target.value)}
+              className={inputCls}
+              placeholder="Heart"
+            />
           </Field>
           <Field label="الاسم (عربي) *">
-            <input required value={form.name_ar} onChange={(e) => set("name_ar", e.target.value)} className={inputCls} />
+            <input
+              required
+              value={form.name_ar}
+              onChange={(e) => set("name_ar", e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="Name (English) *">
-            <input required dir="ltr" value={form.name_en} onChange={(e) => set("name_en", e.target.value)} className={inputCls} />
+            <input
+              required
+              dir="ltr"
+              value={form.name_en}
+              onChange={(e) => set("name_en", e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="وصف (عربي)" full>
-            <textarea value={form.description_ar} onChange={(e) => set("description_ar", e.target.value)} className={inputCls} rows={2} />
+            <textarea
+              value={form.description_ar}
+              onChange={(e) => set("description_ar", e.target.value)}
+              className={inputCls}
+              rows={2}
+            />
           </Field>
           <Field label="Description (English)" full>
-            <textarea dir="ltr" value={form.description_en} onChange={(e) => set("description_en", e.target.value)} className={inputCls} rows={2} />
+            <textarea
+              dir="ltr"
+              value={form.description_en}
+              onChange={(e) => set("description_en", e.target.value)}
+              className={inputCls}
+              rows={2}
+            />
           </Field>
           <Field label="الترتيب">
-            <input type="number" value={form.sort_order} onChange={(e) => set("sort_order", Number(e.target.value))} className={inputCls} />
+            <input
+              type="number"
+              value={form.sort_order}
+              onChange={(e) => set("sort_order", Number(e.target.value))}
+              className={inputCls}
+            />
           </Field>
           <Field label="الحالة">
             <label className="mt-2 inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) => set("is_active", e.target.checked)}
+              />
               <span className="text-sm">نشط</span>
             </label>
           </Field>
           <div className="sm:col-span-2 mt-2 flex justify-end gap-2 border-t border-border pt-4">
-            <button type="button" onClick={onCancel} className="rounded-md border border-input px-4 py-2 text-sm">إلغاء</button>
-            <button type="submit" disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-md border border-input px-4 py-2 text-sm"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
               {saving ? "جارٍ الحفظ…" : "حفظ"}
             </button>
           </div>
@@ -1146,13 +1420,28 @@ function AvailabilityTab() {
   const [slotMinutes, setSlotMinutes] = useState(30);
 
   const addM = useMutation({
-    mutationFn: () => createFn({ data: { doctor_id: doctorId, weekday, start_time: startTime, end_time: endTime, slot_minutes: slotMinutes } }),
-    onSuccess: () => { toast.success("تمت إضافة الفترة"); slotsQ.refetch(); },
+    mutationFn: () =>
+      createFn({
+        data: {
+          doctor_id: doctorId,
+          weekday,
+          start_time: startTime,
+          end_time: endTime,
+          slot_minutes: slotMinutes,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("تمت إضافة الفترة");
+      slotsQ.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل الإضافة"),
   });
   const delM = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("تم الحذف"); slotsQ.refetch(); },
+    onSuccess: () => {
+      toast.success("تم الحذف");
+      slotsQ.refetch();
+    },
     onError: (e: any) => toast.error(e?.message ?? "فشل الحذف"),
   });
 
@@ -1183,18 +1472,43 @@ function AvailabilityTab() {
             <h3 className="mb-4 text-sm font-bold">إضافة فترة دوام</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               <Field label="اليوم">
-                <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} className={inputCls}>
-                  {WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                <select
+                  value={weekday}
+                  onChange={(e) => setWeekday(Number(e.target.value))}
+                  className={inputCls}
+                >
+                  {WEEKDAYS.map((d, i) => (
+                    <option key={i} value={i}>
+                      {d}
+                    </option>
+                  ))}
                 </select>
               </Field>
               <Field label="من">
-                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inputCls} />
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className={inputCls}
+                />
               </Field>
               <Field label="إلى">
-                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputCls} />
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className={inputCls}
+                />
               </Field>
               <Field label="مدة الحجز (دقيقة)">
-                <input type="number" min={5} max={240} value={slotMinutes} onChange={(e) => setSlotMinutes(Number(e.target.value))} className={inputCls} />
+                <input
+                  type="number"
+                  min={5}
+                  max={240}
+                  value={slotMinutes}
+                  onChange={(e) => setSlotMinutes(Number(e.target.value))}
+                  className={inputCls}
+                />
               </Field>
               <div className="flex items-end">
                 <button
@@ -1221,20 +1535,36 @@ function AvailabilityTab() {
               </thead>
               <tbody>
                 {slotsQ.isLoading && (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">جارٍ التحميل…</td></tr>
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                      جارٍ التحميل…
+                    </td>
+                  </tr>
                 )}
                 {!slotsQ.isLoading && slots.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">لا توجد فترات لهذا الطبيب</td></tr>
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                      لا توجد فترات لهذا الطبيب
+                    </td>
+                  </tr>
                 )}
                 {slots.map((s: any) => (
                   <tr key={s.id} className="border-t border-border">
                     <td className="px-4 py-3 font-medium">{WEEKDAYS[s.weekday]}</td>
-                    <td className="px-4 py-3" dir="ltr">{s.start_time}</td>
-                    <td className="px-4 py-3" dir="ltr">{s.end_time}</td>
-                    <td className="px-4 py-3" dir="ltr">{s.slot_minutes} د</td>
+                    <td className="px-4 py-3" dir="ltr">
+                      {s.start_time}
+                    </td>
+                    <td className="px-4 py-3" dir="ltr">
+                      {s.end_time}
+                    </td>
+                    <td className="px-4 py-3" dir="ltr">
+                      {s.slot_minutes} د
+                    </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => { if (confirm("حذف هذه الفترة؟")) delM.mutate(s.id); }}
+                        onClick={() => {
+                          if (confirm("حذف هذه الفترة؟")) delM.mutate(s.id);
+                        }}
                         className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-3.5 w-3.5" /> حذف
@@ -1250,4 +1580,3 @@ function AvailabilityTab() {
     </div>
   );
 }
-

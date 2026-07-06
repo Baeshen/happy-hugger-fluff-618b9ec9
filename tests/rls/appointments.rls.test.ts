@@ -48,7 +48,9 @@ async function signInAs(email: string, password: string): Promise<SupabaseClient
 async function createUserWithRole(email: string, role: string | null) {
   const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
   const { data, error } = await admin.auth.admin.createUser({
-    email, password, email_confirm: true,
+    email,
+    password,
+    email_confirm: true,
   });
   if (error) throw error;
   const userId = data.user.id;
@@ -106,7 +108,10 @@ async function main() {
       } as any);
       assert(!error, `insert failed: ${error?.message}`);
       const { data: row } = await admin
-        .from("appointments").select("status,notes").eq("patient_name", marker).single();
+        .from("appointments")
+        .select("status,notes")
+        .eq("patient_name", marker)
+        .single();
       assert(row?.status === "new", `status not forced to 'new' (got ${row?.status})`);
       assert(row?.notes === null, "notes not cleared by trigger");
     });
@@ -139,14 +144,16 @@ async function main() {
 
     await test("anon UPDATE affects 0 rows", async () => {
       const { data, error } = await anon
-        .from("appointments").update({ status: "cancelled" }).eq("id", seedId).select();
+        .from("appointments")
+        .update({ status: "cancelled" })
+        .eq("id", seedId)
+        .select();
       assert(!error, `update errored: ${error?.message}`);
       assert(data!.length === 0, "expected 0 rows updated");
     });
 
     await test("anon DELETE affects 0 rows", async () => {
-      const { data, error } = await anon
-        .from("appointments").delete().eq("id", seedId).select();
+      const { data, error } = await anon.from("appointments").delete().eq("id", seedId).select();
       assert(!error, `delete errored: ${error?.message}`);
       assert(data!.length === 0, "expected 0 rows deleted");
     });
@@ -162,7 +169,10 @@ async function main() {
     });
     await test("patient UPDATE affects 0 rows", async () => {
       const { data } = await patient
-        .from("appointments").update({ status: "cancelled" }).eq("id", seedId).select();
+        .from("appointments")
+        .update({ status: "cancelled" })
+        .eq("id", seedId)
+        .select();
       assert(data!.length === 0, "expected 0");
     });
     await test("patient DELETE affects 0 rows", async () => {
@@ -181,13 +191,15 @@ async function main() {
     });
     await test("reception can UPDATE appointment status", async () => {
       const { data, error } = await reception
-        .from("appointments").update({ status: "confirmed" }).eq("id", seedId).select();
+        .from("appointments")
+        .update({ status: "confirmed" })
+        .eq("id", seedId)
+        .select();
       assert(!error, `update errored: ${error?.message}`);
       assert(data!.length === 1, "expected 1 row updated");
     });
     await test("reception DELETE affects 0 rows (admin-only)", async () => {
-      const { data } = await reception
-        .from("appointments").delete().eq("id", seedId).select();
+      const { data } = await reception.from("appointments").delete().eq("id", seedId).select();
       assert(data!.length === 0, "reception must NOT delete");
     });
 
@@ -202,13 +214,19 @@ async function main() {
     });
     await test("admin can UPDATE appointment", async () => {
       const { data, error } = await adminUser
-        .from("appointments").update({ status: "completed", notes: "done" }).eq("id", seedId).select();
+        .from("appointments")
+        .update({ status: "completed", notes: "done" })
+        .eq("id", seedId)
+        .select();
       assert(!error, `update errored: ${error?.message}`);
       assert(data!.length === 1, "expected 1 row updated");
     });
     await test("admin can DELETE appointment", async () => {
       const { data, error } = await adminUser
-        .from("appointments").delete().eq("id", seedId).select();
+        .from("appointments")
+        .delete()
+        .eq("id", seedId)
+        .select();
       assert(!error, `delete errored: ${error?.message}`);
       assert(data!.length === 1, "expected 1 row deleted");
     });

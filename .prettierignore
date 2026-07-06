@@ -6,3 +6,6 @@ pnpm-lock.yaml
 package-lock.json
 bun.lock
 routeTree.gen.ts
+
+# Lovable-managed plan file (contains RTL text; do not reformat)
+.lovable/

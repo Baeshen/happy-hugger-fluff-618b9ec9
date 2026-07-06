@@ -51,7 +51,11 @@ async function run() {
   }
   async function createUser(email: string, role: string | null) {
     const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
-    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
     if (error) throw error;
     if (role) await admin.from("user_roles").insert({ user_id: data.user.id, role });
     return { userId: data.user.id, email, password };
@@ -61,12 +65,12 @@ async function run() {
   const adminU = await createUser(`ar-admin-${stamp}@test.local`, "admin");
   const recepU = await createUser(`ar-recep-${stamp}@test.local`, "reception");
   const pharmU = await createUser(`ar-pharm-${stamp}@test.local`, "pharmacy");
-  const patU   = await createUser(`ar-pat-${stamp}@test.local`, null);
+  const patU = await createUser(`ar-pat-${stamp}@test.local`, null);
 
   const adminC = await signInAs(adminU.email, adminU.password);
   const recepC = await signInAs(recepU.email, recepU.password);
   const pharmC = await signInAs(pharmU.email, pharmU.password);
-  const patC   = await signInAs(patU.email,   patU.password);
+  const patC = await signInAs(patU.email, patU.password);
 
   // Seed an appointment + generate an audit row (reception confirms it)
   const { data: appt, error: apptErr } = await admin
@@ -83,8 +87,11 @@ async function run() {
   if (apptErr) throw apptErr;
   const apptId = appt.id as string;
 
-  const { error: rpcErr } = await recepC.rpc("update_appointment_status" as any,
-    { _id: apptId, _status: "confirmed", _reason: null });
+  const { error: rpcErr } = await recepC.rpc("update_appointment_status" as any, {
+    _id: apptId,
+    _status: "confirmed",
+    _reason: null,
+  });
   assert(!rpcErr, `seed rpc failed: ${rpcErr?.message}`);
 
   const cleanup = async () => {
@@ -97,7 +104,9 @@ async function run() {
 
     await test("admin: sees the audit row for the appointment", async () => {
       const { data, error } = await adminC
-        .from("appointment_audit").select("*").eq("appointment_id", apptId);
+        .from("appointment_audit")
+        .select("*")
+        .eq("appointment_id", apptId);
       assert(!error, `error: ${error?.message}`);
       assert((data ?? []).length === 1, `expected 1 row, got ${(data ?? []).length}`);
       assert(data![0].new_status === "confirmed", "wrong audit content");
@@ -105,14 +114,18 @@ async function run() {
 
     await test("reception: sees the audit row for the appointment", async () => {
       const { data, error } = await recepC
-        .from("appointment_audit").select("*").eq("appointment_id", apptId);
+        .from("appointment_audit")
+        .select("*")
+        .eq("appointment_id", apptId);
       assert(!error, `error: ${error?.message}`);
       assert((data ?? []).length === 1, `expected 1 row, got ${(data ?? []).length}`);
     });
 
     await test("pharmacy: audit rows filtered out by RLS (0 rows)", async () => {
       const { data, error } = await pharmC
-        .from("appointment_audit").select("*").eq("appointment_id", apptId);
+        .from("appointment_audit")
+        .select("*")
+        .eq("appointment_id", apptId);
       // RLS SELECT deny is silent (0 rows), not an error
       assert(!error, `unexpected error: ${error?.message}`);
       assert((data ?? []).length === 0, "pharmacy must not see audit rows");
@@ -120,14 +133,18 @@ async function run() {
 
     await test("patient (no role): audit rows filtered out by RLS (0 rows)", async () => {
       const { data, error } = await patC
-        .from("appointment_audit").select("*").eq("appointment_id", apptId);
+        .from("appointment_audit")
+        .select("*")
+        .eq("appointment_id", apptId);
       assert(!error, `unexpected error: ${error?.message}`);
       assert((data ?? []).length === 0, "patient must not see audit rows");
     });
 
     await test("anonymous: cannot read audit table", async () => {
       const { data, error } = await anonC
-        .from("appointment_audit").select("*").eq("appointment_id", apptId);
+        .from("appointment_audit")
+        .select("*")
+        .eq("appointment_id", apptId);
       // Either RLS returns 0 rows or the policy blocks with an error;
       // both outcomes mean the row is not exposed anonymously.
       assert((data ?? []).length === 0, `anon must see 0 rows, got ${(data ?? []).length}`);
@@ -143,12 +160,18 @@ async function run() {
     });
 
     await test("reception: cannot UPDATE audit rows", async () => {
-      const { error } = await recepC.from("appointment_audit")
-        .update({ reason: "tampered" } as any).eq("appointment_id", apptId);
+      const { error } = await recepC
+        .from("appointment_audit")
+        .update({ reason: "tampered" } as any)
+        .eq("appointment_id", apptId);
       assert(!!error || true, "update should be denied or a no-op");
       // Verify audit row is untouched
-      const { data } = await admin.from("appointment_audit")
-        .select("reason").eq("appointment_id", apptId).limit(1).single();
+      const { data } = await admin
+        .from("appointment_audit")
+        .select("reason")
+        .eq("appointment_id", apptId)
+        .limit(1)
+        .single();
       assert(data?.reason !== "tampered", "audit row must be immutable via app roles");
     });
   } finally {
@@ -161,4 +184,7 @@ async function run() {
   await run();
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

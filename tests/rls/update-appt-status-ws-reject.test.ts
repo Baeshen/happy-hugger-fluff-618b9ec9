@@ -23,10 +23,17 @@ if (!URL || !ANON || !SVC) {
 
 const admin = createClient(URL, SVC, { auth: { persistSession: false } });
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
@@ -42,20 +49,26 @@ async function signInAs(email: string, password: string): Promise<SupabaseClient
 async function createUser(email: string, role: string) {
   const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
   const { data, error } = await admin.auth.admin.createUser({
-    email, password, email_confirm: true,
+    email,
+    password,
+    email_confirm: true,
   });
   if (error) throw error;
   await admin.from("user_roles").insert({ user_id: data.user.id, role });
   return { userId: data.user.id, email, password };
 }
 async function newAppt() {
-  const { data, error } = await admin.from("appointments").insert({
-    patient_name: "WS-Reject",
-    patient_phone: "0500000000",
-    appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    appointment_time: "10:00",
-    status: "confirmed",
-  }).select("id, status").single();
+  const { data, error } = await admin
+    .from("appointments")
+    .insert({
+      patient_name: "WS-Reject",
+      patient_phone: "0500000000",
+      appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      appointment_time: "10:00",
+      status: "confirmed",
+    })
+    .select("id, status")
+    .single();
   if (error) throw error;
   return data as { id: string; status: string };
 }
@@ -76,11 +89,11 @@ let user: { userId: string; email: string; password: string } | null = null;
   // Every one of these normalizes to '' under both JS trim() and DB normalize_reason.
   const wsInputs: Array<[string, string]> = [
     ["ASCII spaces", "     "],
-    ["tabs",         "\t\t\t"],
-    ["newlines",     "\n\n"],
-    ["CRLF",         "\r\n\r\n"],
-    ["NBSP",         "\u00A0\u00A0\u00A0"],
-    ["mixed all",    " \t\n\r\u00A0 "],
+    ["tabs", "\t\t\t"],
+    ["newlines", "\n\n"],
+    ["CRLF", "\r\n\r\n"],
+    ["NBSP", "\u00A0\u00A0\u00A0"],
+    ["mixed all", " \t\n\r\u00A0 "],
     ["empty string", ""],
   ];
 
@@ -88,46 +101,55 @@ let user: { userId: string; email: string; password: string } | null = null;
     for (const [name, raw] of wsInputs) {
       for (const status of ["cancelled", "no_show"] as const) {
         await test(`${status} + ${name} → rejected + no state change`, async () => {
-          const a = await newAppt(); created.push(a.id);
+          const a = await newAppt();
+          created.push(a.id);
           const before = a.status;
 
           const { error } = await c.rpc("update_appointment_status" as any, {
-            _id: a.id, _status: status, _reason: raw,
+            _id: a.id,
+            _status: status,
+            _reason: raw,
           });
 
           // (1) error is present and carries the expected code / message
           assert(!!error, "expected DB rejection, got success");
           const okCode = error!.code === "23514";
-          const okMsg = new RegExp(`reason_required_for_${status}`).test(error!.message)
-                      || /السبب مطلوب/.test(error!.message);
-          assert(okCode || okMsg,
-            `unexpected error shape: code=${error!.code} message=${error!.message}`);
+          const okMsg =
+            new RegExp(`reason_required_for_${status}`).test(error!.message) ||
+            /السبب مطلوب/.test(error!.message);
+          assert(
+            okCode || okMsg,
+            `unexpected error shape: code=${error!.code} message=${error!.message}`,
+          );
 
           // (2) appointment status is unchanged
           const after = await statusOf(a.id);
-          assert(after === before,
-            `status changed: ${before} → ${after} (must remain unchanged)`);
+          assert(after === before, `status changed: ${before} → ${after} (must remain unchanged)`);
 
           // (3) no audit row inserted
           const rows = await auditOf(a.id);
-          assert(rows.length === 0,
-            `expected 0 audit rows, got ${rows.length}: ${JSON.stringify(rows)}`);
+          assert(
+            rows.length === 0,
+            `expected 0 audit rows, got ${rows.length}: ${JSON.stringify(rows)}`,
+          );
 
           // (4) subsequent valid call succeeds — context is not lost / locked
           const { error: err2 } = await c.rpc("update_appointment_status" as any, {
-            _id: a.id, _status: status, _reason: "طلب المريض",
+            _id: a.id,
+            _status: status,
+            _reason: "طلب المريض",
           });
           assert(!err2, `follow-up valid call failed: ${err2?.message}`);
           const finalStatus = await statusOf(a.id);
-          assert(finalStatus === status,
-            `follow-up did not apply: ${finalStatus} !== ${status}`);
+          assert(finalStatus === status, `follow-up did not apply: ${finalStatus} !== ${status}`);
           const rows2 = await auditOf(a.id);
-          assert(rows2.length === 1 && rows2[0].reason === "طلب المريض",
-            `audit not written correctly: ${JSON.stringify(rows2)}`);
+          assert(
+            rows2.length === 1 && rows2[0].reason === "طلب المريض",
+            `audit not written correctly: ${JSON.stringify(rows2)}`,
+          );
         });
       }
     }
-
   } finally {
     console.log("\nCleaning up…");
     if (created.length) await admin.from("appointments").delete().in("id", created);
@@ -136,4 +158,7 @@ let user: { userId: string; email: string; password: string } | null = null;
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 export type Lang = "ar" | "en";
-type Ctx = { lang: Lang; dir: "rtl" | "ltr"; setLang: (l: Lang) => void; t: (k: keyof typeof STRINGS["ar"]) => string };
+type Ctx = {
+  lang: Lang;
+  dir: "rtl" | "ltr";
+  setLang: (l: Lang) => void;
+  t: (k: keyof (typeof STRINGS)["ar"]) => string;
+};
 
 const STRINGS = {
   ar: {
@@ -16,7 +21,8 @@ const STRINGS = {
     cta_book: "احجز موعدًا",
     cta_medicine: "اطلب دواء",
     hero_title: "رعايتك تبدأ هنا",
-    hero_sub: "مجمع طبي معتمد من CBAHI في صبيا، جازان — خدمات تخصصية وصيدلية داخلية على مدار الأسبوع.",
+    hero_sub:
+      "مجمع طبي معتمد من CBAHI في صبيا، جازان — خدمات تخصصية وصيدلية داخلية على مدار الأسبوع.",
     why_title: "لماذا باعشن",
     why_1_title: "معتمد من CBAHI",
     why_1_desc: "منشأة صحية معتمدة من المركز السعودي لاعتماد المنشآت الصحية.",
@@ -91,10 +97,12 @@ const STRINGS = {
     cta_book: "Book an Appointment",
     cta_medicine: "Order Medicine",
     hero_title: "Your Care Starts Here",
-    hero_sub: "A CBAHI-accredited medical complex in Sabya, Jazan — specialty care and in-house pharmacy, all week.",
+    hero_sub:
+      "A CBAHI-accredited medical complex in Sabya, Jazan — specialty care and in-house pharmacy, all week.",
     why_title: "Why Baeshen",
     why_1_title: "CBAHI Accredited",
-    why_1_desc: "Accredited by the Saudi Central Board for Accreditation of Healthcare Institutions.",
+    why_1_desc:
+      "Accredited by the Saudi Central Board for Accreditation of Healthcare Institutions.",
     why_2_title: "In-House Pharmacy",
     why_2_desc: "Baeshen Pharmacies serve our patients with a home delivery option.",
     why_3_title: "Specialist Team",
@@ -162,7 +170,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ar");
 
   useEffect(() => {
-    const saved = (typeof window !== "undefined" && (localStorage.getItem("lang") as Lang | null)) || "ar";
+    const saved =
+      (typeof window !== "undefined" && (localStorage.getItem("lang") as Lang | null)) || "ar";
     setLangState(saved);
   }, []);
 

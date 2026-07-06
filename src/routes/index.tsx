@@ -10,7 +10,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "مجمع باعشن الطبي — رعايتك تبدأ هنا | Baeshen Medical" },
-      { name: "description", content: "احجز موعدك مع أطباء استشاريين في صبيا، جازان أو اطلب دواءك من صيدليات باعشن. مجمع طبي معتمد من CBAHI." },
+      {
+        name: "description",
+        content:
+          "احجز موعدك مع أطباء استشاريين في صبيا، جازان أو اطلب دواءك من صيدليات باعشن. مجمع طبي معتمد من CBAHI.",
+      },
       { property: "og:title", content: "مجمع باعشن الطبي — رعايتك تبدأ هنا" },
       { property: "og:description", content: "خدمات طبية تخصصية وصيدلية داخلية في صبيا، جازان." },
     ],
@@ -23,7 +27,11 @@ function HomePage() {
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("specialties").select("*").eq("is_active", true).order("sort_order");
+      const { data, error } = await supabase
+        .from("specialties")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order");
       if (error) throw error;
       return data;
     },
@@ -31,7 +39,11 @@ function HomePage() {
   const { data: doctors } = useQuery({
     queryKey: ["doctors_featured"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("doctors").select("*, specialties(*)").eq("is_active", true).limit(4);
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("*, specialties(*)")
+        .eq("is_active", true)
+        .limit(4);
       if (error) throw error;
       return data;
     },
@@ -51,10 +63,16 @@ function HomePage() {
             </h1>
             <p className="mt-4 text-white/90 text-lg leading-8 max-w-xl">{t("hero_sub")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/book" className="inline-flex items-center gap-2 rounded-lg bg-white text-primary px-5 py-3 text-sm font-bold hover:bg-white/90">
+              <Link
+                to="/book"
+                className="inline-flex items-center gap-2 rounded-lg bg-white text-primary px-5 py-3 text-sm font-bold hover:bg-white/90"
+              >
                 {t("cta_book")} <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
               </Link>
-              <Link to="/pharmacy" className="inline-flex items-center gap-2 rounded-lg bg-white/10 border border-white/25 backdrop-blur px-5 py-3 text-sm font-bold hover:bg-white/20">
+              <Link
+                to="/pharmacy"
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 border border-white/25 backdrop-blur px-5 py-3 text-sm font-bold hover:bg-white/20"
+              >
                 <Pill className="h-4 w-4" /> {t("cta_medicine")}
               </Link>
             </div>
@@ -91,16 +109,30 @@ function HomePage() {
               <h2 className="text-3xl font-bold">{t("specialties_title")}</h2>
               <p className="mt-2 text-muted-foreground">{t("specialties_sub")}</p>
             </div>
-            <Link to="/specialties" className="hidden md:inline text-sm font-semibold text-primary hover:underline">{t("all_specialties")} →</Link>
+            <Link
+              to="/specialties"
+              className="hidden md:inline text-sm font-semibold text-primary hover:underline"
+            >
+              {t("all_specialties")} →
+            </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {specialties?.slice(0, 12).map((s) => (
-              <Link key={s.id} to="/book" search={{ specialty: s.slug }} className="group rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition">
+              <Link
+                key={s.id}
+                to="/book"
+                search={{ specialty: s.slug }}
+                className="group rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition"
+              >
                 <div className="h-10 w-10 rounded-xl bg-primary/10 grid place-items-center text-primary group-hover:bg-primary group-hover:text-white transition">
                   <Stethoscope className="h-5 w-5" />
                 </div>
-                <div className="mt-3 font-semibold text-sm">{lang === "ar" ? s.name_ar : s.name_en}</div>
-                <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{lang === "ar" ? s.description_ar : s.description_en}</div>
+                <div className="mt-3 font-semibold text-sm">
+                  {lang === "ar" ? s.name_ar : s.name_en}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                  {lang === "ar" ? s.description_ar : s.description_en}
+                </div>
               </Link>
             ))}
           </div>
@@ -118,7 +150,9 @@ function HomePage() {
               { icon: Users, title: t("why_3_title"), desc: t("why_3_desc") },
             ].map((f) => (
               <div key={f.title} className="rounded-2xl bg-card border border-border p-6">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center"><f.icon className="h-6 w-6" /></div>
+                <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center">
+                  <f.icon className="h-6 w-6" />
+                </div>
                 <h3 className="mt-4 font-bold text-lg">{f.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-6">{f.desc}</p>
               </div>
@@ -135,7 +169,12 @@ function HomePage() {
               <h2 className="text-3xl font-bold">{t("doctors_title")}</h2>
               <p className="mt-2 text-muted-foreground">{t("doctors_sub")}</p>
             </div>
-            <Link to="/doctors" className="hidden md:inline text-sm font-semibold text-primary hover:underline">{t("nav_doctors")} →</Link>
+            <Link
+              to="/doctors"
+              className="hidden md:inline text-sm font-semibold text-primary hover:underline"
+            >
+              {t("nav_doctors")} →
+            </Link>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {doctors?.map((d) => (
@@ -145,9 +184,15 @@ function HomePage() {
                 </div>
                 <div className="mt-4 text-center">
                   <div className="font-bold">{lang === "ar" ? d.name_ar : d.name_en}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{lang === "ar" ? d.title_ar : d.title_en}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {lang === "ar" ? d.title_ar : d.title_en}
+                  </div>
                 </div>
-                <Link to="/book" search={{ doctor: d.id }} className="mt-4 block text-center rounded-lg bg-primary/10 text-primary px-3 py-2 text-xs font-semibold hover:bg-primary hover:text-white transition">
+                <Link
+                  to="/book"
+                  search={{ doctor: d.id }}
+                  className="mt-4 block text-center rounded-lg bg-primary/10 text-primary px-3 py-2 text-xs font-semibold hover:bg-primary hover:text-white transition"
+                >
                   {t("book_with_doctor")}
                 </Link>
               </div>
@@ -161,9 +206,20 @@ function HomePage() {
         <div className="container-app grid gap-8 md:grid-cols-2 items-center">
           <div>
             <h2 className="text-3xl font-bold">{lang === "ar" ? "موقعنا" : "Find us"}</h2>
-            <p className="mt-3 text-muted-foreground">{lang === "ar" ? SITE.addressAr : SITE.addressEn}</p>
-            <p className="mt-1 text-muted-foreground text-sm">{lang === "ar" ? `الرمز البريدي ${SITE.postalCode}` : `Postal code ${SITE.postalCode}`}</p>
-            <a href={SITE.mapsUrl} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+            <p className="mt-3 text-muted-foreground">
+              {lang === "ar" ? SITE.addressAr : SITE.addressEn}
+            </p>
+            <p className="mt-1 text-muted-foreground text-sm">
+              {lang === "ar"
+                ? `الرمز البريدي ${SITE.postalCode}`
+                : `Postal code ${SITE.postalCode}`}
+            </p>
+            <a
+              href={SITE.mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
               {lang === "ar" ? "الخريطة" : "Open in Maps"}
             </a>
           </div>

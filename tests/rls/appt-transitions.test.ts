@@ -63,20 +63,35 @@ async function runPureMatrixTests() {
   ];
   for (const [from, to, needsReason] of receptionAllowed) {
     await test(`reception: ${from} → ${to}${needsReason ? " (with reason)" : ""}`, () => {
-      const r = checkAppointmentTransition(from, to, ["reception"], needsReason ? "سبب" : undefined);
+      const r = checkAppointmentTransition(
+        from,
+        to,
+        ["reception"],
+        needsReason ? "سبب" : undefined,
+      );
       assert(r.ok, `expected ok, got ${JSON.stringify(r)}`);
     });
   }
 
   // 3) Reason required is enforced
-  for (const [from, to] of [["new", "cancelled"], ["confirmed", "no_show"], ["confirmed", "cancelled"]] as [ApptStatus, ApptStatus][]) {
+  for (const [from, to] of [
+    ["new", "cancelled"],
+    ["confirmed", "no_show"],
+    ["confirmed", "cancelled"],
+  ] as [ApptStatus, ApptStatus][]) {
     await test(`reception: ${from} → ${to} without reason → REASON_REQUIRED`, () => {
       const r = checkAppointmentTransition(from, to, ["reception"]);
-      assert(!r.ok && r.code === "REASON_REQUIRED", `expected REASON_REQUIRED, got ${JSON.stringify(r)}`);
+      assert(
+        !r.ok && r.code === "REASON_REQUIRED",
+        `expected REASON_REQUIRED, got ${JSON.stringify(r)}`,
+      );
     });
     await test(`reception: ${from} → ${to} with whitespace-only reason → REASON_REQUIRED`, () => {
       const r = checkAppointmentTransition(from, to, ["reception"], "   ");
-      assert(!r.ok && r.code === "REASON_REQUIRED", `expected REASON_REQUIRED, got ${JSON.stringify(r)}`);
+      assert(
+        !r.ok && r.code === "REASON_REQUIRED",
+        `expected REASON_REQUIRED, got ${JSON.stringify(r)}`,
+      );
     });
   }
 
@@ -84,7 +99,10 @@ async function runPureMatrixTests() {
   for (const from of ["completed", "cancelled", "no_show"] as ApptStatus[]) {
     await test(`reception: ${from} → new → FORBIDDEN_ROLE`, () => {
       const r = checkAppointmentTransition(from, "new", ["reception"]);
-      assert(!r.ok && r.code === "FORBIDDEN_ROLE", `expected FORBIDDEN_ROLE, got ${JSON.stringify(r)}`);
+      assert(
+        !r.ok && r.code === "FORBIDDEN_ROLE",
+        `expected FORBIDDEN_ROLE, got ${JSON.stringify(r)}`,
+      );
     });
     await test(`admin: ${from} → new (allowed)`, () => {
       const r = checkAppointmentTransition(from, "new", ["admin"]);
@@ -104,7 +122,10 @@ async function runPureMatrixTests() {
   for (const [from, to] of illegal) {
     await test(`admin: ${from} → ${to} → ILLEGAL_TRANSITION`, () => {
       const r = checkAppointmentTransition(from, to, ["admin"], "سبب");
-      assert(!r.ok && r.code === "ILLEGAL_TRANSITION", `expected ILLEGAL_TRANSITION, got ${JSON.stringify(r)}`);
+      assert(
+        !r.ok && r.code === "ILLEGAL_TRANSITION",
+        `expected ILLEGAL_TRANSITION, got ${JSON.stringify(r)}`,
+      );
     });
   }
 
@@ -113,14 +134,20 @@ async function runPureMatrixTests() {
   for (const [from, to] of receptionAllowed.map(([a, b]) => [a, b]) as [ApptStatus, ApptStatus][]) {
     await test(`patient (no role): ${from} → ${to} → FORBIDDEN_ROLE`, () => {
       const r = checkAppointmentTransition(from, to, [] as StaffRole[], "سبب");
-      assert(!r.ok && r.code === "FORBIDDEN_ROLE", `expected FORBIDDEN_ROLE, got ${JSON.stringify(r)}`);
+      assert(
+        !r.ok && r.code === "FORBIDDEN_ROLE",
+        `expected FORBIDDEN_ROLE, got ${JSON.stringify(r)}`,
+      );
     });
   }
 
   // 7) Pharmacy role has no appointment permissions
   await test("pharmacy: new → confirmed → FORBIDDEN_ROLE", () => {
     const r = checkAppointmentTransition("new", "confirmed", ["pharmacy"]);
-    assert(!r.ok && r.code === "FORBIDDEN_ROLE", `expected FORBIDDEN_ROLE, got ${JSON.stringify(r)}`);
+    assert(
+      !r.ok && r.code === "FORBIDDEN_ROLE",
+      `expected FORBIDDEN_ROLE, got ${JSON.stringify(r)}`,
+    );
   });
 }
 
@@ -148,7 +175,11 @@ async function runDbEffectTests() {
 
   async function createUser(email: string, role: string | null) {
     const password = "Test!" + Math.random().toString(36).slice(2, 10) + "Aa1";
-    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
     if (error) throw error;
     if (role) await admin.from("user_roles").insert({ user_id: data.user.id, role });
     return { userId: data.user.id, email, password };
@@ -172,7 +203,13 @@ async function runDbEffectTests() {
   const statusOf = async (id: string) =>
     (await admin.from("appointments").select("status").eq("id", id).single()).data?.status;
   const auditOf = async (id: string) =>
-    (await admin.from("appointment_audit").select("*").eq("appointment_id", id).order("changed_at", { ascending: false })).data ?? [];
+    (
+      await admin
+        .from("appointment_audit")
+        .select("*")
+        .eq("appointment_id", id)
+        .order("changed_at", { ascending: false })
+    ).data ?? [];
 
   console.log("\n── Layer B: end-to-end DB effects ──");
   const stamp = Date.now();
@@ -192,42 +229,61 @@ async function runDbEffectTests() {
 
   try {
     await test("reception: new → confirmed writes audit row", async () => {
-      const id = await newAppt("new"); created.push(id);
-      const { error } = await recepC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "confirmed", _reason: null });
+      const id = await newAppt("new");
+      created.push(id);
+      const { error } = await recepC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "confirmed",
+        _reason: null,
+      });
       assert(!error, `rpc failed: ${error?.message}`);
-      assert(await statusOf(id) === "confirmed", "status not updated");
+      assert((await statusOf(id)) === "confirmed", "status not updated");
       const audit = await auditOf(id);
       assert(audit.length === 1, `expected 1 audit row, got ${audit.length}`);
-      assert(audit[0].old_status === "new" && audit[0].new_status === "confirmed", "audit statuses wrong");
+      assert(
+        audit[0].old_status === "new" && audit[0].new_status === "confirmed",
+        "audit statuses wrong",
+      );
       assert(audit[0].changed_by === recepU.userId, "audit actor wrong");
     });
 
     await test("reception: confirmed → cancelled with reason captured in audit", async () => {
-      const id = await newAppt("confirmed"); created.push(id);
+      const id = await newAppt("confirmed");
+      created.push(id);
       const reason = "اتصل المريض لإلغاء الحجز";
-      const { error } = await recepC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "cancelled", _reason: reason });
+      const { error } = await recepC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "cancelled",
+        _reason: reason,
+      });
       assert(!error, `rpc failed: ${error?.message}`);
-      assert(await statusOf(id) === "cancelled");
+      assert((await statusOf(id)) === "cancelled");
       const audit = await auditOf(id);
       assert(audit[0].reason === reason, `reason not recorded, got ${audit[0].reason}`);
     });
 
     await test("admin: cancelled → new (reopen) allowed", async () => {
-      const id = await newAppt("cancelled"); created.push(id);
-      const { error } = await adminC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "new", _reason: "إعادة فتح" });
+      const id = await newAppt("cancelled");
+      created.push(id);
+      const { error } = await adminC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "new",
+        _reason: "إعادة فتح",
+      });
       assert(!error, `rpc failed: ${error?.message}`);
-      assert(await statusOf(id) === "new");
+      assert((await statusOf(id)) === "new");
     });
 
     await test("patient (no role): cannot update — status unchanged", async () => {
-      const id = await newAppt("new"); created.push(id);
+      const id = await newAppt("new");
+      created.push(id);
       // RLS blocks the underlying UPDATE; RPC returns success (0 rows) but nothing changes.
-      await patC.rpc("update_appointment_status" as any,
-        { _id: id, _status: "confirmed", _reason: null });
-      assert(await statusOf(id) === "new", "patient must not be able to change status");
+      await patC.rpc("update_appointment_status" as any, {
+        _id: id,
+        _status: "confirmed",
+        _reason: null,
+      });
+      assert((await statusOf(id)) === "new", "patient must not be able to change status");
       assert((await auditOf(id)).length === 0, "no audit row should be written");
     });
 
@@ -235,7 +291,8 @@ async function runDbEffectTests() {
       // Pharmacy has NO role in APPT_TRANSITIONS; server function refuses.
       // At the DB layer, an "authenticated user with pharmacy role" also has no
       // UPDATE policy on appointments, so even the RPC path is a no-op.
-      const id = await newAppt("new"); created.push(id);
+      const id = await newAppt("new");
+      created.push(id);
       const beforeAudit = (await auditOf(id)).length;
       const stateBefore = await statusOf(id);
       // (No pharmacy client here — the transition matrix already covers it,
@@ -255,4 +312,7 @@ async function runDbEffectTests() {
   await runDbEffectTests();
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

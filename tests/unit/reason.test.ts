@@ -50,20 +50,20 @@ const SP = " ";
 
 console.log("── normalizeReason: null / undefined ──");
 test("undefined → undefined", () => eq(normalizeReason(undefined), undefined));
-test("null → undefined",      () => eq(normalizeReason(null),      undefined));
+test("null → undefined", () => eq(normalizeReason(null), undefined));
 test("isEmptyReason(undefined) is true", () => assert(isEmptyReason(undefined), "should be empty"));
 
 console.log("\n── normalizeReason: whitespace-only → '' ──");
 for (const [name, raw] of [
-  ["empty",           ""],
-  ["single space",    " "],
-  ["many spaces",     "     "],
-  ["tab",             "\t"],
-  ["newline",         "\n"],
-  ["CRLF",            "\r\n"],
-  ["NBSP",            NBSP],
-  ["NBSP run",        `${NBSP}${NBSP}${NBSP}`],
-  ["mixed all",       ` \t\n\r${NBSP} `],
+  ["empty", ""],
+  ["single space", " "],
+  ["many spaces", "     "],
+  ["tab", "\t"],
+  ["newline", "\n"],
+  ["CRLF", "\r\n"],
+  ["NBSP", NBSP],
+  ["NBSP run", `${NBSP}${NBSP}${NBSP}`],
+  ["mixed all", ` \t\n\r${NBSP} `],
 ] as const) {
   test(`ws-only (${name}) → ''`, () => {
     const got = normalizeReason(raw);
@@ -74,17 +74,17 @@ for (const [name, raw] of [
 
 console.log("\n── normalizeReason: edge trimming (edges only) ──");
 const edgeCases: Array<[string, string, string]> = [
-  ["leading ASCII spaces",  `   طلب`,                     `طلب`],
-  ["trailing ASCII spaces", `طلب   `,                     `طلب`],
-  ["both ASCII spaces",     `   طلب   `,                  `طلب`],
-  ["leading tabs",          `\t\tطلب`,                    `طلب`],
-  ["trailing tabs",         `طلب\t\t`,                    `طلب`],
-  ["leading newlines",      `\n\nطلب`,                    `طلب`],
-  ["trailing newlines",     `طلب\n\n`,                    `طلب`],
-  ["CRLF both sides",       `\r\nطلب\r\n`,                `طلب`],
-  ["leading NBSP",          `${NBSP}${NBSP}طلب`,          `طلب`],
-  ["trailing NBSP",         `طلب${NBSP}${NBSP}`,          `طلب`],
-  ["mixed edges",           `  \n\t${NBSP}طلب${NBSP}\t\n\r `, `طلب`],
+  ["leading ASCII spaces", `   طلب`, `طلب`],
+  ["trailing ASCII spaces", `طلب   `, `طلب`],
+  ["both ASCII spaces", `   طلب   `, `طلب`],
+  ["leading tabs", `\t\tطلب`, `طلب`],
+  ["trailing tabs", `طلب\t\t`, `طلب`],
+  ["leading newlines", `\n\nطلب`, `طلب`],
+  ["trailing newlines", `طلب\n\n`, `طلب`],
+  ["CRLF both sides", `\r\nطلب\r\n`, `طلب`],
+  ["leading NBSP", `${NBSP}${NBSP}طلب`, `طلب`],
+  ["trailing NBSP", `طلب${NBSP}${NBSP}`, `طلب`],
+  ["mixed edges", `  \n\t${NBSP}طلب${NBSP}\t\n\r `, `طلب`],
 ];
 for (const [name, raw, want] of edgeCases) {
   test(`trim edges: ${name}`, () => {
@@ -95,17 +95,16 @@ for (const [name, raw, want] of edgeCases) {
 
 console.log("\n── normalizeReason: internal whitespace preserved verbatim ──");
 const internalCases: Array<[string, string, string]> = [
-  ["double space",       `اتصل${SP}${SP}المريض`,                    `اتصل${SP}${SP}المريض`],
-  ["triple space",       `اتصل${SP}${SP}${SP}المريض`,               `اتصل${SP}${SP}${SP}المريض`],
-  ["internal tab",       `اتصل\tالمريض`,                            `اتصل\tالمريض`],
-  ["internal newline",   `اتصل\nالمريض`,                            `اتصل\nالمريض`],
-  ["internal CRLF",      `اتصل\r\nالمريض`,                          `اتصل\r\nالمريض`],
-  ["internal NBSP",      `اتصل${NBSP}المريض`,                       `اتصل${NBSP}المريض`],
-  ["NBSP run internal",  `اتصل${NBSP}${NBSP}${NBSP}المريض`,         `اتصل${NBSP}${NBSP}${NBSP}المريض`],
-  ["mixed NBSP+space",   `اتصل${NBSP}${SP}${NBSP}المريض`,           `اتصل${NBSP}${SP}${NBSP}المريض`],
-  ["mixed with tab/nl",  `اتصل\tالمريض\nلإلغاء\tالحجز`,             `اتصل\tالمريض\nلإلغاء\tالحجز`],
-  ["edges trimmed, internal ws kept",
-    `  اتصل${NBSP}${NBSP}المريض\n`,                                 `اتصل${NBSP}${NBSP}المريض`],
+  ["double space", `اتصل${SP}${SP}المريض`, `اتصل${SP}${SP}المريض`],
+  ["triple space", `اتصل${SP}${SP}${SP}المريض`, `اتصل${SP}${SP}${SP}المريض`],
+  ["internal tab", `اتصل\tالمريض`, `اتصل\tالمريض`],
+  ["internal newline", `اتصل\nالمريض`, `اتصل\nالمريض`],
+  ["internal CRLF", `اتصل\r\nالمريض`, `اتصل\r\nالمريض`],
+  ["internal NBSP", `اتصل${NBSP}المريض`, `اتصل${NBSP}المريض`],
+  ["NBSP run internal", `اتصل${NBSP}${NBSP}${NBSP}المريض`, `اتصل${NBSP}${NBSP}${NBSP}المريض`],
+  ["mixed NBSP+space", `اتصل${NBSP}${SP}${NBSP}المريض`, `اتصل${NBSP}${SP}${NBSP}المريض`],
+  ["mixed with tab/nl", `اتصل\tالمريض\nلإلغاء\tالحجز`, `اتصل\tالمريض\nلإلغاء\tالحجز`],
+  ["edges trimmed, internal ws kept", `  اتصل${NBSP}${NBSP}المريض\n`, `اتصل${NBSP}${NBSP}المريض`],
 ];
 for (const [name, raw, want] of internalCases) {
   test(`internal ws preserved: ${name}`, () => eq(normalizeReason(raw), want));
@@ -113,14 +112,14 @@ for (const [name, raw, want] of internalCases) {
 
 console.log("\n── normalizeReason: ZWSP (U+200B) is NOT whitespace ──");
 const zwspCases: Array<[string, string, string]> = [
-  ["leading ZWSP survives",   `${ZWSP}طلب`,                        `${ZWSP}طلب`],
-  ["trailing ZWSP survives",  `طلب${ZWSP}`,                        `طلب${ZWSP}`],
-  ["ZWSP both sides survive", `${ZWSP}طلب${ZWSP}`,                 `${ZWSP}طلب${ZWSP}`],
-  ["internal ZWSP survives",  `طلب${ZWSP}المريض`,                  `طلب${ZWSP}المريض`],
-  ["ZWSP + edge spaces",      `  ${ZWSP}طلب${ZWSP}  `,             `${ZWSP}طلب${ZWSP}`],
-  ["ZWSP + edge NBSP",        `${NBSP}${ZWSP}طلب${ZWSP}${NBSP}`,   `${ZWSP}طلب${ZWSP}`],
-  ["ZWSP + edge tabs/nl",     `\n\t${ZWSP}طلب${ZWSP}\t\n`,         `${ZWSP}طلب${ZWSP}`],
-  ["ZWSP-only NOT trimmed",   `${ZWSP}${ZWSP}${ZWSP}`,             `${ZWSP}${ZWSP}${ZWSP}`],
+  ["leading ZWSP survives", `${ZWSP}طلب`, `${ZWSP}طلب`],
+  ["trailing ZWSP survives", `طلب${ZWSP}`, `طلب${ZWSP}`],
+  ["ZWSP both sides survive", `${ZWSP}طلب${ZWSP}`, `${ZWSP}طلب${ZWSP}`],
+  ["internal ZWSP survives", `طلب${ZWSP}المريض`, `طلب${ZWSP}المريض`],
+  ["ZWSP + edge spaces", `  ${ZWSP}طلب${ZWSP}  `, `${ZWSP}طلب${ZWSP}`],
+  ["ZWSP + edge NBSP", `${NBSP}${ZWSP}طلب${ZWSP}${NBSP}`, `${ZWSP}طلب${ZWSP}`],
+  ["ZWSP + edge tabs/nl", `\n\t${ZWSP}طلب${ZWSP}\t\n`, `${ZWSP}طلب${ZWSP}`],
+  ["ZWSP-only NOT trimmed", `${ZWSP}${ZWSP}${ZWSP}`, `${ZWSP}${ZWSP}${ZWSP}`],
 ];
 for (const [name, raw, want] of zwspCases) {
   test(`ZWSP: ${name}`, () => {
@@ -152,19 +151,29 @@ test("edges trimmed BEFORE cap counts characters", () => {
 });
 
 console.log("\n── isEmptyReason ──");
-test("'' is empty",              () => assert(isEmptyReason(""), "empty"));
-test("undefined is empty",       () => assert(isEmptyReason(undefined), "empty"));
-test("'x' is NOT empty",         () => assert(!isEmptyReason("x"), "not empty"));
+test("'' is empty", () => assert(isEmptyReason(""), "empty"));
+test("undefined is empty", () => assert(isEmptyReason(undefined), "empty"));
+test("'x' is NOT empty", () => assert(!isEmptyReason("x"), "not empty"));
 test("single space is NOT empty (already normalized value)", () =>
   assert(!isEmptyReason(" "), "already-normalized values are taken as-is"));
 test("ZWSP alone is NOT empty", () => assert(!isEmptyReason(ZWSP), "ZWSP is not whitespace"));
 
 console.log("\n── reasonSchema parity with normalizeReason ──");
 const parityInputs: Array<string | null | undefined> = [
-  undefined, null, "", " ", `${NBSP}`, `${ZWSP}`,
-  "طلب", `  طلب  `, `\t\nطلب\n\t`, `${NBSP}طلب${NBSP}`,
-  `${ZWSP}طلب${ZWSP}`, `اتصل${NBSP}${NBSP}المريض`,
-  `اتصل${SP}${SP}المريض\n`, "ا".repeat(REASON_MAX + 20),
+  undefined,
+  null,
+  "",
+  " ",
+  `${NBSP}`,
+  `${ZWSP}`,
+  "طلب",
+  `  طلب  `,
+  `\t\nطلب\n\t`,
+  `${NBSP}طلب${NBSP}`,
+  `${ZWSP}طلب${ZWSP}`,
+  `اتصل${NBSP}${NBSP}المريض`,
+  `اتصل${SP}${SP}المريض\n`,
+  "ا".repeat(REASON_MAX + 20),
 ];
 for (const raw of parityInputs) {
   test(`schema === normalizeReason for ${JSON.stringify(raw)}`, () => {
@@ -176,7 +185,7 @@ for (const raw of parityInputs) {
 
 console.log("\n── reasonRequiredFor ──");
 test("required for cancelled", () => assert(reasonRequiredFor("cancelled"), "should require"));
-test("required for no_show",   () => assert(reasonRequiredFor("no_show"),   "should require"));
+test("required for no_show", () => assert(reasonRequiredFor("no_show"), "should require"));
 for (const s of ["new", "confirmed", "completed", "unknown"]) {
   test(`not required for ${s}`, () => assert(!reasonRequiredFor(s), "should not require"));
 }

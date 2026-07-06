@@ -30,10 +30,7 @@
  * Run:  bun tests/rls/friendly-insert-error-unknown-code.test.ts
  */
 import { createClient } from "@supabase/supabase-js";
-import {
-  friendlyInsertError,
-  FRIENDLY_INSERT_MESSAGES,
-} from "../../src/lib/insert-errors";
+import { friendlyInsertError, FRIENDLY_INSERT_MESSAGES } from "../../src/lib/insert-errors";
 
 const URL = process.env.SUPABASE_URL!;
 const ANON = process.env.SUPABASE_PUBLISHABLE_KEY!;
@@ -53,17 +50,26 @@ type PGErr = {
   hint?: string | null;
 };
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
 }
 function assertEq<T>(actual: T, expected: T, label: string) {
   if (actual !== expected) {
-    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    throw new Error(
+      `${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
   }
 }
 /** يمنع أي token إنجليزي من err الخام أن يتسرب داخل السلسلة العربية. */
@@ -121,9 +127,9 @@ async function main() {
   // ---------- 2) خطأ حقيقي: RPC غير موجودة عبر service role ----------
   let realUnknownB: PGErr | null = null;
   await test("2. real error on nonexistent RPC → unknown Arabic (no throw, no leak)", async () => {
-    const { error } = await (admin.rpc as unknown as (name: string) => Promise<{ error: PGErr | null }>)(
-      "__nonexistent_rpc_for_friendly_error_test__",
-    );
+    const { error } = await (
+      admin.rpc as unknown as (name: string) => Promise<{ error: PGErr | null }>
+    )("__nonexistent_rpc_for_friendly_error_test__");
     assert(error, "expected an error calling a nonexistent RPC");
     realUnknownB = error as PGErr;
     assert(
@@ -138,11 +144,11 @@ async function main() {
   // ---------- 3) shape-only: SQLSTATE حقيقي لكنه غير مسجل في المابنغ ----------
   await test("3. shape-only unknown SQLSTATEs → unknown Arabic (no throw)", async () => {
     const cases: PGErr[] = [
-      { code: "XX000", message: "internal_error" },       // internal_error
-      { code: "40P01", message: "deadlock detected" },    // deadlock_detected (not mapped)
+      { code: "XX000", message: "internal_error" }, // internal_error
+      { code: "40P01", message: "deadlock detected" }, // deadlock_detected (not mapped)
       { code: "53300", message: "too many connections" }, // too_many_connections
-      { code: "08006", message: "connection failure" },   // connection_failure
-      { code: "ZZ999", message: "totally made up" },      // completely fabricated
+      { code: "08006", message: "connection failure" }, // connection_failure
+      { code: "ZZ999", message: "totally made up" }, // completely fabricated
     ];
     for (const fake of cases) {
       assert(!MAPPED_CODES.has(fake.code!), `test bug: ${fake.code} should be unmapped`);
@@ -168,4 +174,7 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

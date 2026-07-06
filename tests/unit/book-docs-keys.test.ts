@@ -18,10 +18,10 @@ import { FRIENDLY_INSERT_MESSAGES } from "../../src/lib/insert-errors";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "../..");
 const DOCS_PATH = resolve(ROOT, "docs/book-friendly-insert-error.md");
-const SRC_PATH  = resolve(ROOT, "src/lib/insert-errors.ts");
+const SRC_PATH = resolve(ROOT, "src/lib/insert-errors.ts");
 
 const docs = readFileSync(DOCS_PATH, "utf8");
-const src  = readFileSync(SRC_PATH,  "utf8");
+const src = readFileSync(SRC_PATH, "utf8");
 
 // Extract every `FRIENDLY_INSERT_MESSAGES.<identifier>` occurrence from the docs.
 // Skip template placeholders such as `{{KEY}}` and any non-identifier follow-up.
@@ -76,9 +76,9 @@ for (const key of [...mentionedKeys].sort()) {
   test(`table has key: ${key}`, () => {
     assert(
       tableKeys.has(key),
-      `docs mention FRIENDLY_INSERT_MESSAGES.${key} but it is missing from `
-        + `FRIENDLY_INSERT_MESSAGES in src/lib/insert-errors.ts. `
-        + `Known keys: ${[...tableKeys].join(", ")}`,
+      `docs mention FRIENDLY_INSERT_MESSAGES.${key} but it is missing from ` +
+        `FRIENDLY_INSERT_MESSAGES in src/lib/insert-errors.ts. ` +
+        `Known keys: ${[...tableKeys].join(", ")}`,
     );
   });
 }
@@ -86,9 +86,7 @@ for (const key of [...mentionedKeys].sort()) {
 console.log("\n── every mentioned key is wired inside friendlyInsertError ──");
 // Isolate the body of friendlyInsertError so we don't accidentally match
 // unrelated occurrences elsewhere in the file (e.g. type aliases).
-const fnMatch = src.match(
-  /export\s+function\s+friendlyInsertError\s*\([\s\S]*?\n\}\s*$/m,
-);
+const fnMatch = src.match(/export\s+function\s+friendlyInsertError\s*\([\s\S]*?\n\}\s*$/m);
 assert(fnMatch, "could not locate friendlyInsertError() in src/lib/insert-errors.ts");
 const fnBody = fnMatch![0];
 
@@ -99,10 +97,10 @@ for (const key of [...mentionedKeys].sort()) {
     );
     assert(
       returnRe.test(fnBody),
-      `docs mention FRIENDLY_INSERT_MESSAGES.${key} but no `
-        + `\`return FRIENDLY_INSERT_MESSAGES.${key}\` branch was found inside `
-        + `friendlyInsertError(). Either wire it in src/lib/insert-errors.ts, `
-        + `or remove the stale mention from docs/book-friendly-insert-error.md.`,
+      `docs mention FRIENDLY_INSERT_MESSAGES.${key} but no ` +
+        `\`return FRIENDLY_INSERT_MESSAGES.${key}\` branch was found inside ` +
+        `friendlyInsertError(). Either wire it in src/lib/insert-errors.ts, ` +
+        `or remove the stale mention from docs/book-friendly-insert-error.md.`,
     );
   });
 }

@@ -13,7 +13,10 @@ export const Route = createFileRoute("/doctors")({
   head: () => ({
     meta: [
       { title: "أطباؤنا | مجمع باعشن الطبي" },
-      { name: "description", content: "استشاريون وأخصائيون في مختلف التخصصات الطبية بمجمع باعشن الطبي – صبيا، جازان." },
+      {
+        name: "description",
+        content: "استشاريون وأخصائيون في مختلف التخصصات الطبية بمجمع باعشن الطبي – صبيا، جازان.",
+      },
       { property: "og:title", content: "أطباؤنا — مجمع باعشن الطبي" },
     ],
   }),
@@ -28,11 +31,20 @@ function DoctorsPage() {
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
-    queryFn: async () => (await supabase.from("specialties").select("*").eq("is_active", true).order("sort_order")).data ?? [],
+    queryFn: async () =>
+      (await supabase.from("specialties").select("*").eq("is_active", true).order("sort_order"))
+        .data ?? [],
   });
   const { data: doctors, isLoading } = useQuery({
     queryKey: ["doctors"],
-    queryFn: async () => (await supabase.from("doctors").select("*, specialties(*)").eq("is_active", true).order("sort_order")).data ?? [],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("doctors")
+          .select("*, specialties(*)")
+          .eq("is_active", true)
+          .order("sort_order")
+      ).data ?? [],
   });
 
   const filtered = (doctors ?? []).filter((d) => {
@@ -59,16 +71,24 @@ function DoctorsPage() {
             className="w-full rounded-md border border-input bg-background ps-9 pe-3 py-2 text-sm"
           />
         </div>
-        <select value={selSpec} onChange={(e) => setSelSpec(e.target.value)} className="rounded-md border border-input bg-background px-3 py-2 text-sm min-w-[200px]">
+        <select
+          value={selSpec}
+          onChange={(e) => setSelSpec(e.target.value)}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm min-w-[200px]"
+        >
           <option value="all">{t("all_specialties")}</option>
           {specialties?.map((s) => (
-            <option key={s.id} value={s.slug}>{lang === "ar" ? s.name_ar : s.name_en}</option>
+            <option key={s.id} value={s.slug}>
+              {lang === "ar" ? s.name_ar : s.name_en}
+            </option>
           ))}
         </select>
       </div>
 
       {isLoading && <p className="text-muted-foreground">{t("loading")}</p>}
-      {!isLoading && filtered.length === 0 && <p className="text-muted-foreground">{t("no_doctors")}</p>}
+      {!isLoading && filtered.length === 0 && (
+        <p className="text-muted-foreground">{t("no_doctors")}</p>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((d) => (
@@ -79,12 +99,24 @@ function DoctorsPage() {
               </div>
               <div>
                 <div className="font-bold">{lang === "ar" ? d.name_ar : d.name_en}</div>
-                <div className="text-xs text-muted-foreground">{lang === "ar" ? d.title_ar : d.title_en}</div>
-                <div className="text-xs text-primary mt-1">{lang === "ar" ? (d as any).specialties?.name_ar : (d as any).specialties?.name_en}</div>
+                <div className="text-xs text-muted-foreground">
+                  {lang === "ar" ? d.title_ar : d.title_en}
+                </div>
+                <div className="text-xs text-primary mt-1">
+                  {lang === "ar"
+                    ? (d as any).specialties?.name_ar
+                    : (d as any).specialties?.name_en}
+                </div>
               </div>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground leading-6 line-clamp-3 flex-1">{lang === "ar" ? d.bio_ar : d.bio_en}</p>
-            <Link to="/book" search={{ doctor: d.id }} className="mt-4 inline-flex justify-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+            <p className="mt-4 text-sm text-muted-foreground leading-6 line-clamp-3 flex-1">
+              {lang === "ar" ? d.bio_ar : d.bio_en}
+            </p>
+            <Link
+              to="/book"
+              search={{ doctor: d.id }}
+              className="mt-4 inline-flex justify-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+            >
               {t("book_with_doctor")}
             </Link>
           </div>

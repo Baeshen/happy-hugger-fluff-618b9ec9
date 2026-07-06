@@ -7,7 +7,10 @@ export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
       { title: "من نحن | مجمع باعشن الطبي" },
-      { name: "description", content: "نبذة عن مجمع باعشن الطبي في صبيا، جازان، رؤيتنا، اعتماداتنا وفريقنا الطبي." },
+      {
+        name: "description",
+        content: "نبذة عن مجمع باعشن الطبي في صبيا، جازان، رؤيتنا، اعتماداتنا وفريقنا الطبي.",
+      },
       { property: "og:title", content: "من نحن — مجمع باعشن الطبي" },
     ],
   }),
@@ -51,7 +54,9 @@ function AboutPage() {
             { icon: MapPin, l: lang === "ar" ? SITE.addressAr : SITE.addressEn },
           ].map((f) => (
             <div key={f.l} className="rounded-2xl border border-border bg-card p-5">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary grid place-items-center"><f.icon className="h-5 w-5" /></div>
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary grid place-items-center">
+                <f.icon className="h-5 w-5" />
+              </div>
               <div className="mt-3 font-semibold text-sm">{f.l}</div>
             </div>
           ))}

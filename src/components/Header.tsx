@@ -32,10 +32,16 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur">
       <div className="container-app flex h-16 items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">ب</div>
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">
+            ب
+          </div>
           <div className="leading-tight">
-            <div className="text-sm font-bold text-foreground">{lang === "ar" ? SITE.nameAr : SITE.nameEn}</div>
-            <div className="text-[11px] text-muted-foreground">{lang === "ar" ? "صبيا – جازان" : "Sabya – Jazan"}</div>
+            <div className="text-sm font-bold text-foreground">
+              {lang === "ar" ? SITE.nameAr : SITE.nameEn}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {lang === "ar" ? "صبيا – جازان" : "Sabya – Jazan"}
+            </div>
           </div>
         </Link>
 
@@ -54,7 +60,10 @@ export function Header() {
         </nav>
 
         <div className="hidden md:flex items-center gap-2">
-          <a href={`tel:${SITE.phone}`} className="hidden xl:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+          <a
+            href={`tel:${SITE.phone}`}
+            className="hidden xl:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
+          >
             <Phone className="h-4 w-4" /> {SITE.phoneDisplay}
           </a>
           <button
@@ -70,17 +79,28 @@ export function Header() {
             {t("cta_book")}
           </Link>
           {signedIn ? (
-            <Link to="/admin" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted" title="لوحة التحكم">
+            <Link
+              to="/admin"
+              className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              title="لوحة التحكم"
+            >
               <LayoutDashboard className="h-3.5 w-3.5" /> لوحة
             </Link>
           ) : (
-            <Link to="/auth" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+            <Link
+              to="/auth"
+              className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+            >
               <LogIn className="h-3.5 w-3.5" /> دخول
             </Link>
           )}
         </div>
 
-        <button className="lg:hidden inline-flex items-center justify-center rounded-md p-2 text-foreground" onClick={() => setOpen((v) => !v)} aria-label="menu">
+        <button
+          className="lg:hidden inline-flex items-center justify-center rounded-md p-2 text-foreground"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="menu"
+        >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
@@ -105,7 +125,11 @@ export function Header() {
               >
                 <Globe className="h-3.5 w-3.5" /> {t("lang_switch")}
               </button>
-              <Link to="/book" onClick={() => setOpen(false)} className="flex-1 text-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+              <Link
+                to="/book"
+                onClick={() => setOpen(false)}
+                className="flex-1 text-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              >
                 {t("cta_book")}
               </Link>
             </div>

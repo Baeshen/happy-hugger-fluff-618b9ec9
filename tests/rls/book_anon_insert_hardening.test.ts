@@ -26,12 +26,19 @@ if (!URL || !ANON || !SVC) {
 const admin = createClient(URL, SVC, { auth: { persistSession: false } });
 const anon = createClient(URL, ANON, { auth: { persistSession: false } });
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 const created: string[] = [];
 
 async function test(name: string, fn: () => Promise<void>) {
-  try { await fn(); console.log(`  ✓ ${name}`); passed++; }
-  catch (e) { console.log(`  ✗ ${name}\n    ${(e as Error).message}`); failed++; }
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ✗ ${name}\n    ${(e as Error).message}`);
+    failed++;
+  }
 }
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
@@ -53,69 +60,92 @@ async function run() {
       patient_phone: "0500000000",
       appointment_date: tomorrow(),
       appointment_time: "10:00",
-      status: "confirmed",          // attacker injection
+      status: "confirmed", // attacker injection
       notes: "leaked private note", // attacker injection
     } as any);
     assert(!error, `insert failed: ${error?.message}`);
-    const { data: rows } = await admin.from("appointments")
-      .select("id, status, notes").eq("patient_name", probe).limit(1);
+    const { data: rows } = await admin
+      .from("appointments")
+      .select("id, status, notes")
+      .eq("patient_name", probe)
+      .limit(1);
     assert(rows && rows.length === 1, "expected exactly 1 row inserted");
     created.push(rows[0].id);
     assert(rows[0].status === "new", `expected status='new', got ${rows[0].status}`);
-    assert(rows[0].notes === null,   `expected notes=null, got ${JSON.stringify(rows[0].notes)}`);
+    assert(rows[0].notes === null, `expected notes=null, got ${JSON.stringify(rows[0].notes)}`);
   });
 
   await test("anon INSERT with past date → RLS rejects (42501), no row created", async () => {
-    const { data, error } = await anon.from("appointments").insert({
-      patient_name: "Public Patient",
-      patient_phone: "0500000000",
-      appointment_date: yesterday(),
-      appointment_time: "10:00",
-    }).select("id").maybeSingle();
+    const { data, error } = await anon
+      .from("appointments")
+      .insert({
+        patient_name: "Public Patient",
+        patient_phone: "0500000000",
+        appointment_date: yesterday(),
+        appointment_time: "10:00",
+      })
+      .select("id")
+      .maybeSingle();
     assert(error, "expected RLS to reject past-date insert");
     assert(!data, "no row should be returned");
     // Postgres surfaces WITH CHECK failure as 42501/RLS or as 42501 error;
     // don't over-specify the code, but the message must mention RLS.
-    assert(/row-level security|violates row-level/i.test(error?.message ?? ""),
-      `unexpected error: ${error?.message}`);
+    assert(
+      /row-level security|violates row-level/i.test(error?.message ?? ""),
+      `unexpected error: ${error?.message}`,
+    );
   });
 
   await test("anon INSERT with whitespace-only name → RLS rejects, no row", async () => {
-    const { data, error } = await anon.from("appointments").insert({
-      patient_name: "   ",
-      patient_phone: "0500000000",
-      appointment_date: tomorrow(),
-      appointment_time: "10:00",
-    }).select("id").maybeSingle();
+    const { data, error } = await anon
+      .from("appointments")
+      .insert({
+        patient_name: "   ",
+        patient_phone: "0500000000",
+        appointment_date: tomorrow(),
+        appointment_time: "10:00",
+      })
+      .select("id")
+      .maybeSingle();
     assert(error, "expected rejection for whitespace-only name");
     assert(!data, "no row should be returned");
   });
 
   await test("anon INSERT with too-short phone (5 chars) → RLS rejects", async () => {
-    const { data, error } = await anon.from("appointments").insert({
-      patient_name: "Valid Name",
-      patient_phone: "12345",
-      appointment_date: tomorrow(),
-      appointment_time: "10:00",
-    }).select("id").maybeSingle();
+    const { data, error } = await anon
+      .from("appointments")
+      .insert({
+        patient_name: "Valid Name",
+        patient_phone: "12345",
+        appointment_date: tomorrow(),
+        appointment_time: "10:00",
+      })
+      .select("id")
+      .maybeSingle();
     assert(error, "expected rejection for short phone");
     assert(!data, "no row should be returned");
   });
 
   await test("anon SELECT on appointments returns 0 rows (staff-only read)", async () => {
     // Insert one row via admin so a global count exists, then read as anon.
-    const { data: a } = await admin.from("appointments").insert({
-      patient_name: "AnonReadProbe",
-      patient_phone: "0500000000",
-      appointment_date: tomorrow(),
-      appointment_time: "11:00",
-      status: "new",
-    }).select("id").single();
+    const { data: a } = await admin
+      .from("appointments")
+      .insert({
+        patient_name: "AnonReadProbe",
+        patient_phone: "0500000000",
+        appointment_date: tomorrow(),
+        appointment_time: "11:00",
+        status: "new",
+      })
+      .select("id")
+      .single();
     if (a?.id) created.push(a.id);
     const { data: rows, error } = await anon.from("appointments").select("id").limit(50);
     assert(!error, `anon select errored: ${error?.message}`);
-    assert(Array.isArray(rows) && rows.length === 0,
-      `anon must not read appointments; got ${rows?.length ?? "?"} rows`);
+    assert(
+      Array.isArray(rows) && rows.length === 0,
+      `anon must not read appointments; got ${rows?.length ?? "?"} rows`,
+    );
   });
 }
 
