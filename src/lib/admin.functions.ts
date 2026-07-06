@@ -33,9 +33,9 @@ export const getAdminStats = createServerFn({ method: "GET" })
     const [appts, todayAppts, pendingAppts, orders, pendingOrders, doctorsCount] = await Promise.all([
       sb.from("appointments").select("id", { count: "exact", head: true }),
       sb.from("appointments").select("id", { count: "exact", head: true }).eq("appointment_date", today),
-      sb.from("appointments").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      sb.from("appointments").select("id", { count: "exact", head: true }).eq("status", "new"),
       sb.from("medicine_orders").select("id", { count: "exact", head: true }),
-      sb.from("medicine_orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      sb.from("medicine_orders").select("id", { count: "exact", head: true }).eq("status", "new"),
       sb.from("doctors").select("id", { count: "exact", head: true }).eq("is_active", true),
     ]);
     return {
