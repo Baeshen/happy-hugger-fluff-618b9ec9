@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# يشغّل فحوصات الأسرار وRLS قبل كل push، بنفس منطق CI.
+# لتفعيل/إعادة تفعيل الـ hooks: bun run prepare
+bun run check:rls
