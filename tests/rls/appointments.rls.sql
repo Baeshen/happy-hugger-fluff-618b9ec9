@@ -9,13 +9,12 @@
 BEGIN;
 
 -- ── Test fixtures ────────────────────────────────────────────────────────────
--- Insert synthetic user_roles rows. FK to auth.users is bypassed via
--- session_replication_role='replica' (all changes rolled back at end).
-SET LOCAL session_replication_role = 'replica';
+-- Temporarily drop the FK on user_roles so we can seed synthetic role rows
+-- without creating real auth.users (all changes rolled back at end).
+ALTER TABLE public.user_roles DROP CONSTRAINT user_roles_user_id_fkey;
 INSERT INTO public.user_roles (user_id, role) VALUES
   ('11111111-1111-1111-1111-111111111111', 'admin'),
   ('22222222-2222-2222-2222-222222222222', 'reception');
-SET LOCAL session_replication_role = 'origin';
 
 -- Seed one existing appointment (as service role / superuser) to test read/update/delete paths.
 INSERT INTO public.appointments (id, patient_name, patient_phone, appointment_date, appointment_time, status)
