@@ -21,8 +21,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Prettier format check on book routes (guards lint:book prettier/prettier failures)
-        run: bun run format:check:book
+      - name: Prettier format check (guards against lint prettier/prettier failures)
+        run: bun run format:check
 
       - name: Lint book routes (guardrails against friendlyInsertError import conflicts)
         run: bun run lint:book
