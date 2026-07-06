@@ -141,3 +141,72 @@ export const toggleDoctorActive = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+const doctorInput = z.object({
+  specialty_id: z.string().uuid().nullable().optional(),
+  name_ar: z.string().min(1),
+  name_en: z.string().nullable().optional(),
+  title_ar: z.string().nullable().optional(),
+  title_en: z.string().nullable().optional(),
+  photo_url: z.string().url().nullable().optional().or(z.literal("")),
+  bio_ar: z.string().nullable().optional(),
+  bio_en: z.string().nullable().optional(),
+  languages: z.array(z.string()).default([]),
+  is_active: z.boolean().default(true),
+  sort_order: z.number().int().default(0),
+});
+
+export const listSpecialtiesAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception", "pharmacy"]);
+    const { data, error } = await context.supabase
+      .from("specialties")
+      .select("id, name_ar, name_en")
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const createDoctor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => doctorInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const payload = { ...data, photo_url: data.photo_url || null };
+    const { data: row, error } = await context.supabase
+      .from("doctors")
+      .insert(payload as any)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const updateDoctor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).and(doctorInput.partial()).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { id, ...rest } = data;
+    const payload: any = { ...rest };
+    if ("photo_url" in payload) payload.photo_url = payload.photo_url || null;
+    const { error } = await context.supabase.from("doctors").update(payload).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteDoctor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { error } = await context.supabase.from("doctors").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
