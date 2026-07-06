@@ -64,10 +64,18 @@ async function newAppt(initialNotes: string | null = null) {
     appointment_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
     appointment_time: "10:00",
     status: "new",
-    notes: initialNotes,
   }).select("id, notes").single();
   if (error) throw error;
-  return data as { id: string; notes: string | null };
+  // force_appointment_defaults strips notes on INSERT for anon/non-staff;
+  // set them via a follow-up UPDATE (service role, not audited by our fn).
+  if (initialNotes !== null) {
+    const up = await admin.from("appointments").update({ notes: initialNotes }).eq("id", data.id);
+    if (up.error) throw up.error;
+    // Clear any audit rows produced by that direct UPDATE so our assertions
+    // measure only what the RPC under test writes.
+    await admin.from("appointment_audit").delete().eq("appointment_id", data.id);
+  }
+  return { id: data.id, notes: initialNotes } as { id: string; notes: string | null };
 }
 const notesOf = async (id: string) =>
   (await admin.from("appointments").select("notes").eq("id", id).single()).data?.notes ?? null;
