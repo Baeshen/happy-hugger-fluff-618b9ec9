@@ -98,10 +98,11 @@ async def main():
         try:
             await sign_in(page, recep_email, recep_pwd)
 
-            # Register interceptor AFTER sign-in so it only affects server-fn calls.
+            # Register interceptor AFTER sign-in; it swaps SENTINEL → 501-char string
+            # right before the request leaves the browser, bypassing the client-side
+            # normalizeReason() slice-to-500.
             await page.route("**/*", rewrite_reason)
-            page.on("request", lambda r: r.method == "POST" and print("POST:", r.url))
-            await page.evaluate("() => { window.prompt = () => 'سبب صالح للاختبار'; }")
+            await page.evaluate(f"() => {{ window.prompt = () => {json.dumps(SENTINEL)}; }}")
 
             row = page.locator("tr", has_text=f"Reason501-{stamp}")
             await row.wait_for(timeout=10000)
