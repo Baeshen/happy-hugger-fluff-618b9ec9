@@ -197,7 +197,7 @@ export const updateAppointmentNotes = createServerFn({ method: "POST" })
     z.object({
       id: z.string().uuid(),
       notes: z.string().trim().max(2000).nullable(),
-      reason: z.string().trim().max(500).optional(),
+      reason: reasonSchema,
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
