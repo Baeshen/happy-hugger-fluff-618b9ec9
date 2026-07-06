@@ -70,8 +70,21 @@ jobs:
         run: |
           set -e
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "::warning::Supabase secrets are not configured on this repo; skipping RLS tests."
-            echo "Add SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY under Settings → Secrets and variables → Actions."
+            {
+              echo "## ⚠️ RLS tests skipped"
+              echo ""
+              echo "Supabase secrets are missing on this repository."
+              echo ""
+              echo "To run the live RLS integration tests, add these repository secrets:"
+              echo "- \`SUPABASE_URL\`"
+              echo "- \`SUPABASE_PUBLISHABLE_KEY\`"
+              echo "- \`SUPABASE_SERVICE_ROLE_KEY\`"
+              echo ""
+              echo "Go to: **Settings → Secrets and variables → Actions → New repository secret**"
+              echo ""
+              echo "Note: \`SUPABASE_SERVICE_ROLE_KEY\` is not available on Lovable Cloud. For full tests you need a separate Supabase project; otherwise the tests will continue to skip safely."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::RLS tests skipped — Supabase secrets are not configured. See job summary for details."
             exit 0
           fi
           failed=0
