@@ -440,6 +440,15 @@ function AppointmentsTab() {
                         </button>
                       )}
                       <button
+                        disabled={notesM.isPending && notesM.variables?.id === r.id}
+                        onClick={() => editNotes(r.id, r.notes ?? null)}
+                        className="inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
+                        title="تعديل الملاحظات"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        ملاحظة
+                      </button>
+                      <button
                         onClick={() => setHistoryFor({ id: r.id, name: r.patient_name })}
                         className="inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
                         title="سجل التغييرات"
