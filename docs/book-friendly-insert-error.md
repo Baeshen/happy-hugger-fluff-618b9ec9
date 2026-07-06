@@ -72,6 +72,11 @@ const FRIENDLY_INSERT_MESSAGES = { rls: "..." } as const;
 
 ### خطوات عملية مفصّلة
 
+<!-- docs-example-keys: busy -->
+<!-- المفتاح `busy` أدناه افتراضي لغرض الشرح فقط؛ يُستثنى من تحقق
+     tests/unit/book-docs-keys.test.ts لأنه غير مسجّل في الكود. -->
+
+
 لنفترض أنك تريد إضافة رسالة لحالة **تجاوز حد التزامن** (SQLSTATE `40001` — `serialization_failure`) برسالة عربية مسموح بها:
 `"النظام مشغول الآن. حاول مرة أخرى بعد لحظات."`
 
