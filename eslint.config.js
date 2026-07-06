@@ -57,7 +57,7 @@ export default tseslint.config(
             {
               group: ["*insert-errors*", "!@/lib/insert-errors"],
               message:
-                "استورد friendlyInsertError / FRIENDLY_INSERT_MESSAGES من '@/lib/insert-errors' فقط — لا تعيد تعريفها أو تستوردها من مسار آخر.",
+                "استورد friendlyInsertError / FRIENDLY_INSERT_MESSAGES من '@/lib/insert-errors' فقط — لا تعيد تعريفها أو تستوردها من مسار آخر. راجع docs/book-friendly-insert-error.md",
             },
           ],
         },
@@ -68,14 +68,16 @@ export default tseslint.config(
           selector:
             "VariableDeclarator[id.name='friendlyInsertError'], FunctionDeclaration[id.name='friendlyInsertError'], VariableDeclarator[id.name='FRIENDLY_INSERT_MESSAGES']",
           message:
-            "لا تعرّف friendlyInsertError أو FRIENDLY_INSERT_MESSAGES محليًا داخل مسارات book — استوردهما من '@/lib/insert-errors'.",
+            "لا تعرّف friendlyInsertError أو FRIENDLY_INSERT_MESSAGES محليًا داخل مسارات book — استوردهما من '@/lib/insert-errors'. راجع docs/book-friendly-insert-error.md",
         },
         {
           selector:
             "ImportDeclaration[source.value=/insert-errors/]:not([source.value='@/lib/insert-errors'])",
-          message: "استورد من '@/lib/insert-errors' فقط بدون مسارات نسبية أو مكررة.",
+          message:
+            "استورد من '@/lib/insert-errors' فقط بدون مسارات نسبية أو مكررة. راجع docs/book-friendly-insert-error.md",
         },
       ],
+
     },
   },
   eslintPluginPrettier,
