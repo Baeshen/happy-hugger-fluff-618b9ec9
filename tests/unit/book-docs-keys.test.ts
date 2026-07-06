@@ -31,6 +31,19 @@ for (const m of docs.matchAll(KEY_RE)) {
   mentionedKeys.add(m[1]);
 }
 
+// Allow the docs to mark keys that appear ONLY inside hypothetical
+// "how to add a new key" examples. Declare them with a comment such as:
+//   <!-- docs-example-keys: busy, retry -->
+// Those keys are excluded from the existence/wiring checks below.
+const EXAMPLE_RE = /<!--\s*docs-example-keys:\s*([^>]+?)\s*-->/g;
+const exampleKeys = new Set<string>();
+for (const m of docs.matchAll(EXAMPLE_RE)) {
+  for (const k of m[1].split(/[\s,]+/)) {
+    if (k) exampleKeys.add(k);
+  }
+}
+for (const k of exampleKeys) mentionedKeys.delete(k);
+
 // Sanity: ensure the docs actually mention at least one concrete key.
 // (Prevents the test from silently passing if the docs are wiped.)
 let passed = 0;
