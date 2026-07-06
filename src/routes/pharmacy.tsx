@@ -69,7 +69,7 @@ function PharmacyPage() {
     });
     setSubmitting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(friendlyInsertError(error));
       return;
     }
     setDone(true);
