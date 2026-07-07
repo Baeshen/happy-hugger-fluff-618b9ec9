@@ -21,6 +21,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SpecialtiesIndexRouteImport } from './routes/specialties.index'
+import { Route as HealthIndexRouteImport } from './routes/health.index'
 import { Route as DoctorsIndexRouteImport } from './routes/doctors.index'
 import { Route as SpecialtiesSlugRouteImport } from './routes/specialties.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
@@ -88,6 +89,11 @@ const SpecialtiesIndexRoute = SpecialtiesIndexRouteImport.update({
   path: '/specialties/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HealthIndexRoute = HealthIndexRouteImport.update({
+  id: '/health/',
+  path: '/health/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DoctorsIndexRoute = DoctorsIndexRouteImport.update({
   id: '/doctors/',
   path: '/doctors/',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
+  '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors': typeof DoctorsIndexRoute
+  '/health': typeof HealthIndexRoute
   '/specialties': typeof SpecialtiesIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
+  '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/doctors/$slug'
     | '/specialties/$slug'
     | '/doctors/'
+    | '/health/'
     | '/specialties/'
     | '/api/public/book/create'
   fileRoutesByTo: FileRoutesByTo
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/doctors/$slug'
     | '/specialties/$slug'
     | '/doctors'
+    | '/health'
     | '/specialties'
     | '/api/public/book/create'
   id:
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/doctors/$slug'
     | '/specialties/$slug'
     | '/doctors/'
+    | '/health/'
     | '/specialties/'
     | '/api/public/book/create'
   fileRoutesById: FileRoutesById
@@ -265,6 +277,7 @@ export interface RootRouteChildren {
   DoctorsSlugRoute: typeof DoctorsSlugRoute
   SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
+  HealthIndexRoute: typeof HealthIndexRoute
   SpecialtiesIndexRoute: typeof SpecialtiesIndexRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
 }
@@ -355,6 +368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SpecialtiesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/health/': {
+      id: '/health/'
+      path: '/health'
+      fullPath: '/health/'
+      preLoaderRoute: typeof HealthIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/doctors/': {
       id: '/doctors/'
       path: '/doctors'
@@ -437,6 +457,7 @@ const rootRouteChildren: RootRouteChildren = {
   DoctorsSlugRoute: DoctorsSlugRoute,
   SpecialtiesSlugRoute: SpecialtiesSlugRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
+  HealthIndexRoute: HealthIndexRoute,
   SpecialtiesIndexRoute: SpecialtiesIndexRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
 }
