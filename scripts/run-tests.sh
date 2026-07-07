@@ -8,6 +8,7 @@
 # استخدام:
 #   bash scripts/run-tests.sh                 # كل الاختبارات
 #   bash scripts/run-tests.sh --method=bun    # فرض طريقة معيّنة
+#   bash scripts/run-tests.sh --explain       # عرض تفسير الاختيار فقط
 #   bash scripts/run-tests.sh --no-rls        # تخطّي اختبارات RLS
 #   bash scripts/run-tests.sh -- bun test x   # مرّر أمرًا مخصّصًا للحاوية
 set -euo pipefail
@@ -18,6 +19,7 @@ cd "$ROOT"
 METHOD="auto"
 RUN_RLS=1
 WATCH=0
+EXPLAIN=0
 WATCH_PATHS=(src tests scripts package.json Dockerfile.test docker-compose.test.yml)
 CUSTOM_CMD=()
 
@@ -27,10 +29,11 @@ while [ $# -gt 0 ]; do
     --method=*) METHOD="${1#*=}"; shift ;;
     --method)   METHOD="$2"; shift 2 ;;
     --no-rls)   RUN_RLS=0; shift ;;
+    --explain)  EXPLAIN=1; shift ;;
     --watch|-w) WATCH=1; shift ;;
     --watch-path=*) WATCH_PATHS+=("${1#*=}"); shift ;;
     -h|--help)
-      sed -n '2,18p' "$0"
+      sed -n '2,19p' "$0"
       exit 0 ;;
     --) shift; CUSTOM_CMD=("$@"); break ;;
     *)  echo "❌ وسيطة غير معروفة: $1" >&2; exit 2 ;;
@@ -174,6 +177,12 @@ fi
 
 printf '\033[1;36m▶ الطريقة المختارة: %s\033[0m\n' "$METHOD"
 printf '\033[0;36m  السبب: %s\033[0m\n' "$REASON"
+
+if [ "$EXPLAIN" -eq 1 ]; then
+  echo
+  ok "وضع التفسير (--explain) — لم يُنفّذ أي اختبار."
+  exit 0
+fi
 
 # ---------- تحقّق من .env.local عند الحاجة ----------
 need_env_file() {

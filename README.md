@@ -427,6 +427,7 @@ CI يستخدم `oven-sh/setup-bun@v2` بإصدار `latest` على Linux. لإ�
 
 ```bash
 bun run test:all                       # الاكتشاف التلقائي
+bun run test:all -- --explain          # عرض تفسير اختيار الطريقة فقط
 bun run test:all -- --method=compose   # فرض docker compose
 bun run test:all -- --method=docker    # فرض docker مباشر
 bun run test:all -- --method=bun       # bun محلي فقط
