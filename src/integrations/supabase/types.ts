@@ -1184,6 +1184,8 @@ export type Database = {
           phone: string
           profile_id: string | null
           secondary_phone: string | null
+          status: Database["public"]["Enums"]["patient_status"]
+          tags: string[]
           updated_at: string
         }
         Insert: {
@@ -1213,6 +1215,8 @@ export type Database = {
           phone: string
           profile_id?: string | null
           secondary_phone?: string | null
+          status?: Database["public"]["Enums"]["patient_status"]
+          tags?: string[]
           updated_at?: string
         }
         Update: {
@@ -1242,6 +1246,8 @@ export type Database = {
           phone?: string
           profile_id?: string | null
           secondary_phone?: string | null
+          status?: Database["public"]["Enums"]["patient_status"]
+          tags?: string[]
           updated_at?: string
         }
         Relationships: [
@@ -1792,6 +1798,7 @@ export type Database = {
         | "sent"
         | "failed"
         | "skipped"
+      patient_status: "active" | "inactive" | "archived" | "deceased"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1957,6 +1964,7 @@ export const Constants = {
         "failed",
         "skipped",
       ],
+      patient_status: ["active", "inactive", "archived", "deceased"],
     },
   },
 } as const
