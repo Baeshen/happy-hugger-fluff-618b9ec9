@@ -418,18 +418,8 @@ function AuditDetailModal({ row, onClose }: { row: any; onClose: () => void }) {
           <div className="sm:col-span-2">
             <Field label="السبب" value={row.reason} />
           </div>
-          <div className="sm:col-span-2">
-            <div className="text-xs font-medium text-muted-foreground">التفاصيل (Metadata)</div>
-            {row.metadata ? (
-              <pre
-                dir="ltr"
-                className="mt-1 max-h-64 overflow-auto rounded-md bg-muted/50 p-3 text-xs leading-relaxed"
-              >
-                {JSON.stringify(row.metadata, null, 2)}
-              </pre>
-            ) : (
-              <div className="mt-0.5 text-sm text-muted-foreground">—</div>
-            )}
+          <div className="sm:col-span-2 space-y-3">
+            <MetadataBlocks metadata={row.metadata} />
           </div>
         </div>
 
@@ -437,10 +427,11 @@ function AuditDetailModal({ row, onClose }: { row: any; onClose: () => void }) {
           <button
             onClick={() => {
               navigator.clipboard.writeText(JSON.stringify(row, null, 2));
+              toast.success("تم نسخ السجل كاملاً");
             }}
             className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
           >
-            نسخ JSON
+            نسخ السجل كاملاً
           </button>
           <button
             onClick={onClose}
