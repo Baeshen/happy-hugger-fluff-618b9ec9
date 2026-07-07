@@ -243,6 +243,14 @@ function PatientsAnalyticsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <ExportMenu data={data} transitions={transitions} filters={{ branchId, doctorId, gender, from, to }} branches={branches} doctors={doctors} />
           <Link
+            to="/transitions-stats"
+            search={{ branchId, from, to }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/5 text-primary px-3 py-1.5 text-sm hover:bg-primary/10"
+          >
+            <Activity className="h-4 w-4" />
+            لوحة إحصائيات الانتقالات
+          </Link>
+          <Link
             to="/admin"
             className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
           >

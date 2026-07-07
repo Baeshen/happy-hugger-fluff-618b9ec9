@@ -27,6 +27,7 @@ import { Route as SpecialtiesSlugRouteImport } from './routes/specialties.$slug'
 import { Route as HealthSearchRouteImport } from './routes/health.search'
 import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
+import { Route as AuthenticatedTransitionsStatsRouteImport } from './routes/_authenticated/transitions-stats'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
@@ -133,6 +134,12 @@ const DoctorsSlugRoute = DoctorsSlugRouteImport.update({
   path: '/doctors/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedTransitionsStatsRoute =
+  AuthenticatedTransitionsStatsRouteImport.update({
+    id: '/transitions-stats',
+    path: '/transitions-stats',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -245,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
@@ -280,6 +288,7 @@ export interface FileRoutesByTo {
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
@@ -317,6 +326,7 @@ export interface FileRoutesById {
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
@@ -354,6 +364,7 @@ export interface FileRouteTypes {
     | '/rbac'
     | '/reports'
     | '/settings'
+    | '/transitions-stats'
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/rbac'
     | '/reports'
     | '/settings'
+    | '/transitions-stats'
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
@@ -425,6 +437,7 @@ export interface FileRouteTypes {
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
+    | '/_authenticated/transitions-stats'
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
@@ -587,6 +600,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DoctorsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/transitions-stats': {
+      id: '/_authenticated/transitions-stats'
+      path: '/transitions-stats'
+      fullPath: '/transitions-stats'
+      preLoaderRoute: typeof AuthenticatedTransitionsStatsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -716,6 +736,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTransitionsStatsRoute: typeof AuthenticatedTransitionsStatsRoute
   AuthenticatedPatientsPatientIdRoute: typeof AuthenticatedPatientsPatientIdRoute
   AuthenticatedPatientsIndexRoute: typeof AuthenticatedPatientsIndexRoute
 }
@@ -734,6 +755,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTransitionsStatsRoute: AuthenticatedTransitionsStatsRoute,
   AuthenticatedPatientsPatientIdRoute: AuthenticatedPatientsPatientIdRoute,
   AuthenticatedPatientsIndexRoute: AuthenticatedPatientsIndexRoute,
 }
