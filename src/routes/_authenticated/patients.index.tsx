@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PatientQrDialog } from "@/components/PatientQrDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { listBranches } from "@/lib/dashboard.functions";
 import { generateMrn } from "@/lib/patients.functions";
