@@ -674,3 +674,141 @@ export const getReminderPreferenceStats = createServerFn({ method: "GET" })
       coveragePct: pct(distinctAppts, apptsTotal),
     };
   });
+
+/**
+ * Export reminder-preference audit as CSV, filtered by appointment ref (partial UUID)
+ * or patient phone, and optionally by a date range.
+ * Returns { csv, count, filename }. Admin/reception only.
+ */
+export const exportReminderPreferenceAuditCsv = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        ref: z
+          .string()
+          .trim()
+          .min(4, "الرجاء إدخال 4 أحرف على الأقل من ref")
+          .max(64)
+          .optional(),
+        phone: z
+          .string()
+          .trim()
+          .min(4, "رقم الهاتف قصير جدًا")
+          .max(32)
+          .optional(),
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+      })
+      .refine((v) => !!(v.ref || v.phone), {
+        message: "الرجاء تحديد ref أو رقم الهاتف على الأقل",
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+    const sb = context.supabase;
+
+    // 1) Fetch candidate appointments; narrow by phone digits and/or ref prefix.
+    let apptQ = sb
+      .from("appointments")
+      .select("id, patient_name, patient_phone, appointment_date, appointment_time")
+      .limit(2000);
+    if (data.phone) {
+      const digits = data.phone.replace(/\D/g, "");
+      // Coarse pre-filter via ilike; exact digit-equality applied below.
+      apptQ = apptQ.ilike("patient_phone", `%${digits}%`);
+    }
+    const { data: apptRows, error: apptErr } = await apptQ;
+    if (apptErr) throw new Error(humanizeSupabaseError(apptErr));
+
+    let matching = apptRows ?? [];
+    if (data.phone) {
+      const digits = data.phone.replace(/\D/g, "");
+      matching = matching.filter(
+        (a: any) => (a.patient_phone ?? "").replace(/\D/g, "") === digits,
+      );
+    }
+    if (data.ref) {
+      const ref = data.ref.toLowerCase().replace(/-/g, "");
+      matching = matching.filter((a: any) =>
+        a.id.toLowerCase().replace(/-/g, "").startsWith(ref),
+      );
+    }
+
+    const header =
+      "changed_at,appointment_id,patient_name,patient_phone,appointment_date,appointment_time,reminder_kind,old_value,new_value,source,reason,changed_by,changed_by_name\n";
+
+    if (!matching.length) {
+      return { csv: header, count: 0, filename: buildCsvFilename(data) };
+    }
+
+    // 2) Fetch audit rows for those appointments, optional date range.
+    const ids = matching.map((a: any) => a.id);
+    let auditQ = sb
+      .from("reminder_preference_audit")
+      .select("*")
+      .in("appointment_id", ids)
+      .order("changed_at", { ascending: false })
+      .limit(5000);
+    if (data.from) auditQ = auditQ.gte("changed_at", data.from);
+    if (data.to) auditQ = auditQ.lte("changed_at", data.to);
+    const { data: audit, error: auditErr } = await auditQ;
+    if (auditErr) throw new Error(humanizeSupabaseError(auditErr));
+
+    // 3) Enrich actor names.
+    const actorIds = Array.from(
+      new Set((audit ?? []).map((r: any) => r.changed_by).filter(Boolean)),
+    );
+    const nameById = new Map<string, string>();
+    if (actorIds.length) {
+      const { data: profs } = await sb
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", actorIds);
+      for (const p of profs ?? []) nameById.set(p.id, p.full_name ?? "");
+    }
+
+    const apptById = new Map<string, any>(matching.map((a: any) => [a.id, a]));
+    const esc = (v: any): string => {
+      if (v === null || v === undefined) return "";
+      const s = String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const body = (audit ?? [])
+      .map((r: any) => {
+        const a = apptById.get(r.appointment_id) ?? {};
+        return [
+          r.changed_at,
+          r.appointment_id,
+          a.patient_name,
+          a.patient_phone,
+          a.appointment_date,
+          a.appointment_time,
+          r.reminder_kind,
+          r.old_value,
+          r.new_value,
+          r.source,
+          r.reason,
+          r.changed_by,
+          r.changed_by ? (nameById.get(r.changed_by) ?? "") : "",
+        ]
+          .map(esc)
+          .join(",");
+      })
+      .join("\n");
+
+    // UTF-8 BOM so Excel opens Arabic correctly.
+    const csv = "\uFEFF" + header + body + (body ? "\n" : "");
+    return { csv, count: audit?.length ?? 0, filename: buildCsvFilename(data) };
+  });
+
+function buildCsvFilename(d: { ref?: string; phone?: string; from?: string; to?: string }): string {
+  const parts = ["reminder-audit"];
+  if (d.ref) parts.push(`ref-${d.ref.replace(/[^a-z0-9]/gi, "")}`);
+  if (d.phone) parts.push(`ph-${d.phone.replace(/\D/g, "")}`);
+  if (d.from) parts.push(`from-${d.from.slice(0, 10)}`);
+  if (d.to) parts.push(`to-${d.to.slice(0, 10)}`);
+  return parts.join("_") + ".csv";
+}
