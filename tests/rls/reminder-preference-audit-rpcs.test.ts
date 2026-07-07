@@ -434,6 +434,85 @@ async function main() {
       assert(rows.length === 0, `extra leading zeros should NOT match, leaked ${rows.length} rows`);
     });
 
+    // ── Rapid interleaved calls across a live profile.phone change ──
+    // Guards against any per-session/per-user caching on the server side.
+    // Assumes ownerU.phone == ownerPhone and otherU.phone == otherPhone at start.
+    async function callMy(client: SupabaseClient, apptId: string) {
+      const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: apptId,
+      } as never);
+      assert(!error, `err on ${apptId}: ${error?.message}`);
+      return ((data ?? []) as unknown[]).length;
+    }
+
+    await test("my_audit: interleaved calls reflect profile.phone change immediately (owner→other)", async () => {
+      // Ensure baseline is clean.
+      await admin.from("profiles").update({ phone: ownerPhone }).eq("id", ownerU.userId);
+      await admin.from("profiles").update({ phone: otherPhone }).eq("id", otherU.userId);
+
+      // Baseline: owner sees own, other sees own.
+      assert((await callMy(ownerC, ownerAppt)) >= 1, "baseline: owner missed own");
+      assert((await callMy(otherC, otherAppt)) >= 1, "baseline: other missed own");
+      assert((await callMy(ownerC, otherAppt)) === 0, "baseline: owner saw other's");
+      assert((await callMy(otherC, ownerAppt)) === 0, "baseline: other saw owner's");
+
+      // SWAP: owner.phone → otherPhone.
+      await admin.from("profiles").update({ phone: otherPhone }).eq("id", ownerU.userId);
+      try {
+        // Interleaved sequence — no delay, no re-signin.
+        const seq: Array<[string, number]> = [
+          ["owner→otherAppt (must gain)", await callMy(ownerC, otherAppt)],
+          ["other→otherAppt (must keep)", await callMy(otherC, otherAppt)],
+          ["owner→ownerAppt (must lose)", await callMy(ownerC, ownerAppt)],
+          ["other→ownerAppt (must not gain)", await callMy(otherC, ownerAppt)],
+          ["owner→otherAppt again", await callMy(ownerC, otherAppt)],
+          ["other→otherAppt again", await callMy(otherC, otherAppt)],
+        ];
+        assert(seq[0][1] >= 1, `${seq[0][0]}: got ${seq[0][1]}`);
+        assert(seq[1][1] >= 1, `${seq[1][0]}: got ${seq[1][1]}`);
+        assert(seq[2][1] === 0, `${seq[2][0]}: got ${seq[2][1]}`);
+        assert(seq[3][1] === 0, `${seq[3][0]}: got ${seq[3][1]}`);
+        assert(seq[4][1] >= 1, `${seq[4][0]}: got ${seq[4][1]}`);
+        assert(seq[5][1] >= 1, `${seq[5][0]}: got ${seq[5][1]}`);
+      } finally {
+        await admin.from("profiles").update({ phone: ownerPhone }).eq("id", ownerU.userId);
+      }
+    });
+
+    await test("my_audit: concurrent Promise.all calls after phone swap remain correctly scoped", async () => {
+      // Even with parallel in-flight requests, each RPC re-reads profile.phone.
+      await admin.from("profiles").update({ phone: otherPhone }).eq("id", ownerU.userId);
+      try {
+        const results = await Promise.all([
+          callMy(ownerC, otherAppt),   // gain
+          callMy(otherC, otherAppt),   // keep
+          callMy(ownerC, ownerAppt),   // lose
+          callMy(otherC, ownerAppt),   // never
+          callMy(ownerC, otherAppt),   // gain (repeat)
+        ]);
+        assert(results[0] >= 1, `concurrent owner→other gain failed: ${results[0]}`);
+        assert(results[1] >= 1, `concurrent other→other keep failed: ${results[1]}`);
+        assert(results[2] === 0, `concurrent owner→own leak: ${results[2]}`);
+        assert(results[3] === 0, `concurrent other→owner leak: ${results[3]}`);
+        assert(results[4] >= 1, `concurrent owner→other repeat failed: ${results[4]}`);
+      } finally {
+        await admin.from("profiles").update({ phone: ownerPhone }).eq("id", ownerU.userId);
+      }
+    });
+
+    await test("my_audit: swap back restores original scope on next call, no residual access", async () => {
+      // Swap to other, then back, verifying both edges of the transition.
+      await admin.from("profiles").update({ phone: otherPhone }).eq("id", ownerU.userId);
+      assert((await callMy(ownerC, otherAppt)) >= 1, "after swap: owner didn't gain other");
+      assert((await callMy(ownerC, ownerAppt)) === 0, "after swap: owner still saw own");
+
+      await admin.from("profiles").update({ phone: ownerPhone }).eq("id", ownerU.userId);
+      assert((await callMy(ownerC, ownerAppt)) >= 1, "after restore: owner didn't regain own");
+      assert((await callMy(ownerC, otherAppt)) === 0, "after restore: owner still saw other");
+    });
+
+
+
 
 
 
