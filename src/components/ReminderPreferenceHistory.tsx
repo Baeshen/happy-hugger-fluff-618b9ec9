@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { X as XIcon } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, X as XIcon } from "lucide-react";
 
 export type ReminderAuditRow = {
   id: string;
