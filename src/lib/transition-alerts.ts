@@ -110,11 +110,3 @@ export function evaluateRules(rules: AlertRule[], stats: EvalStats): TriggeredAl
   }
   return out.sort((x, y) => y.count - x.count);
 }
-
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
-  } catch {
-    /* ignore */
-  }
-}
