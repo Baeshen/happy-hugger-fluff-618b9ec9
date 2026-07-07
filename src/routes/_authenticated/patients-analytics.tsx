@@ -94,13 +94,26 @@ function daysAgoISO(n: number) {
 }
 
 function PatientsAnalyticsPage() {
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [doctorId, setDoctorId] = useState<string | null>(null);
-  const [gender, setGender] = useState<"male" | "female" | "other" | null>(null);
-  const [minAge, setMinAge] = useState<string>("");
-  const [maxAge, setMaxAge] = useState<string>("");
-  const [from, setFrom] = useState<string>(daysAgoISO(30));
-  const [to, setTo] = useState<string>(todayISO());
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: "/patients-analytics" });
+  const { branchId, doctorId, gender, minAge, maxAge, from, to } = search;
+
+  const update = (patch: Partial<typeof search>) =>
+    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+
+  const resetFilters = () =>
+    navigate({
+      search: {
+        branchId: null,
+        doctorId: null,
+        gender: null,
+        minAge: "",
+        maxAge: "",
+        from: daysAgoISO(30),
+        to: todayISO(),
+      },
+      replace: true,
+    });
 
   const branchesFn = useServerFn(listBranchesForAnalytics);
   const doctorsFn = useServerFn(listDoctorsForAnalytics);
@@ -110,12 +123,14 @@ function PatientsAnalyticsPage() {
   const branchesQ = useQuery({
     queryKey: ["pa-branches"],
     queryFn: () => branchesFn(),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
   const doctorsQ = useQuery({
     queryKey: ["pa-doctors"],
     queryFn: () => doctorsFn(),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
 
   const filters = {
@@ -126,6 +141,7 @@ function PatientsAnalyticsPage() {
     from,
     to,
   };
+
 
   const q = useQuery({
     queryKey: ["patients-analytics", filters],
