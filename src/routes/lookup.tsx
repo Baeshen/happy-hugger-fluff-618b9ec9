@@ -96,7 +96,7 @@ function LookupPage() {
     const { data, error } = await supabase.rpc("cancel_appointment_by_ref", {
       _ref: ref.trim(),
       _phone: phone.trim(),
-      _reason: reason ?? null,
+      _reason: reason,
     });
     setCancelling(false);
     if (error) {
