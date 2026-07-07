@@ -566,6 +566,11 @@ function LookupPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
                       </p>
+                      <p className="mt-1 text-[11px] text-primary/80">
+                        سيتم نقل إعدادات التذكير الحالية تلقائياً (
+                        {appt.reminder_24h ? "قبل 24 ساعة ✓" : "قبل 24 ساعة ✗"} ·{" "}
+                        {appt.reminder_2h ? "قبل ساعتين ✓" : "قبل ساعتين ✗"}).
+                      </p>
                     </div>
                   </div>
 
