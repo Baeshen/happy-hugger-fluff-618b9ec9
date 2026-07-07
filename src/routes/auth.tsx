@@ -7,8 +7,13 @@ import { logAuthEvent } from "@/lib/auth-log.functions";
 
 const search = z.object({ redirect: z.string().optional() });
 
-function safeLog(input: Parameters<typeof logAuthEvent>[0] extends { data: infer D } ? D : never) {
-  logAuthEvent({ data: input } as any).catch(() => {});
+function safeLog(input: {
+  action: "login_success" | "login_failed" | "logout" | "signup_success" | "signup_failed";
+  user_id?: string | null;
+  email?: string | null;
+  metadata?: Record<string, any> | null;
+}) {
+  (logAuthEvent as any)({ data: input }).catch(() => {});
 }
 
 export const Route = createFileRoute("/auth")({
