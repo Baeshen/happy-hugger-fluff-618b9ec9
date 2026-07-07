@@ -108,6 +108,7 @@ export type Database = {
           id: string
           national_id: string | null
           notes: string | null
+          patient_id: string | null
           patient_name: string
           patient_phone: string
           reason: string | null
@@ -128,6 +129,7 @@ export type Database = {
           id?: string
           national_id?: string | null
           notes?: string | null
+          patient_id?: string | null
           patient_name: string
           patient_phone: string
           reason?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           id?: string
           national_id?: string | null
           notes?: string | null
+          patient_id?: string | null
           patient_name?: string
           patient_phone?: string
           reason?: string | null
@@ -171,6 +174,13 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
           {
@@ -226,6 +236,29 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      branch_mrn_counter: {
+        Row: {
+          branch_id: string
+          last_value: number
+        }
+        Insert: {
+          branch_id: string
+          last_value?: number
+        }
+        Update: {
+          branch_id?: string
+          last_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_mrn_counter_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -706,6 +739,440 @@ export type Database = {
           },
         ]
       }
+      patient_allergies: {
+        Row: {
+          allergen: string
+          created_at: string
+          id: string
+          noted_on: string | null
+          notes: string | null
+          patient_id: string
+          reaction: string | null
+          recorded_by: string | null
+          severity: Database["public"]["Enums"]["allergy_severity"]
+          updated_at: string
+        }
+        Insert: {
+          allergen: string
+          created_at?: string
+          id?: string
+          noted_on?: string | null
+          notes?: string | null
+          patient_id: string
+          reaction?: string | null
+          recorded_by?: string | null
+          severity?: Database["public"]["Enums"]["allergy_severity"]
+          updated_at?: string
+        }
+        Update: {
+          allergen?: string
+          created_at?: string
+          id?: string
+          noted_on?: string | null
+          notes?: string | null
+          patient_id?: string
+          reaction?: string | null
+          recorded_by?: string | null
+          severity?: Database["public"]["Enums"]["allergy_severity"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_allergies_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_attachments: {
+        Row: {
+          category: Database["public"]["Enums"]["attachment_category"]
+          created_at: string
+          file_path: string
+          id: string
+          mime_type: string | null
+          notes: string | null
+          patient_id: string
+          size_bytes: number | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["attachment_category"]
+          created_at?: string
+          file_path: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          patient_id: string
+          size_bytes?: number | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["attachment_category"]
+          created_at?: string
+          file_path?: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          patient_id?: string
+          size_bytes?: number | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_attachments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_attachments_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "patient_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_medical_history: {
+        Row: {
+          category: Database["public"]["Enums"]["medical_history_category"]
+          condition: string
+          created_at: string
+          id: string
+          notes: string | null
+          onset_date: string | null
+          patient_id: string
+          recorded_by: string | null
+          resolution_date: string | null
+          status: Database["public"]["Enums"]["medical_history_status"]
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["medical_history_category"]
+          condition: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          onset_date?: string | null
+          patient_id: string
+          recorded_by?: string | null
+          resolution_date?: string | null
+          status?: Database["public"]["Enums"]["medical_history_status"]
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["medical_history_category"]
+          condition?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          onset_date?: string | null
+          patient_id?: string
+          recorded_by?: string | null
+          resolution_date?: string | null
+          status?: Database["public"]["Enums"]["medical_history_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_medical_history_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_medications: {
+        Row: {
+          created_at: string
+          dosage: string | null
+          end_date: string | null
+          frequency: string | null
+          id: string
+          medication_name: string
+          notes: string | null
+          patient_id: string
+          prescribed_by_name: string | null
+          recorded_by: string | null
+          route: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["medication_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dosage?: string | null
+          end_date?: string | null
+          frequency?: string | null
+          id?: string
+          medication_name: string
+          notes?: string | null
+          patient_id: string
+          prescribed_by_name?: string | null
+          recorded_by?: string | null
+          route?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["medication_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dosage?: string | null
+          end_date?: string | null
+          frequency?: string | null
+          id?: string
+          medication_name?: string
+          notes?: string | null
+          patient_id?: string
+          prescribed_by_name?: string | null
+          recorded_by?: string | null
+          route?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["medication_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_medications_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_surgeries: {
+        Row: {
+          complications: string | null
+          created_at: string
+          hospital: string | null
+          id: string
+          notes: string | null
+          outcome: string | null
+          patient_id: string
+          procedure_name: string
+          recorded_by: string | null
+          surgeon_name: string | null
+          surgery_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          complications?: string | null
+          created_at?: string
+          hospital?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          patient_id: string
+          procedure_name: string
+          recorded_by?: string | null
+          surgeon_name?: string | null
+          surgery_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          complications?: string | null
+          created_at?: string
+          hospital?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          patient_id?: string
+          procedure_name?: string
+          recorded_by?: string | null
+          surgeon_name?: string | null
+          surgery_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_surgeries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_visits: {
+        Row: {
+          appointment_id: string | null
+          assessment: string | null
+          chief_complaint: string | null
+          created_at: string
+          created_by: string | null
+          doctor_id: string | null
+          follow_up_date: string | null
+          id: string
+          objective: string | null
+          patient_id: string
+          plan: string | null
+          subjective: string | null
+          updated_at: string
+          visit_date: string
+          vitals: Json | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          assessment?: string | null
+          chief_complaint?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          follow_up_date?: string | null
+          id?: string
+          objective?: string | null
+          patient_id: string
+          plan?: string | null
+          subjective?: string | null
+          updated_at?: string
+          visit_date?: string
+          vitals?: Json | null
+        }
+        Update: {
+          appointment_id?: string | null
+          assessment?: string | null
+          chief_complaint?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          follow_up_date?: string | null
+          id?: string
+          objective?: string | null
+          patient_id?: string
+          plan?: string | null
+          subjective?: string | null
+          updated_at?: string
+          visit_date?: string
+          vitals?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_visits_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_visits_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_visits_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          address: string | null
+          blood_type: string | null
+          branch_id: string
+          city: string | null
+          created_at: string
+          created_by: string | null
+          date_of_birth: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          full_name_ar: string
+          full_name_en: string | null
+          gender: Database["public"]["Enums"]["gender_type"] | null
+          id: string
+          is_active: boolean
+          marital_status: string | null
+          mrn: string
+          national_id: string | null
+          nationality: string | null
+          notes: string | null
+          phone: string
+          profile_id: string | null
+          secondary_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          blood_type?: string | null
+          branch_id: string
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name_ar: string
+          full_name_en?: string | null
+          gender?: Database["public"]["Enums"]["gender_type"] | null
+          id?: string
+          is_active?: boolean
+          marital_status?: string | null
+          mrn: string
+          national_id?: string | null
+          nationality?: string | null
+          notes?: string | null
+          phone: string
+          profile_id?: string | null
+          secondary_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          blood_type?: string | null
+          branch_id?: string
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name_ar?: string
+          full_name_en?: string | null
+          gender?: Database["public"]["Enums"]["gender_type"] | null
+          id?: string
+          is_active?: boolean
+          marital_status?: string | null
+          mrn?: string
+          national_id?: string | null
+          nationality?: string | null
+          notes?: string | null
+          phone?: string
+          profile_id?: string | null
+          secondary_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -887,6 +1354,11 @@ export type Database = {
     }
     Functions: {
       _assert_staff: { Args: never; Returns: undefined }
+      can_access_patient: { Args: { _patient_id: string }; Returns: boolean }
+      can_write_patient_clinical: {
+        Args: { _patient_id: string }
+        Returns: boolean
+      }
       cancel_appointment_by_ref: {
         Args: { _phone: string; _reason?: string; _ref: string }
         Returns: boolean
@@ -950,6 +1422,7 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
         }[]
       }
+      generate_mrn: { Args: { _branch_id: string }; Returns: string }
       has_branch_access: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
@@ -1090,14 +1563,26 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "reception" | "pharmacy" | "super_admin"
+      allergy_severity: "mild" | "moderate" | "severe" | "life_threatening"
+      app_role: "admin" | "reception" | "pharmacy" | "super_admin" | "doctor"
       appointment_status:
         | "new"
         | "confirmed"
         | "completed"
         | "cancelled"
         | "no_show"
+      attachment_category:
+        | "lab"
+        | "imaging"
+        | "report"
+        | "prescription"
+        | "insurance"
+        | "other"
       delivery_type: "pickup" | "delivery"
+      gender_type: "male" | "female" | "other"
+      medical_history_category: "chronic" | "past" | "family" | "surgical_note"
+      medical_history_status: "active" | "resolved" | "managed"
+      medication_status: "active" | "paused" | "stopped" | "completed"
       medicine_order_status:
         | "new"
         | "preparing"
@@ -1232,7 +1717,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "reception", "pharmacy", "super_admin"],
+      allergy_severity: ["mild", "moderate", "severe", "life_threatening"],
+      app_role: ["admin", "reception", "pharmacy", "super_admin", "doctor"],
       appointment_status: [
         "new",
         "confirmed",
@@ -1240,7 +1726,19 @@ export const Constants = {
         "cancelled",
         "no_show",
       ],
+      attachment_category: [
+        "lab",
+        "imaging",
+        "report",
+        "prescription",
+        "insurance",
+        "other",
+      ],
       delivery_type: ["pickup", "delivery"],
+      gender_type: ["male", "female", "other"],
+      medical_history_category: ["chronic", "past", "family", "surgical_note"],
+      medical_history_status: ["active", "resolved", "managed"],
+      medication_status: ["active", "paused", "stopped", "completed"],
       medicine_order_status: [
         "new",
         "preparing",
