@@ -659,6 +659,106 @@ async function main() {
       return ((data ?? []) as unknown[]).length;
     }
 
+    // ── Heterogeneous group: mix of profile states across shared appts ──
+    // Setup:
+    //   3 appointments (phA, phB, phC), each with its own audit row.
+    //   4 users:
+    //     userA        — profile.phone = phA   → sees apptA only
+    //     userB        — profile.phone = phB   → sees apptB only
+    //     userNoRow    — no profile row at all → sees nothing
+    //     userNullPh   — profile row, phone=null → sees nothing
+    // Every user is called against every appt. Exact expected results are
+    // asserted; any single leak flips a specific assertion.
+    const phA = "0561000" + String(stamp).slice(-3);
+    const phB = "0562000" + String(stamp).slice(-3);
+    const phC = "0563000" + String(stamp).slice(-3);
+    const apptA = await seedAppt(phA);
+    const apptB = await seedAppt(phB);
+    const apptC = await seedAppt(phC);
+
+    async function mkUser(label: string, opts: { phone?: string | null; deleteRow?: boolean }) {
+      const u = await createUserWithPhone(
+        `rpa-mix-${label}-${stamp}@test.local`,
+        opts.phone ?? "0599000000",
+      );
+      createdUsers.push(u.userId);
+      if (opts.deleteRow) {
+        const d = await admin.from("profiles").delete().eq("id", u.userId);
+        assert(!d.error, `${label} profile delete: ${d.error?.message}`);
+      } else if (opts.phone === null) {
+        const upd = await admin.from("profiles").update({ phone: null }).eq("id", u.userId);
+        assert(!upd.error, `${label} phone null: ${upd.error?.message}`);
+      } else if (opts.phone) {
+        const upd = await admin.from("profiles").update({ phone: opts.phone }).eq("id", u.userId);
+        assert(!upd.error, `${label} phone set: ${upd.error?.message}`);
+      }
+      const c = await signIn(u.email, u.password);
+      return { userId: u.userId, client: c };
+    }
+
+    await test("my_audit: heterogeneous group — each user sees only their own; no-profile users see nothing", async () => {
+      const userA      = await mkUser("A",      { phone: phA });
+      const userB      = await mkUser("B",      { phone: phB });
+      const userNoRow  = await mkUser("norow",  { phone: phC, deleteRow: true });
+      const userNullPh = await mkUser("nullph", { phone: null });
+
+      const scenarios: Array<{
+        who: string;
+        client: SupabaseClient;
+        expected: Record<string, "own" | "empty">;
+      }> = [
+        { who: "userA",      client: userA.client,      expected: { [apptA]: "own",   [apptB]: "empty", [apptC]: "empty" } },
+        { who: "userB",      client: userB.client,      expected: { [apptA]: "empty", [apptB]: "own",   [apptC]: "empty" } },
+        { who: "userNoRow",  client: userNoRow.client,  expected: { [apptA]: "empty", [apptB]: "empty", [apptC]: "empty" } },
+        { who: "userNullPh", client: userNullPh.client, expected: { [apptA]: "empty", [apptB]: "empty", [apptC]: "empty" } },
+      ];
+
+      for (const s of scenarios) {
+        for (const [apptId, expect] of Object.entries(s.expected)) {
+          const { data, error } = await s.client.rpc("my_reminder_preference_audit" as never, {
+            _appointment_id: apptId,
+          } as never);
+          assert(!error, `${s.who} err on ${apptId}: ${error?.message}`);
+          const rows = (data ?? []) as unknown[];
+          if (expect === "own") {
+            assert(rows.length >= 1, `${s.who} missed own appt ${apptId}, got ${rows.length}`);
+          } else {
+            assert(rows.length === 0, `${s.who} leaked ${rows.length} rows from ${apptId}`);
+          }
+        }
+      }
+    });
+
+    await test("my_audit: heterogeneous group — concurrent calls preserve scoping (no cross-session bleed)", async () => {
+      const userA = await mkUser("A2", { phone: phA });
+      const userB = await mkUser("B2", { phone: phB });
+      const userX = await mkUser("norow2", { phone: phA, deleteRow: true }); // no profile row despite having "right" digits initially
+
+      const results = await Promise.all([
+        callMyLocal(userA.client, apptA), // own
+        callMyLocal(userA.client, apptB), // empty
+        callMyLocal(userA.client, apptC), // empty
+        callMyLocal(userB.client, apptA), // empty
+        callMyLocal(userB.client, apptB), // own
+        callMyLocal(userB.client, apptC), // empty
+        callMyLocal(userX.client, apptA), // empty (no profile row)
+        callMyLocal(userX.client, apptB), // empty
+        callMyLocal(userX.client, apptC), // empty
+      ]);
+
+      assert(results[0] >= 1, `A→A own missing: ${results[0]}`);
+      assert(results[1] === 0, `A→B leaked: ${results[1]}`);
+      assert(results[2] === 0, `A→C leaked: ${results[2]}`);
+      assert(results[3] === 0, `B→A leaked: ${results[3]}`);
+      assert(results[4] >= 1, `B→B own missing: ${results[4]}`);
+      assert(results[5] === 0, `B→C leaked: ${results[5]}`);
+      assert(results[6] === 0, `X(no-row)→A leaked: ${results[6]}`);
+      assert(results[7] === 0, `X(no-row)→B leaked: ${results[7]}`);
+      assert(results[8] === 0, `X(no-row)→C leaked: ${results[8]}`);
+    });
+
+
+
 
 
 
