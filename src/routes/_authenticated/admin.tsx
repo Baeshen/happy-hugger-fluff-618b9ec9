@@ -266,6 +266,14 @@ function AdminDashboard() {
               إدارة المرضى
             </Link>
           )}
+          {(roles.includes("admin") || roles.includes("reception")) && (
+            <Link
+              to="/patients-analytics"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              تحليلات المرضى
+            </Link>
+          )}
           {roles.includes("admin") && (
             <Link
               to="/rbac"

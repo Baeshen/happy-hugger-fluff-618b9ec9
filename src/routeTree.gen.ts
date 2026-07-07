@@ -31,6 +31,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
 import { Route as AuthenticatedPatientsManagementRouteImport } from './routes/_authenticated/patients-management'
+import { Route as AuthenticatedPatientsAnalyticsRouteImport } from './routes/_authenticated/patients-analytics'
 import { Route as AuthenticatedNotificationsQueueRouteImport } from './routes/_authenticated/notifications-queue'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedDoctorsManagementRouteImport } from './routes/_authenticated/doctors-management'
@@ -153,6 +154,12 @@ const AuthenticatedPatientsManagementRoute =
     path: '/patients-management',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPatientsAnalyticsRoute =
+  AuthenticatedPatientsAnalyticsRouteImport.update({
+    id: '/patients-analytics',
+    path: '/patients-analytics',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNotificationsQueueRoute =
   AuthenticatedNotificationsQueueRouteImport.update({
     id: '/notifications-queue',
@@ -233,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -267,6 +275,7 @@ export interface FileRoutesByTo {
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -303,6 +312,7 @@ export interface FileRoutesById {
   '/_authenticated/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/_authenticated/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/_authenticated/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/doctors-management'
     | '/my'
     | '/notifications-queue'
+    | '/patients-analytics'
     | '/patients-management'
     | '/rbac'
     | '/reports'
@@ -373,6 +384,7 @@ export interface FileRouteTypes {
     | '/doctors-management'
     | '/my'
     | '/notifications-queue'
+    | '/patients-analytics'
     | '/patients-management'
     | '/rbac'
     | '/reports'
@@ -408,6 +420,7 @@ export interface FileRouteTypes {
     | '/_authenticated/doctors-management'
     | '/_authenticated/my'
     | '/_authenticated/notifications-queue'
+    | '/_authenticated/patients-analytics'
     | '/_authenticated/patients-management'
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
@@ -602,6 +615,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPatientsManagementRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/patients-analytics': {
+      id: '/_authenticated/patients-analytics'
+      path: '/patients-analytics'
+      fullPath: '/patients-analytics'
+      preLoaderRoute: typeof AuthenticatedPatientsAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notifications-queue': {
       id: '/_authenticated/notifications-queue'
       path: '/notifications-queue'
@@ -691,6 +711,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDoctorsManagementRoute: typeof AuthenticatedDoctorsManagementRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedNotificationsQueueRoute: typeof AuthenticatedNotificationsQueueRoute
+  AuthenticatedPatientsAnalyticsRoute: typeof AuthenticatedPatientsAnalyticsRoute
   AuthenticatedPatientsManagementRoute: typeof AuthenticatedPatientsManagementRoute
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
@@ -708,6 +729,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDoctorsManagementRoute: AuthenticatedDoctorsManagementRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedNotificationsQueueRoute: AuthenticatedNotificationsQueueRoute,
+  AuthenticatedPatientsAnalyticsRoute: AuthenticatedPatientsAnalyticsRoute,
   AuthenticatedPatientsManagementRoute: AuthenticatedPatientsManagementRoute,
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
@@ -743,13 +765,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
