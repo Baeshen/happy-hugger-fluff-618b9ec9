@@ -137,6 +137,12 @@ function AdminDashboard() {
       icon: CalendarClock,
       show: isAdmin || isReception,
     },
+    {
+      id: "reminders-audit" as Tab,
+      label: "سجل التذكيرات",
+      icon: Bell,
+      show: canSeeAppts,
+    },
   ].filter((t) => t.show);
 
   return (
