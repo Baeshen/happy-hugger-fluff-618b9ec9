@@ -608,10 +608,12 @@ function Kpi({
   label,
   value,
   tone,
+  onClick,
 }: {
   label: string;
   value: number;
   tone: "primary" | "success" | "info" | "warning";
+  onClick?: () => void;
 }) {
   const toneClass: Record<string, string> = {
     primary: "text-primary from-primary/10",
@@ -619,13 +621,26 @@ function Kpi({
     info: "text-sky-600 dark:text-sky-400 from-sky-500/10",
     warning: "text-amber-600 dark:text-amber-400 from-amber-500/10",
   };
+  const clickable = typeof onClick === "function";
   return (
-    <div className={`rounded-xl border border-border bg-gradient-to-br to-card p-4 shadow-sm transition hover:shadow-md ${toneClass[tone].split(" ").slice(-1)[0]}`}>
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={`group w-full text-start rounded-xl border border-border bg-gradient-to-br to-card p-4 shadow-sm transition ${clickable ? "cursor-pointer hover:shadow-md hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/40" : "cursor-default"} ${toneClass[tone].split(" ").slice(-1)[0]}`}
+    >
+      <p className="flex items-center justify-between text-xs text-muted-foreground">
+        {label}
+        {clickable && (
+          <span className="text-[10px] font-normal text-muted-foreground/70 opacity-0 transition group-hover:opacity-100">
+            عرض التفاصيل ←
+          </span>
+        )}
+      </p>
       <p className={`mt-2 text-3xl font-bold tabular-nums ${toneClass[tone].split(" ")[0]}`}>
         {value.toLocaleString("ar-SA")}
       </p>
-    </div>
+    </button>
   );
 }
 
