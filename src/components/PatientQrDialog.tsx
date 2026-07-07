@@ -20,6 +20,8 @@ export function PatientQrDialog({
   mrn,
   fullNameAr,
   branchNameAr,
+  branchId,
+  doctorId,
   variant = "icon",
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -53,6 +55,8 @@ export function PatientQrDialog({
           mrn={mrn}
           fullNameAr={fullNameAr}
           branchNameAr={branchNameAr}
+          branchId={branchId ?? null}
+          doctorId={doctorId ?? null}
           onClose={() => setOpen(false)}
         />
       )}
@@ -65,12 +69,16 @@ function QrModal({
   mrn,
   fullNameAr,
   branchNameAr,
+  branchId,
+  doctorId,
   onClose,
 }: {
   patientId: string;
   mrn: string;
   fullNameAr: string;
   branchNameAr?: string | null;
+  branchId: string | null;
+  doctorId: string | null;
   onClose: () => void;
 }) {
   const [dataUrl, setDataUrl] = useState("");
