@@ -331,7 +331,7 @@ function AuditLogPage() {
               <tr
                 key={r.id}
                 onClick={() => setSelected(r)}
-                className="cursor-pointer border-t border-border align-top hover:bg-muted/40"
+                className={`cursor-pointer border-t border-border align-top hover:bg-muted/40 ${r.id === highlightId ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}
               >
                 <td className="whitespace-nowrap px-3 py-2 text-xs">
                   {new Date(r.created_at).toLocaleString("ar-SA")}
