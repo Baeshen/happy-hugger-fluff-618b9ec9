@@ -207,9 +207,10 @@ async def case_reschedule_wrong_phone(page, ref, phone, failures):
         await go_lookup(page)
         await fill_search(page, ref, phone)
         await submit_search(page)
-        await page.wait_for_timeout(900)
-
-        await page.get_by_role("button", name="إعادة جدولة", exact=False).first.click()
+        reschedule_btn = page.get_by_role(
+            "button", name="إعادة جدولة", exact=False).first
+        await reschedule_btn.wait_for(timeout=15000)
+        await reschedule_btn.click()
         await page.wait_for_timeout(400)
 
         # If no date buttons render (e.g. no availability), fall back to
