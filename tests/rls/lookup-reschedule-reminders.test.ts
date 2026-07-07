@@ -605,6 +605,105 @@ async function main() {
       },
     );
 
+    await test(
+      "lookup returns the latest reminder preferences after consecutive reschedules",
+      async () => {
+        const { ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+
+        const steps: Array<{
+          offsetDays: number;
+          time: string;
+          reminder24h: boolean;
+          reminder2h: boolean;
+        }> = [
+          { offsetDays: 10, time: "09:30:00", reminder24h: false, reminder2h: true },
+          { offsetDays: 11, time: "10:30:00", reminder24h: false, reminder2h: false },
+          { offsetDays: 12, time: "11:30:00", reminder24h: true, reminder2h: false },
+          { offsetDays: 13, time: "12:30:00", reminder24h: true, reminder2h: true },
+        ];
+
+        for (const [index, step] of steps.entries()) {
+          const nextDate = futureDate(step.offsetDays);
+          const { data: rescheduleData, error: rescheduleError } = await anon.rpc(
+            "reschedule_appointment_by_ref" as never,
+            {
+              _ref: ref,
+              _phone: phone,
+              _new_date: nextDate,
+              _new_time: step.time,
+              _reason: `lookup-chain-${index + 1}`,
+            } as never,
+          );
+          assert(
+            !rescheduleError,
+            `step ${index + 1} reschedule err: ${rescheduleError?.message}`,
+          );
+          assert(
+            rescheduleData === true,
+            `step ${index + 1} reschedule returned ${rescheduleData}`,
+          );
+
+          const { data: remindersData, error: remindersError } = await anon.rpc(
+            "update_reminders_by_ref" as never,
+            {
+              _ref: ref,
+              _phone: phone,
+              _reminder_24h: step.reminder24h,
+              _reminder_2h: step.reminder2h,
+            } as never,
+          );
+          assert(
+            !remindersError,
+            `step ${index + 1} reminders err: ${remindersError?.message}`,
+          );
+          assert(
+            remindersData === true,
+            `step ${index + 1} reminders returned ${remindersData}`,
+          );
+
+          const { data: lookupData, error: lookupError } = await anon.rpc(
+            "lookup_appointment" as never,
+            {
+              _ref: ref,
+              _phone: phone,
+            } as never,
+          );
+          assert(!lookupError, `step ${index + 1} lookup err: ${lookupError?.message}`);
+
+          const lookupRows = lookupData as Array<{
+            appointment_date: string;
+            appointment_time: string;
+            reminder_24h: boolean;
+            reminder_2h: boolean;
+          }>;
+          assert(
+            Array.isArray(lookupRows) && lookupRows.length === 1,
+            `step ${index + 1} lookup expected one row`,
+          );
+          const appointment = lookupRows[0];
+          assert(
+            appointment.appointment_date === nextDate,
+            `step ${index + 1} lookup date mismatch`,
+          );
+          assert(
+            String(appointment.appointment_time).startsWith(step.time.slice(0, 5)),
+            `step ${index + 1} lookup time mismatch`,
+          );
+          assert(
+            appointment.reminder_24h === step.reminder24h,
+            `step ${index + 1} lookup reminder_24h expected ${step.reminder24h}, got ${appointment.reminder_24h}`,
+          );
+          assert(
+            appointment.reminder_2h === step.reminder2h,
+            `step ${index + 1} lookup reminder_2h expected ${step.reminder2h}, got ${appointment.reminder_2h}`,
+          );
+        }
+      },
+    );
+
 
 
   } finally {
