@@ -39,6 +39,7 @@ import {
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
 import { listPatientsForKpi, type KpiPatientRow, listPatientTransitionRows, type PatientTransitionRow } from "@/lib/patients-analytics.functions";
 import { exportXlsx, exportPdf, type Column } from "@/lib/export-utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
