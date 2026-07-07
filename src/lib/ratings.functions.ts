@@ -125,6 +125,20 @@ export const deleteRating = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const replyToRating = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string; reply: string | null }) =>
+    z.object({ id: z.string().uuid(), reply: z.string().max(1000).nullable() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const rpc = context.supabase.rpc as unknown as Rpc;
+    const { error } = await rpc("reply_to_rating", { _id: data.id, _reply: data.reply });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
+
 // For QR cards & staff pickers
 export const listBranchesForRatings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
