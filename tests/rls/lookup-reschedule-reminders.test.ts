@@ -704,7 +704,187 @@ async function main() {
       },
     );
 
+    await test(
+      "reschedule with wrong phone returns false and does not mutate",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+        const before = await readAppt(id);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "0599999999",
+            _new_date: futureDate(7),
+            _new_time: "08:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+        const after = await readAppt(id);
+        assert(
+          after.appointment_date === before.appointment_date &&
+            String(after.appointment_time) === String(before.appointment_time),
+          "appointment should not have been rescheduled with wrong phone",
+        );
+      },
+    );
 
+    await test("reschedule with unknown ref returns false", async () => {
+      const { data, error } = await anon.rpc(
+        "reschedule_appointment_by_ref" as never,
+        {
+          _ref: "deadbeef",
+          _phone: phone,
+          _new_date: futureDate(7),
+          _new_time: "08:00:00",
+          _reason: "r",
+        } as never,
+      );
+      assert(!error, `rpc error: ${error?.message}`);
+      assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+    });
+
+    await test(
+      "reschedule to a past date/time is rejected and does not mutate",
+      async () => {
+        const { id, ref } = await newAppt();
+        const before = await readAppt(id);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: futureDate(-3),
+            _new_time: "09:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(
+          error != null || data === false,
+          `expected error or false, got data=${JSON.stringify(data)}`,
+        );
+        const after = await readAppt(id);
+        assert(
+          after.appointment_date === before.appointment_date,
+          "appointment must not move to a past date",
+        );
+      },
+    );
+
+    await test(
+      "update_reminders with wrong phone returns false and does not mutate",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: false,
+        });
+        const { data, error } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "0599999999",
+            _reminder_24h: false,
+            _reminder_2h: true,
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+        const row = await readAppt(id);
+        assert(row.reminder_24h === true, "reminder_24h should be unchanged");
+        assert(row.reminder_2h === false, "reminder_2h should be unchanged");
+      },
+    );
+
+    await test("update_reminders with unknown ref returns false", async () => {
+      const { data, error } = await anon.rpc(
+        "update_reminders_by_ref" as never,
+        {
+          _ref: "deadbeef",
+          _phone: phone,
+          _reminder_24h: false,
+          _reminder_2h: false,
+        } as never,
+      );
+      assert(!error, `rpc error: ${error?.message}`);
+      assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+    });
+
+    await test(
+      "update_reminders with null values keeps existing preferences (COALESCE)",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: false,
+        });
+        const { data, error } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: null,
+            _reminder_2h: null,
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        const row = await readAppt(id);
+        assert(
+          row.reminder_24h === true,
+          `reminder_24h should stay true, got ${row.reminder_24h}`,
+        );
+        assert(
+          row.reminder_2h === false,
+          `reminder_2h should stay false, got ${row.reminder_2h}`,
+        );
+      },
+    );
+
+    await test(
+      "phone matched digits-only — formatted phone with same digits works",
+      async () => {
+        const { id, ref } = await newAppt();
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "050-000-0000",
+            _new_date: futureDate(8),
+            _new_time: "15:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        const row = await readAppt(id);
+        assert(row.appointment_date === futureDate(8), "date should update");
+      },
+    );
+
+    await test("reschedule with empty phone returns false", async () => {
+      const { id, ref } = await newAppt();
+      const before = await readAppt(id);
+      const { data, error } = await anon.rpc(
+        "reschedule_appointment_by_ref" as never,
+        {
+          _ref: ref,
+          _phone: "",
+          _new_date: futureDate(9),
+          _new_time: "16:00:00",
+          _reason: "r",
+        } as never,
+      );
+      assert(!error, `rpc error: ${error?.message}`);
+      assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+      const after = await readAppt(id);
+      assert(
+        after.appointment_date === before.appointment_date,
+        "must not reschedule with empty phone",
+      );
+    });
 
   } finally {
     if (created.length) {
