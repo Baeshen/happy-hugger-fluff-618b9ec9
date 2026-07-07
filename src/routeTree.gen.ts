@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RateRouteImport } from './routes/rate'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
 import { Route as LookupRouteImport } from './routes/lookup'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -49,6 +50,11 @@ import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/boo
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RateRoute = RateRouteImport.update({
+  id: '/rate',
+  path: '/rate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PharmacyRoute = PharmacyRouteImport.update({
@@ -245,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
@@ -282,6 +289,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
@@ -321,6 +329,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
@@ -360,6 +369,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/rate'
     | '/sitemap.xml'
     | '/admin'
     | '/audit-log'
@@ -397,6 +407,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/rate'
     | '/sitemap.xml'
     | '/admin'
     | '/audit-log'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/rate'
     | '/sitemap.xml'
     | '/_authenticated/admin'
     | '/_authenticated/audit-log'
@@ -474,6 +486,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   LookupRoute: typeof LookupRoute
   PharmacyRoute: typeof PharmacyRoute
+  RateRoute: typeof RateRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DoctorsSlugRoute: typeof DoctorsSlugRoute
   HealthSlugRoute: typeof HealthSlugRoute
@@ -492,6 +505,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rate': {
+      id: '/rate'
+      path: '/rate'
+      fullPath: '/rate'
+      preLoaderRoute: typeof RateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pharmacy': {
@@ -796,6 +816,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   LookupRoute: LookupRoute,
   PharmacyRoute: PharmacyRoute,
+  RateRoute: RateRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DoctorsSlugRoute: DoctorsSlugRoute,
   HealthSlugRoute: HealthSlugRoute,
