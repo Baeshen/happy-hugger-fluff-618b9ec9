@@ -97,6 +97,8 @@ function BookPage() {
     national_id: "",
     gender: "male",
     reason: "",
+    reminder_24h: true,
+    reminder_2h: true,
   });
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState<{ ref: string; share: ShareBooking } | null>(null);
