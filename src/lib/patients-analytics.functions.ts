@@ -791,9 +791,33 @@ export const listPatientTransitionRows = createServerFn({ method: "POST" })
       }
     }
 
+    // Apply search/status filters (server-side so pagination reflects filtered set)
+    let filtered = rows;
+    if (data.statusTo) filtered = filtered.filter((r) => r.to === data.statusTo);
+    if (data.search && data.search.trim()) {
+      const s = data.search.trim().toLowerCase();
+      filtered = filtered.filter((r) =>
+        (r.patient_name ?? "").toLowerCase().includes(s) ||
+        (r.patient_mrn ?? "").toLowerCase().includes(s) ||
+        (r.branch_name ?? "").toLowerCase().includes(s) ||
+        (r.actor_name ?? "").toLowerCase().includes(s) ||
+        (r.reason ?? "").toLowerCase().includes(s),
+      );
+    }
+
+    // Sort
+    const sortKey = data.sortKey ?? "created_at";
+    const sortDir = data.sortDir ?? "desc";
+    filtered = [...filtered].sort((a, b) => {
+      const av = (a[sortKey] ?? "") as string;
+      const bv = (b[sortKey] ?? "") as string;
+      const cmp = av.localeCompare(bv, "ar");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
     const page = Math.max(1, data.page ?? 1);
     const pageSize = Math.max(1, Math.min(200, data.pageSize ?? 25));
-    const total = rows.length;
+    const total = filtered.length;
     const start = (page - 1) * pageSize;
-    return { rows: rows.slice(start, start + pageSize), total, page, pageSize };
+    return { rows: filtered.slice(start, start + pageSize), total, page, pageSize };
   });
