@@ -115,6 +115,103 @@ function LookupPage() {
   const [cancelling, setCancelling] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [newDate, setNewDate] = useState<string>("");
+  const [newTime, setNewTime] = useState<string>("");
+  const [availability, setAvailability] = useState<
+    { weekday: number; start_time: string; end_time: string; slot_minutes: number }[] | null
+  >(null);
+
+  useEffect(() => {
+    if (!showReschedule || !appt?.doctor_id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("availability")
+        .select("weekday,start_time,end_time,slot_minutes")
+        .eq("doctor_id", appt.doctor_id);
+      if (cancelled) return;
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setAvailability(data ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showReschedule, appt?.doctor_id]);
+
+  const availableDates = useMemo(() => {
+    if (!availability) return [];
+    const days = new Set(availability.map((a) => a.weekday));
+    const out: { date: string; label: string; weekday: number }[] = [];
+    const now = new Date();
+    for (let i = 1; i < 30 && out.length < 14; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      if (days.has(d.getDay())) {
+        out.push({
+          date: d.toISOString().slice(0, 10),
+          label: `${d.getDate()}/${d.getMonth() + 1}`,
+          weekday: d.getDay(),
+        });
+      }
+    }
+    return out;
+  }, [availability]);
+
+  const availableTimes = useMemo(() => {
+    if (!newDate || !availability) return [];
+    const wd = new Date(newDate).getDay();
+    const slots = new Set<string>();
+    availability
+      .filter((a) => a.weekday === wd)
+      .forEach((a) => {
+        const [sh, sm] = a.start_time.split(":").map(Number);
+        const [eh, em] = a.end_time.split(":").map(Number);
+        let mins = sh * 60 + sm;
+        const end = eh * 60 + em;
+        while (mins + a.slot_minutes <= end) {
+          slots.add(
+            `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`,
+          );
+          mins += a.slot_minutes;
+        }
+      });
+    return Array.from(slots).sort();
+  }, [newDate, availability]);
+
+  const rescheduleBooking = async () => {
+    if (!appt || !newDate || !newTime) {
+      toast.error("يرجى اختيار التاريخ والوقت");
+      return;
+    }
+    setRescheduling(true);
+    const { data, error } = await supabase.rpc("reschedule_appointment_by_ref", {
+      _ref: ref.trim(),
+      _phone: phone.trim(),
+      _new_date: newDate,
+      _new_time: `${newTime}:00`,
+      _reason: "إعادة جدولة من المراجع",
+    });
+    setRescheduling(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (data) {
+      toast.success("تمت إعادة الجدولة");
+      setShowReschedule(false);
+      setNewDate("");
+      setNewTime("");
+      submit();
+    } else {
+      toast.error(t("lookup_not_found"));
+    }
+  };
+
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
