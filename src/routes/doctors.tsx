@@ -94,11 +94,31 @@ function DoctorsPage() {
         {filtered.map((d) => (
           <div key={d.id} className="rounded-2xl border border-border bg-card p-6 flex flex-col">
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-primary/10 text-primary grid place-items-center text-xl font-bold">
-                {(lang === "ar" ? d.name_ar : d.name_en).charAt(0)}
+              <div className="h-16 w-16 rounded-full bg-primary/10 text-primary grid place-items-center text-xl font-bold overflow-hidden">
+                {(d as any).photo_url ? (
+                  <img
+                    src={(d as any).photo_url}
+                    alt={lang === "ar" ? d.name_ar : d.name_en}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  (lang === "ar" ? d.name_ar : d.name_en).charAt(0)
+                )}
               </div>
               <div>
-                <div className="font-bold">{lang === "ar" ? d.name_ar : d.name_en}</div>
+                <div className="font-bold">
+                  {(d as any).slug ? (
+                    <Link
+                      to="/doctors/$slug"
+                      params={{ slug: (d as any).slug }}
+                      className="hover:text-primary"
+                    >
+                      {lang === "ar" ? d.name_ar : d.name_en}
+                    </Link>
+                  ) : (
+                    <>{lang === "ar" ? d.name_ar : d.name_en}</>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {lang === "ar" ? d.title_ar : d.title_en}
                 </div>
@@ -112,13 +132,24 @@ function DoctorsPage() {
             <p className="mt-4 text-sm text-muted-foreground leading-6 line-clamp-3 flex-1">
               {lang === "ar" ? d.bio_ar : d.bio_en}
             </p>
-            <Link
-              to="/book"
-              search={{ doctor: d.id }}
-              className="mt-4 inline-flex justify-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              {t("book_with_doctor")}
-            </Link>
+            <div className="mt-4 flex gap-2">
+              {(d as any).slug && (
+                <Link
+                  to="/doctors/$slug"
+                  params={{ slug: (d as any).slug }}
+                  className="flex-1 text-center rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-muted"
+                >
+                  الملف الشخصي
+                </Link>
+              )}
+              <Link
+                to="/book"
+                search={{ doctor: d.id }}
+                className="flex-1 text-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                {t("book_with_doctor")}
+              </Link>
+            </div>
           </div>
         ))}
       </div>
