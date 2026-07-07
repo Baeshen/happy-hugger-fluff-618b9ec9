@@ -1747,6 +1747,57 @@ function PatientTransitionsTable({
           </table>
         </div>
       )}
+
+      {total > 0 && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div>
+            عرض{" "}
+            <span className="font-semibold text-foreground">
+              {((page - 1) * pageSize + 1).toLocaleString("ar-SA")}–
+              {Math.min(page * pageSize, total).toLocaleString("ar-SA")}
+            </span>{" "}
+            من {total.toLocaleString("ar-SA")}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              disabled={page <= 1 || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              الأولى
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              السابقة
+            </button>
+            <span className="px-2 py-1">
+              صفحة <span className="font-semibold text-foreground">{page.toLocaleString("ar-SA")}</span> / {totalPages.toLocaleString("ar-SA")}
+              {q.isFetching && <span className="ms-2 text-primary">…جارٍ التحميل</span>}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              التالية
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              الأخيرة
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
