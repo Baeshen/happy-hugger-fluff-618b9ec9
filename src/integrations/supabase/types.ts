@@ -419,6 +419,7 @@ export type Database = {
           appointment_date: string
           appointment_time: string
           created_at: string
+          doctor_id: string
           doctor_name_ar: string
           doctor_name_en: string
           id: string
@@ -426,6 +427,7 @@ export type Database = {
           patient_name: string
           patient_phone: string
           reason: string
+          specialty_id: string
           specialty_name_ar: string
           specialty_name_en: string
           status: Database["public"]["Enums"]["appointment_status"]
@@ -450,6 +452,16 @@ export type Database = {
         }[]
       }
       normalize_reason: { Args: { _raw: string }; Returns: string }
+      reschedule_appointment_by_ref: {
+        Args: {
+          _new_date: string
+          _new_time: string
+          _phone: string
+          _reason?: string
+          _ref: string
+        }
+        Returns: boolean
+      }
       update_appointment_notes: {
         Args: { _id: string; _notes: string; _reason?: string }
         Returns: undefined
