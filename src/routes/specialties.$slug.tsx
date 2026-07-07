@@ -88,7 +88,7 @@ export const Route = createFileRoute("/specialties/$slug")({
       })),
     };
 
-    const clinic = buildLocalBusinessSchema({ pageUrl: url });
+    const clinic = buildLocalBusinessSchema({ pageUrl: url, settings });
     const breadcrumbs = buildBreadcrumbs([
       { name: "الرئيسية", path: "/" },
       { name: "التخصصات", path: "/specialties" },
