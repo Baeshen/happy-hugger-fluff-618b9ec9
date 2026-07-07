@@ -244,8 +244,8 @@ function BookPage() {
       appointment_time: time,
       doctor: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : undefined,
       specialty: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : undefined,
-      reminder_24h: v.reminder_24h,
-      reminder_2h: v.reminder_2h,
+      reminder_24h: form.reminder_24h,
+      reminder_2h: form.reminder_2h,
     };
     setConfirmed({ ref, share });
   };
