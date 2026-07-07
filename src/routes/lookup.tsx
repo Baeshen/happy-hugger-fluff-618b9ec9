@@ -127,8 +127,8 @@ function LookupPage() {
     const payload = {
       _ref: ref.trim(),
       _phone: phone.trim(),
-      _reminder_24h: which === "24h" ? value : appt.reminder_24h,
-      _reminder_2h: which === "2h" ? value : appt.reminder_2h,
+      _reminder_24h: which === "24h" ? value : appt.reminder_24h ?? true,
+      _reminder_2h: which === "2h" ? value : appt.reminder_2h ?? true,
     };
     const { data, error } = await supabase.rpc("update_reminders_by_ref", payload);
     setSavingReminders(false);
