@@ -1,10 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getAttachmentSignedUrl } from "@/lib/patients.functions";
+import {
+  logPatientQrScan,
+  listPatientQrScans,
+  getPatientQrScanCount,
+} from "@/lib/patient-qr-scans.functions";
 import {
   Tabs,
   TabsList,
@@ -28,6 +33,8 @@ import {
   Phone,
   IdCard,
   Calendar,
+  QrCode,
+  ScanLine,
 } from "lucide-react";
 import { PatientQrDialog } from "@/components/PatientQrDialog";
 
