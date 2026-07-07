@@ -178,6 +178,12 @@ fi
 printf '\033[1;36m▶ الطريقة المختارة: %s\033[0m\n' "$METHOD"
 printf '\033[0;36m  السبب: %s\033[0m\n' "$REASON"
 
+if [ "$EXPLAIN" -eq 1 ]; then
+  echo
+  ok "وضع التفسير (--explain) — لم يُنفّذ أي اختبار."
+  exit 0
+fi
+
 # ---------- تحقّق من .env.local عند الحاجة ----------
 need_env_file() {
   if [ "$RUN_RLS" -eq 1 ] && [ "$METHOD" != "bun" ] && [ ! -f .env.local ]; then
