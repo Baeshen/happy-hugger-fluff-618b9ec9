@@ -120,29 +120,50 @@ function MyPortal() {
           </Link>
         </header>
 
-        {!profilePhone && (
-          <div className="mb-6 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5">
-            <div className="font-semibold text-amber-900 dark:text-amber-300">
-              {t("update_phone_hint")}
+        <div
+          className={`mb-6 rounded-2xl border p-5 ${
+            profilePhone ? "border-border bg-card" : "border-amber-500/40 bg-amber-500/5"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="font-semibold">ربط رقم الجوال</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {profilePhone
+                  ? `الرقم الحالي: ${profilePhone} — يمكنك تعديله لربط حجوزات مسجّلة برقم آخر.`
+                  : t("update_phone_hint")}
+              </p>
             </div>
-            <div className="mt-3 flex gap-2 flex-wrap">
-              <input
-                value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
-                inputMode="tel"
-                placeholder="05xxxxxxxx"
-                className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <button
-                onClick={savePhone}
-                disabled={savingPhone || phoneInput.trim().length < 6}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-              >
-                {savingPhone ? t("loading") : "حفظ"}
-              </button>
-            </div>
+            {profilePhone && (
+              <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">
+                مربوط
+              </span>
+            )}
           </div>
-        )}
+          <div className="mt-3 flex gap-2 flex-wrap">
+            <input
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value)}
+              inputMode="tel"
+              placeholder="05xxxxxxxx"
+              className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <button
+              onClick={savePhone}
+              disabled={
+                savingPhone ||
+                phoneInput.trim().length < 6 ||
+                phoneInput.trim() === (profilePhone ?? "")
+              }
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {savingPhone ? t("loading") : profilePhone ? "تحديث الرقم" : "ربط الرقم"}
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            سيتم ربط جميع الحجوزات المسجّلة بهذا الرقم تلقائياً وعرضها هنا.
+          </p>
+        </div>
 
         <div className="mb-4 inline-flex rounded-lg border border-border bg-card p-1">
           {(["upcoming", "past"] as const).map((k) => (
