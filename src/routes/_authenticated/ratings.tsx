@@ -99,6 +99,14 @@ function RatingsPage() {
     return { avg: count ? total / count : 0, count };
   }, [summaryQ.data]);
 
+  const listStats = useMemo(() => {
+    const rows = listQ.data ?? [];
+    const total = rows.length;
+    const replied = rows.filter((r) => !!r.staff_reply).length;
+    const negative = rows.filter((r) => r.rating <= 2).length;
+    return { total, replied, negative, replyRate: total ? (replied / total) * 100 : 0 };
+  }, [listQ.data]);
+
   return (
     <div className="container-app py-10 space-y-8" dir="rtl">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
