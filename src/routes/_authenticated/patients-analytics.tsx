@@ -84,14 +84,8 @@ const COLORS = [
   "hsl(180 60% 45%)",
 ];
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-function daysAgoISO(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
+
+
 
 function PatientsAnalyticsPage() {
   const search = Route.useSearch();
