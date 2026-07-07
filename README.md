@@ -215,13 +215,18 @@ export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 
 **الخيار ب — ملف `.env.local` (لا ترفعه إلى Git):**
 
+نسّخ الملف المُجهّز `.env.example`:
+
 ```bash
-# أنشئ الملف
-printf 'SUPABASE_URL=%s\nSUPABASE_PUBLISHABLE_KEY=%s\nSUPABASE_SERVICE_ROLE_KEY=%s\n' \
-  "https://your-project.supabase.co" \
-  "your-publishable-key" \
-  "your-service-role-key" \
-  > .env.local
+cp .env.example .env.local
+```
+
+ثم عدّل `.env.local` وضع القيم الحقيقية:
+
+```dotenv
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 ثم حمّله قبل كل تشغيل:
