@@ -1852,6 +1852,7 @@ function PatientTransitionsTable({
 function TransitionDetailModal({
   row,
   filters,
+  searchTerm,
   onClose,
 }: {
   row: PatientTransitionRow | null;
@@ -1864,6 +1865,7 @@ function TransitionDetailModal({
     from: string;
     to: string;
   };
+  searchTerm: string;
   onClose: () => void;
 }) {
   const open = row !== null;
