@@ -521,6 +521,23 @@ bun run test:compare-ci -- --act
 
 الفرق عن `--gh-run` / `--ci-log`: تشغيل `act` يعطي مخرجات مكافئة تمامًا لأوامر CI بدون الحاجة لسجل بعيد أو دفع commit، فيقلّل الاختلافات "الشكلية" (طوابع، معرّفات run) إلى الحد الأدنى.
 
+### تقرير HTML مرئي للمقارنة
+
+بعد توليد `ci-compare.json`، حوّله إلى صفحة HTML مستقلّة سهلة القراءة (RTL، وضع داكن تلقائي، تلوين الفروق أخضر/أحمر، بطاقات إحصائيات، جدول أخطاء قابل للترتيب):
+
+```bash
+bun run test:compare-ci -- --act --out ci-compare.json
+bun run test:compare-ci:html                              # يقرأ ci-compare.json → ci-compare.html
+bun run test:compare-ci:html -- --in report.json --out report.html
+open ci-compare.html                                       # macOS (أو xdg-open على Linux)
+```
+
+يعرض التقرير:
+- **شارة حالة** خضراء (مطابق) أو حمراء (اختلافات).
+- **بطاقات** لأسطر المخرجات، رمز الخروج، وعدد الأخطاء ومقاطع الفروق.
+- **جدول الأخطاء** مع مصدرها (CI/محلي) ورقم السطر.
+- **مقاطع الفروق** كـ `<details>` قابلة للطيّ (أول ٣ مفتوحة تلقائيًا)، مع تلوين `-` أحمر و `+` أخضر.
+
 ### إخراج تقرير مقارنة JSON (محلي ↔ CI)
 
 `scripts/compare-ci.sh` يشغّل الاختبارات محليًا، يقارن مخرجاتها بسجل CI بعد التطبيع (إزالة ANSI، طوابع GitHub Actions، بادئات job/step، `::group::`)، ويُخرج تقريرًا `ci-compare.json` بالبنية التالية:
