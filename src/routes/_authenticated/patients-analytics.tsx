@@ -597,15 +597,15 @@ function Kpi({
   tone: "primary" | "success" | "info" | "warning";
 }) {
   const toneClass: Record<string, string> = {
-    primary: "text-primary",
-    success: "text-emerald-600 dark:text-emerald-400",
-    info: "text-sky-600 dark:text-sky-400",
-    warning: "text-amber-600 dark:text-amber-400",
+    primary: "text-primary from-primary/10",
+    success: "text-emerald-600 dark:text-emerald-400 from-emerald-500/10",
+    info: "text-sky-600 dark:text-sky-400 from-sky-500/10",
+    warning: "text-amber-600 dark:text-amber-400 from-amber-500/10",
   };
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className={`rounded-xl border border-border bg-gradient-to-br to-card p-4 shadow-sm transition hover:shadow-md ${toneClass[tone].split(" ").slice(-1)[0]}`}>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-2 text-3xl font-bold tabular-nums ${toneClass[tone]}`}>
+      <p className={`mt-2 text-3xl font-bold tabular-nums ${toneClass[tone].split(" ")[0]}`}>
         {value.toLocaleString("ar-SA")}
       </p>
     </div>
