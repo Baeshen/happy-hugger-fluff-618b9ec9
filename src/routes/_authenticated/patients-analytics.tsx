@@ -18,13 +18,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import {
   getPatientAnalytics,
   getPatientTransitions,
   listBranchesForAnalytics,
   listDoctorsForAnalytics,
 } from "@/lib/patients-analytics.functions";
+import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
 
 export const Route = createFileRoute("/_authenticated/patients-analytics")({
   head: () => ({
