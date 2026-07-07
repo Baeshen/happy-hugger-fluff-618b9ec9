@@ -597,6 +597,12 @@ function PatientsAnalyticsPage() {
           )}
         </>
       )}
+
+      <DrilldownModal
+        state={drilldown}
+        onClose={() => setDrilldown(null)}
+        filters={{ branchId, doctorId, gender, minAge, maxAge, from, to }}
+      />
     </div>
   );
 }
