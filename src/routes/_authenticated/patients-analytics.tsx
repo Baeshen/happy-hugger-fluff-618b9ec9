@@ -324,6 +324,11 @@ function PatientsAnalyticsPage() {
             />
           </div>
 
+          {/* Transitions section */}
+          <TransitionsSection data={transitions} loading={transitionsQ.isLoading} error={transitionsQ.error as Error | null} />
+
+
+
           <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
             <Card title="توزيع الحالات">
               <ResponsiveContainer width="100%" height={260}>
