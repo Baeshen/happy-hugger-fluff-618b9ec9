@@ -6,9 +6,11 @@ import { QuickBar } from "@/components/QuickBar";
 import { SITE } from "@/lib/site";
 import { ShieldCheck, Pill, Users, ArrowLeft, Stethoscope } from "lucide-react";
 import { buildLocalBusinessSchema, SITE_URL } from "@/lib/localBusinessSchema";
+import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
+  loader: ({ context }) => context.queryClient.ensureQueryData(clinicSettingsQuery()),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "مجمع باعشن الطبي — رعايتك تبدأ هنا | Baeshen Medical" },
       {
@@ -25,7 +27,12 @@ export const Route = createFileRoute("/")({
     scripts: [
       {
         type: "application/ld+json",
-        children: JSON.stringify(buildLocalBusinessSchema({ pageUrl: SITE_URL })),
+        children: JSON.stringify(
+          buildLocalBusinessSchema({
+            pageUrl: SITE_URL,
+            settings: loaderData as ClinicSettings | undefined,
+          }),
+        ),
       },
     ],
   }),
