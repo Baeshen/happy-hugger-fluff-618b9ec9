@@ -185,3 +185,51 @@ export function TransitionAlerts({ stats }: { stats: TransitionsStats }) {
   );
 }
 
+function exportTimelineCsv(
+  timeline: ReturnType<typeof buildAlertTimeline>,
+  from: string,
+  to: string,
+) {
+  const headers = [
+    "التاريخ",
+    "نوع الحدث",
+    "الشدة",
+    "النطاق",
+    "الحالة",
+    "الموضوع",
+    "الزيادة",
+    "التراكمي",
+    "العتبة",
+    "النسبة",
+    "القاعدة",
+  ];
+  const escape = (v: string | number) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = timeline.map((e) => [
+    e.day,
+    TIMELINE_KIND_LABEL[e.kind],
+    SEVERITY_LABEL[e.severity],
+    SCOPE_LABEL[e.scope],
+    STATUS_LABEL[e.status],
+    e.subjectName,
+    e.delta,
+    e.cumulative,
+    e.threshold,
+    e.ratio.toFixed(2),
+    e.ruleLabel ?? "",
+  ].map(escape).join(","));
+  const csv = "\uFEFF" + [headers.map(escape).join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `alerts-timeline_${from}_${to}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
