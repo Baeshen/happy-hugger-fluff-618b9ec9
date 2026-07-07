@@ -1418,6 +1418,45 @@ export type Database = {
         }
         Relationships: []
       }
+      transition_alert_rules: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          is_shared: boolean
+          label: string | null
+          scope: string
+          status: string
+          threshold: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          is_shared?: boolean
+          label?: string | null
+          scope: string
+          status: string
+          threshold: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          is_shared?: boolean
+          label?: string | null
+          scope?: string
+          status?: string
+          threshold?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           branch_id: string | null
