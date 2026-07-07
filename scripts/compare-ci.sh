@@ -69,7 +69,7 @@ elif [ -n "$CI_LOG" ]; then
   cp "$CI_LOG" "$CI_RAW"
   CI_SOURCE="file:$CI_LOG"
 else
-  echo "❌ حدّد --ci-log <path> أو --gh-run <id>"; exit 2
+  echo "❌ حدّد أحد الخيارات: --act, --act-job <name>, --gh-run <id>, أو --ci-log <path>"; exit 2
 fi
 
 # ---------- 2) تشغيل/قراءة السجل المحلي ----------
