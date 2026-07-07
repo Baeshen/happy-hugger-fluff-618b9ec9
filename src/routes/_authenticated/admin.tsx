@@ -146,6 +146,12 @@ function AdminDashboard() {
       icon: Bell,
       show: canSeeAppts,
     },
+    {
+      id: "reminders-stats" as Tab,
+      label: "إحصائيات التذكيرات",
+      icon: BarChart3,
+      show: canSeeAppts,
+    },
   ].filter((t) => t.show);
 
   return (
