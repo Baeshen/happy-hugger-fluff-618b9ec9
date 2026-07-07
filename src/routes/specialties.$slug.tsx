@@ -47,15 +47,23 @@ const specialtyQuery = (slug: string) => ({
 });
 
 export const Route = createFileRoute("/specialties/$slug")({
-  loader: ({ params, context }) => context.queryClient.ensureQueryData(specialtyQuery(params.slug)),
+  loader: async ({ params, context }) => {
+    const [data, settings] = await Promise.all([
+      context.queryClient.ensureQueryData(specialtyQuery(params.slug)),
+      context.queryClient.ensureQueryData(clinicSettingsQuery()),
+    ]);
+    return { ...data, settings };
+  },
   head: ({ params, loaderData }) => {
-    const data = loaderData as { specialty: Specialty; doctors: DoctorLite[] } | undefined;
-    if (!data) {
+    const ld = loaderData as
+      | { specialty: Specialty; doctors: DoctorLite[]; settings: ClinicSettings }
+      | undefined;
+    if (!ld) {
       return {
         meta: [{ title: "غير متوفر" }, { name: "robots", content: "noindex" }],
       };
     }
-    const { specialty, doctors } = data;
+    const { specialty, doctors, settings } = ld;
     const url = `${SITE_URL}/specialties/${params.slug}`;
     const title = `${specialty.name_ar} — مجمع باعشن الطبي بصبيا، جازان`;
     const desc =
