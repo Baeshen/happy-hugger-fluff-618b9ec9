@@ -38,6 +38,9 @@ export function ReminderPreferenceHistoryList({
   showActor?: boolean;
 }) {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [kindFilter, setKindFilter] = useState<"all" | "reminder_24h" | "reminder_2h">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "self_service" | "staff" | "system">("all");
+  const [query, setQuery] = useState("");
 
   if (!rows.length) {
     return (
@@ -47,9 +50,35 @@ export function ReminderPreferenceHistoryList({
     );
   }
 
+  const q = query.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => {
+    if (kindFilter !== "all" && r.reminder_kind !== kindFilter) return false;
+    if (sourceFilter !== "all" && (r.source ?? "") !== sourceFilter) return false;
+    if (q) {
+      const hay = [
+        r.reason ?? "",
+        r.changed_by_name ?? "",
+        KIND_LABEL[r.reminder_kind] ?? r.reminder_kind,
+        SOURCE_LABEL[r.source ?? ""] ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
   // Input arrives newest-first from the RPCs. Reverse when asc so both
   // the day headers and rows within each day render oldest-first.
-  const orderedRows = sortOrder === "asc" ? [...rows].reverse() : rows;
+  const orderedRows = sortOrder === "asc" ? [...filteredRows].reverse() : filteredRows;
+
+  const hasActiveFilter =
+    kindFilter !== "all" || sourceFilter !== "all" || q.length > 0;
+  const resetFilters = () => {
+    setKindFilter("all");
+    setSourceFilter("all");
+    setQuery("");
+  };
 
   // Group rows by local calendar date (YYYY-MM-DD), preserving order.
   const groups: { key: string; date: Date; rows: ReminderAuditRow[] }[] = [];
