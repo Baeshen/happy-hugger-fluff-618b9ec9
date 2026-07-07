@@ -18,13 +18,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import {
   getPatientAnalytics,
   getPatientTransitions,
   listBranchesForAnalytics,
   listDoctorsForAnalytics,
 } from "@/lib/patients-analytics.functions";
+import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
 
 export const Route = createFileRoute("/_authenticated/patients-analytics")({
   head: () => ({
@@ -326,6 +327,11 @@ function PatientsAnalyticsPage() {
 
           {/* Transitions section */}
           <TransitionsSection data={transitions} loading={transitionsQ.isLoading} error={transitionsQ.error as Error | null} />
+
+          {/* AI Summary */}
+          <AiSummarySection branchId={branchId} doctorId={doctorId} />
+
+
 
 
 
@@ -786,4 +792,129 @@ function DeltaBadge({ value, suffix }: { value: number; suffix?: string }) {
     </span>
   );
 }
+
+function AiSummarySection({
+  branchId,
+  doctorId,
+}: {
+  branchId: string | null;
+  doctorId: string | null;
+}) {
+  const summaryFn = useServerFn(getPatientsAiSummary);
+  const q = useQuery({
+    queryKey: ["patients-ai-summary", { branchId, doctorId }],
+    queryFn: () => summaryFn({ data: { branchId, doctorId } }),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const data = q.data as AiSummary | undefined;
+
+  return (
+    <div className="mt-6 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card p-4 md:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold">ملخّص ذكي وإجراءات مقترحة</h2>
+            <p className="text-xs text-muted-foreground">
+              تحليل بالذكاء الاصطناعي لآخر 30 يومًا من تغيّرات حالات المرضى.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => q.refetch()}
+          disabled={q.isFetching}
+          className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${q.isFetching ? "animate-spin" : ""}`} />
+          {q.isFetching ? "يُحلّل..." : "إعادة توليد"}
+        </button>
+      </div>
+
+      {q.isLoading && (
+        <div className="space-y-2">
+          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+          <div className="mt-4 grid gap-2 md:grid-cols-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-lg bg-muted/60" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {q.error && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{(q.error as Error).message}</span>
+        </div>
+      )}
+
+      {data && (
+        <div className="space-y-4">
+          <p className="text-base font-semibold leading-relaxed">{data.headline}</p>
+
+          {data.highlights.length > 0 && (
+            <ul className="space-y-1.5 text-sm text-foreground/90">
+              {data.highlights.map((h, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  <span>{h}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {data.actions.length > 0 && (
+            <div>
+              <div className="mb-2 text-xs font-semibold text-muted-foreground">
+                الإجراءات المقترحة
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {data.actions.map((a, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-border bg-background/60 p-3"
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{a.title}</span>
+                      <PriorityBadge p={a.priority} />
+                    </div>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {a.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="pt-2 text-[10px] text-muted-foreground">
+            تم التوليد:{" "}
+            {new Date(data.generatedAt).toLocaleString("ar-SA", {
+              dateStyle: "short",
+              timeStyle: "short",
+            })}{" "}
+            · نموذج: {data.model}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PriorityBadge({ p }: { p: "high" | "medium" | "low" }) {
+  const map = {
+    high: { label: "عالية", cls: "bg-red-500/10 text-red-600 dark:text-red-400" },
+    medium: { label: "متوسطة", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+    low: { label: "منخفضة", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  } as const;
+  const { label, cls } = map[p];
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}>{label}</span>
+  );
+}
+
 
