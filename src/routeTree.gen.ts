@@ -30,6 +30,7 @@ import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
+import { Route as AuthenticatedPatientsManagementRouteImport } from './routes/_authenticated/patients-management'
 import { Route as AuthenticatedNotificationsQueueRouteImport } from './routes/_authenticated/notifications-queue'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedDoctorsManagementRouteImport } from './routes/_authenticated/doctors-management'
@@ -146,6 +147,12 @@ const AuthenticatedRbacRoute = AuthenticatedRbacRouteImport.update({
   path: '/rbac',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPatientsManagementRoute =
+  AuthenticatedPatientsManagementRouteImport.update({
+    id: '/patients-management',
+    path: '/patients-management',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNotificationsQueueRoute =
   AuthenticatedNotificationsQueueRouteImport.update({
     id: '/notifications-queue',
@@ -226,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -259,6 +267,7 @@ export interface FileRoutesByTo {
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -294,6 +303,7 @@ export interface FileRoutesById {
   '/_authenticated/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/_authenticated/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/doctors-management'
     | '/my'
     | '/notifications-queue'
+    | '/patients-management'
     | '/rbac'
     | '/reports'
     | '/settings'
@@ -362,6 +373,7 @@ export interface FileRouteTypes {
     | '/doctors-management'
     | '/my'
     | '/notifications-queue'
+    | '/patients-management'
     | '/rbac'
     | '/reports'
     | '/settings'
@@ -396,6 +408,7 @@ export interface FileRouteTypes {
     | '/_authenticated/doctors-management'
     | '/_authenticated/my'
     | '/_authenticated/notifications-queue'
+    | '/_authenticated/patients-management'
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
@@ -582,6 +595,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRbacRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/patients-management': {
+      id: '/_authenticated/patients-management'
+      path: '/patients-management'
+      fullPath: '/patients-management'
+      preLoaderRoute: typeof AuthenticatedPatientsManagementRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notifications-queue': {
       id: '/_authenticated/notifications-queue'
       path: '/notifications-queue'
@@ -671,6 +691,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDoctorsManagementRoute: typeof AuthenticatedDoctorsManagementRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedNotificationsQueueRoute: typeof AuthenticatedNotificationsQueueRoute
+  AuthenticatedPatientsManagementRoute: typeof AuthenticatedPatientsManagementRoute
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -687,6 +708,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDoctorsManagementRoute: AuthenticatedDoctorsManagementRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedNotificationsQueueRoute: AuthenticatedNotificationsQueueRoute,
+  AuthenticatedPatientsManagementRoute: AuthenticatedPatientsManagementRoute,
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

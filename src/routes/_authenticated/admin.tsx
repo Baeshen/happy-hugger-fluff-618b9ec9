@@ -258,6 +258,14 @@ function AdminDashboard() {
               السجلات الطبية
             </Link>
           )}
+          {(roles.includes("admin") || roles.includes("reception")) && (
+            <Link
+              to="/patients-management"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              إدارة المرضى
+            </Link>
+          )}
           {roles.includes("admin") && (
             <Link
               to="/rbac"
