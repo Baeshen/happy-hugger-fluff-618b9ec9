@@ -270,6 +270,12 @@ function MyPortal() {
                       >
                         {t("share_whatsapp")}
                       </a>
+                      <button
+                        onClick={() => setReminderHistoryId(r.id)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted"
+                      >
+                        <History className="h-3.5 w-3.5" /> سجل التذكيرات
+                      </button>
                     </div>
                   )}
                 </div>
