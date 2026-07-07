@@ -21,6 +21,7 @@ METHOD="auto"
 RUN_RLS=1
 WATCH=0
 EXPLAIN=0
+EXPLAIN_JSON=0
 WATCH_PATHS=(src tests scripts package.json Dockerfile.test docker-compose.test.yml)
 CUSTOM_CMD=()
 
