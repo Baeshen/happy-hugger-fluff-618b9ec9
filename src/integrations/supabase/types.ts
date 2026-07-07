@@ -555,6 +555,7 @@ export type Database = {
       update_reminders_by_ref: {
         Args: {
           _phone: string
+          _reason?: string
           _ref: string
           _reminder_24h: boolean
           _reminder_2h: boolean
