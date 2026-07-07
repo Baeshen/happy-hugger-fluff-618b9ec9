@@ -4,7 +4,56 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { listAuditLog, listAuditActions } from "@/lib/rbac.functions";
 import { getMyRoles } from "@/lib/admin.functions";
-import { ShieldAlert, ArrowRight, RefreshCw } from "lucide-react";
+import { ShieldAlert, ArrowRight, RefreshCw, Download } from "lucide-react";
+
+function csvEscape(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = typeof v === "string" ? v : typeof v === "object" ? JSON.stringify(v) : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function downloadCsv(rows: Array<Record<string, unknown>>, filename: string) {
+  const headers = [
+    "created_at",
+    "actor_name",
+    "actor_phone",
+    "action",
+    "from_status",
+    "to_status",
+    "reason",
+    "metadata",
+    "ip_address",
+    "user_agent",
+    "appointment_id",
+  ];
+  const headerLabels = [
+    "الوقت",
+    "المستخدم",
+    "الجوال",
+    "العملية",
+    "من",
+    "إلى",
+    "السبب",
+    "التفاصيل",
+    "IP",
+    "المتصفح",
+    "معرّف الحجز",
+  ];
+  const lines = [headerLabels.join(",")];
+  for (const r of rows) {
+    lines.push(headers.map((h) => csvEscape((r as any)[h])).join(","));
+  }
+  // Prepend BOM so Excel opens UTF-8 Arabic correctly
+  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export const Route = createFileRoute("/_authenticated/audit-log")({
   head: () => ({
@@ -143,6 +192,18 @@ function AuditLogPage() {
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
         >
           <RefreshCw className="h-4 w-4" /> تحديث
+        </button>
+        <button
+          onClick={() => {
+            const rows = log.data ?? [];
+            if (rows.length === 0) return;
+            const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+            downloadCsv(rows as any, `audit-log-${stamp}.csv`);
+          }}
+          disabled={!log.data || log.data.length === 0}
+          className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" /> تصدير CSV
         </button>
       </div>
 
