@@ -39,6 +39,7 @@ import {
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
 import { listPatientsForKpi, type KpiPatientRow, listPatientTransitionRows, type PatientTransitionRow } from "@/lib/patients-analytics.functions";
 import { exportXlsx, exportPdf, type Column } from "@/lib/export-utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -378,243 +379,192 @@ function PatientsAnalyticsPage() {
       )}
 
       {data && (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Kpi
-              label="إجمالي المرضى"
-              value={data.total}
-              tone="primary"
-              onClick={() => setDrilldown({ kind: "patients", status: null, title: "إجمالي المرضى" })}
-            />
-            <Kpi
-              label="نشط"
-              value={data.byStatus.find((s) => s.status === "active")?.count ?? 0}
-              tone="success"
-              onClick={() => setDrilldown({ kind: "patients", status: "active", title: "المرضى النشطون" })}
-            />
-            <Kpi
-              label="مؤرشف"
-              value={data.byStatus.find((s) => s.status === "archived")?.count ?? 0}
-              tone="info"
-              onClick={() => setDrilldown({ kind: "patients", status: "archived", title: "المرضى المؤرشفون" })}
-            />
-            <Kpi
-              label="تغيّرات الحالة (الفترة)"
-              value={data.statusChangesDaily.reduce((s, d) => s + d.count, 0)}
-              tone="warning"
-              onClick={() => setDrilldown({ kind: "events", title: "أحداث تغيير الحالة خلال الفترة" })}
-            />
-          </div>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 sm:inline-flex h-auto">
+            <TabsTrigger value="overview">
+              <Users className="h-4 w-4 ml-1" /> نظرة عامة
+            </TabsTrigger>
+            <TabsTrigger value="trends">
+              <Activity className="h-4 w-4 ml-1" /> الاتجاهات
+            </TabsTrigger>
+            <TabsTrigger value="smart">
+              <Sparkles className="h-4 w-4 ml-1" /> الملخّص الذكي
+            </TabsTrigger>
+            <TabsTrigger value="transitions">
+              <History className="h-4 w-4 ml-1" /> الانتقالات
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Transitions section */}
-          <TransitionsSection data={transitions} loading={transitionsQ.isLoading} error={transitionsQ.error as Error | null} />
+          <TabsContent value="overview" className="space-y-6">
+            {/* KPIs */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Kpi
+                label="إجمالي المرضى"
+                value={data.total}
+                tone="primary"
+                onClick={() => setDrilldown({ kind: "patients", status: null, title: "إجمالي المرضى" })}
+              />
+              <Kpi
+                label="نشط"
+                value={data.byStatus.find((s) => s.status === "active")?.count ?? 0}
+                tone="success"
+                onClick={() => setDrilldown({ kind: "patients", status: "active", title: "المرضى النشطون" })}
+              />
+              <Kpi
+                label="مؤرشف"
+                value={data.byStatus.find((s) => s.status === "archived")?.count ?? 0}
+                tone="info"
+                onClick={() => setDrilldown({ kind: "patients", status: "archived", title: "المرضى المؤرشفون" })}
+              />
+              <Kpi
+                label="تغيّرات الحالة (الفترة)"
+                value={data.statusChangesDaily.reduce((s, d) => s + d.count, 0)}
+                tone="warning"
+                onClick={() => setDrilldown({ kind: "events", title: "أحداث تغيير الحالة خلال الفترة" })}
+              />
+            </div>
 
-          <PatientTransitionsTable
-            branchId={branchId}
-            doctorId={doctorId}
-            gender={gender}
-            minAge={minAge}
-            maxAge={maxAge}
-            from={from}
-            to={to}
-          />
-
-          {/* AI Summary */}
-          <AiSummarySection branchId={branchId} doctorId={doctorId} />
-
-          {/* Recent status-change audit events */}
-          <RecentStatusEventsSection branchId={branchId} doctorId={doctorId} from={from} to={to} />
-
-
-
-
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <Card title="توزيع الحالات">
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={statusChart}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
-                    {statusChart.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-              <Legend items={statusChart.map((s, i) => ({ name: s.name, value: s.value, color: COLORS[i % COLORS.length] }))} />
-            </Card>
-
-            <Card title="توزيع الجنس">
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={genderChart}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
-                    {genderChart.map((_, i) => (
-                      <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-              <Legend items={genderChart.map((s, i) => ({ name: s.name, value: s.value, color: COLORS[(i + 2) % COLORS.length] }))} />
-            </Card>
-
-            <Card title="الفئات العمرية">
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={ageChart}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    allowDecimals={false}
-                  />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="عدد" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <Card title="حسب الفرع">
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={branchChart} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    type="number"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    allowDecimals={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    width={110}
-                  />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="عدد" fill="hsl(217 91% 60%)" radius={[0, 6, 6, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-
-            <Card title="أعلى الوسوم" icon={TagIcon}>
-              {tagChart.length === 0 ? (
-                <p className="p-6 text-center text-sm text-muted-foreground">لا توجد وسوم بعد.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={tagChart} layout="vertical" margin={{ left: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      type="number"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      allowDecimals={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      width={110}
-                    />
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <Card title="توزيع الحالات">
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie data={statusChart} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                      {statusChart.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="عدد" fill="hsl(142 71% 45%)" radius={[0, 6, 6, 0]} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <Legend items={statusChart.map((s, i) => ({ name: s.name, value: s.value, color: COLORS[i % COLORS.length] }))} />
+              </Card>
+
+              <Card title="توزيع الجنس">
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie data={genderChart} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                      {genderChart.map((_, i) => (
+                        <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <Legend items={genderChart.map((s, i) => ({ name: s.name, value: s.value, color: COLORS[(i + 2) % COLORS.length] }))} />
+              </Card>
+
+              <Card title="الفئات العمرية">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={ageChart}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="عدد" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              )}
-            </Card>
-          </div>
+              </Card>
+            </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <Card title="تسجيلات المرضى اليومية">
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={regChart}>
-                  <defs>
-                    <linearGradient id="fillReg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    allowDecimals={false}
-                  />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Area
-                    type="monotone"
-                    dataKey="تسجيلات"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    fill="url(#fillReg)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Card>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <Card title="حسب الفرع">
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={branchChart} layout="vertical" margin={{ left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={110} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="عدد" fill="hsl(217 91% 60%)" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
 
-            <Card title="تغيّرات حالة المرضى اليومية" icon={Activity}>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={changeChart}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    allowDecimals={false}
-                  />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Line
-                    type="monotone"
-                    dataKey="تغييرات"
-                    stroke="hsl(38 92% 50%)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
+              <Card title="أعلى الوسوم" icon={TagIcon}>
+                {tagChart.length === 0 ? (
+                  <p className="p-6 text-center text-sm text-muted-foreground">لا توجد وسوم بعد.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={tagChart} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                      <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={110} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="عدد" fill="hsl(142 71% 45%)" radius={[0, 6, 6, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </Card>
+            </div>
+          </TabsContent>
 
-          {changeBreakdown.length > 0 && (
-            <div className="mt-4">
+          <TabsContent value="trends" className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <Card title="تسجيلات المرضى اليومية">
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={regChart}>
+                    <defs>
+                      <linearGradient id="fillReg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Area type="monotone" dataKey="تسجيلات" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#fillReg)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Card>
+
+              <Card title="تغيّرات حالة المرضى اليومية" icon={Activity}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={changeChart}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Line type="monotone" dataKey="تغييرات" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Card>
+            </div>
+
+            {changeBreakdown.length > 0 && (
               <Card title="التغييرات حسب الحالة المستهدفة">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={changeBreakdown}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      allowDecimals={false}
-                    />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="عدد" fill="hsl(280 65% 60%)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
-            </div>
-          )}
-        </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="smart" className="space-y-6">
+            <AiSummarySection branchId={branchId} doctorId={doctorId} />
+          </TabsContent>
+
+          <TabsContent value="transitions" className="space-y-6">
+            <TransitionsSection data={transitions} loading={transitionsQ.isLoading} error={transitionsQ.error as Error | null} />
+            <RecentStatusEventsSection branchId={branchId} doctorId={doctorId} from={from} to={to} />
+            <PatientTransitionsTable
+              branchId={branchId}
+              doctorId={doctorId}
+              gender={gender}
+              minAge={minAge}
+              maxAge={maxAge}
+              from={from}
+              to={to}
+            />
+          </TabsContent>
+        </Tabs>
       )}
+
 
       <DrilldownModal
         state={drilldown}

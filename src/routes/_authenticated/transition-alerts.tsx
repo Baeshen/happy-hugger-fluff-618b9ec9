@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Bell, Plus, Trash2, Save, Pencil, X, Check, AlertTriangle, CheckCircle2, Power, Share2, Lock, Filter } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getTransitionsStats, listBranchesForAnalytics } from "@/lib/patients-analytics.functions";
 
 import {
@@ -188,7 +189,18 @@ function TransitionAlertsPage() {
       </div>
 
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
-        <Accordion type="multiple" defaultValue={[]} className="space-y-3">
+        <Tabs defaultValue="rules">
+          <TabsList className="grid grid-cols-2 sm:inline-flex h-auto">
+            <TabsTrigger value="rules">
+              <Bell className="h-4 w-4 ml-1" /> القواعد
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Filter className="h-4 w-4 ml-1" /> الإعدادات وإضافة قاعدة
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="settings" className="mt-4">
+        <Accordion type="multiple" defaultValue={["window", "new"]} className="space-y-3">
           {/* Evaluation window (collapsed by default) */}
           <AccordionItem value="window" className="rounded-xl border border-border bg-card px-4">
             <AccordionTrigger className="text-sm font-bold hover:no-underline">
@@ -314,11 +326,12 @@ function TransitionAlertsPage() {
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+        </TabsContent>
 
-
-
+        <TabsContent value="rules" className="mt-4 space-y-4">
         {/* Rules list */}
         <section className="rounded-xl border border-border bg-card overflow-hidden">
+
           <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-sm font-bold">قواعد التنبيهات ({filteredRules.length}/{rules.length})</h2>
             <div className="flex items-center gap-1 text-xs">
@@ -504,7 +517,10 @@ function TransitionAlertsPage() {
         {statsQ.error && (
           <p className="text-sm text-destructive">تعذر تحميل الإحصائيات: {(statsQ.error as Error).message}</p>
         )}
+          </TabsContent>
+        </Tabs>
       </main>
+
     </div>
   );
 }

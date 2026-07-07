@@ -184,46 +184,57 @@ function PatientDetail() {
 
 
 
-      <Tabs defaultValue="overview">
-        <TabsList className="flex-wrap h-auto justify-start">
-          <TabsTrigger value="overview">
-            <User className="h-4 w-4 ml-1" /> نظرة عامة
+      <Tabs defaultValue="profile">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 sm:inline-flex h-auto">
+          <TabsTrigger value="profile">
+            <User className="h-4 w-4 ml-1" /> بيانات
           </TabsTrigger>
-          <TabsTrigger value="allergies">
-            <AlertTriangle className="h-4 w-4 ml-1" /> الحساسية
-          </TabsTrigger>
-          <TabsTrigger value="medications">
-            <Pill className="h-4 w-4 ml-1" /> الأدوية
-          </TabsTrigger>
-          <TabsTrigger value="history">
-            <History className="h-4 w-4 ml-1" /> التاريخ المرضي
-          </TabsTrigger>
-          <TabsTrigger value="surgeries">
-            <Scissors className="h-4 w-4 ml-1" /> العمليات
+          <TabsTrigger value="clinical">
+            <Stethoscope className="h-4 w-4 ml-1" /> سريري
           </TabsTrigger>
           <TabsTrigger value="visits">
-            <Stethoscope className="h-4 w-4 ml-1" /> الزيارات
+            <History className="h-4 w-4 ml-1" /> الزيارات
           </TabsTrigger>
           <TabsTrigger value="attachments">
             <Paperclip className="h-4 w-4 ml-1" /> المرفقات
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="profile" className="mt-4">
           <OverviewSection patient={p} />
         </TabsContent>
-        <TabsContent value="allergies" className="mt-4">
-          <AllergiesSection patientId={patientId} />
+
+        <TabsContent value="clinical" className="mt-4">
+          <Tabs defaultValue="allergies">
+            <TabsList className="grid grid-cols-2 sm:grid-cols-4 sm:inline-flex h-auto">
+              <TabsTrigger value="allergies">
+                <AlertTriangle className="h-4 w-4 ml-1" /> الحساسية
+              </TabsTrigger>
+              <TabsTrigger value="medications">
+                <Pill className="h-4 w-4 ml-1" /> الأدوية
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <History className="h-4 w-4 ml-1" /> التاريخ المرضي
+              </TabsTrigger>
+              <TabsTrigger value="surgeries">
+                <Scissors className="h-4 w-4 ml-1" /> العمليات
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="allergies" className="mt-4">
+              <AllergiesSection patientId={patientId} />
+            </TabsContent>
+            <TabsContent value="medications" className="mt-4">
+              <MedicationsSection patientId={patientId} />
+            </TabsContent>
+            <TabsContent value="history" className="mt-4">
+              <HistorySection patientId={patientId} />
+            </TabsContent>
+            <TabsContent value="surgeries" className="mt-4">
+              <SurgeriesSection patientId={patientId} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value="medications" className="mt-4">
-          <MedicationsSection patientId={patientId} />
-        </TabsContent>
-        <TabsContent value="history" className="mt-4">
-          <HistorySection patientId={patientId} />
-        </TabsContent>
-        <TabsContent value="surgeries" className="mt-4">
-          <SurgeriesSection patientId={patientId} />
-        </TabsContent>
+
         <TabsContent value="visits" className="mt-4">
           <VisitsSection patientId={patientId} />
         </TabsContent>
@@ -231,6 +242,7 @@ function PatientDetail() {
           <AttachmentsSection patientId={patientId} />
         </TabsContent>
       </Tabs>
+
     </div>
   );
 }
