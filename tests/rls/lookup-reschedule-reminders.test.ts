@@ -968,7 +968,7 @@ async function main() {
           "reschedule_appointment_by_ref" as never,
           {
             _ref: ref,
-            _phone: "050abc000xy0000extra", // digits become 05000000000 (11) ≠ 0500000000 (10)
+            _phone: "050abc000xy00001extra", // digits → 050000000001 (12) ≠ 0500000000 (10)
             _new_date: futureDate(11),
             _new_time: "10:00:00",
             _reason: "r",
