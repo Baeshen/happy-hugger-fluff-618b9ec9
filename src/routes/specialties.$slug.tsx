@@ -3,9 +3,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
+import { buildLocalBusinessSchema, buildBreadcrumbs, CLINIC_ID, SITE_URL } from "@/lib/localBusinessSchema";
 import { Stethoscope, ArrowLeft, MapPin, Phone } from "lucide-react";
-
-const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 
 type Specialty = {
   id: string;
@@ -62,29 +61,30 @@ export const Route = createFileRoute("/specialties/$slug")({
       specialty.description_ar?.slice(0, 155) ||
       `احجز موعدك في قسم ${specialty.name_ar} بمجمع باعشن الطبي بصبيا، جازان مع نخبة من الأطباء الاستشاريين.`;
 
+    const specialtyId = `${url}#specialty`;
     const jsonLd = {
       "@context": "https://schema.org",
       "@type": "MedicalSpecialty",
+      "@id": specialtyId,
       name: specialty.name_ar,
       alternateName: specialty.name_en ?? undefined,
       description: specialty.description_ar ?? undefined,
       url,
+      recognizingAuthority: { "@id": CLINIC_ID },
       relevantSpecialty: doctors.map((d) => ({
         "@type": "Physician",
         name: d.name_ar,
         url: d.slug ? `${SITE_URL}/doctors/${d.slug}` : undefined,
+        worksFor: { "@id": CLINIC_ID },
       })),
     };
 
-    const breadcrumbs = {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "الرئيسية", item: SITE_URL },
-        { "@type": "ListItem", position: 2, name: "التخصصات", item: `${SITE_URL}/specialties` },
-        { "@type": "ListItem", position: 3, name: specialty.name_ar, item: url },
-      ],
-    };
+    const clinic = buildLocalBusinessSchema({ pageUrl: url });
+    const breadcrumbs = buildBreadcrumbs([
+      { name: "الرئيسية", path: "/" },
+      { name: "التخصصات", path: "/specialties" },
+      { name: specialty.name_ar, path: `/specialties/${params.slug}` },
+    ]);
 
     return {
       meta: [
@@ -101,6 +101,7 @@ export const Route = createFileRoute("/specialties/$slug")({
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: [
+        { type: "application/ld+json", children: JSON.stringify(clinic) },
         { type: "application/ld+json", children: JSON.stringify(jsonLd) },
         { type: "application/ld+json", children: JSON.stringify(breadcrumbs) },
       ],
