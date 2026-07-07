@@ -40,6 +40,7 @@ export const Route = createFileRoute("/sitemap.xml")({
             process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
             process.env.SUPABASE_PUBLISHABLE_KEY ||
             process.env.SUPABASE_ANON_KEY;
+          console.log("sitemap env", { hasUrl: !!url, hasKey: !!key });
 
           if (url && key) {
             const headers = { apikey: key, Authorization: `Bearer ${key}` };
