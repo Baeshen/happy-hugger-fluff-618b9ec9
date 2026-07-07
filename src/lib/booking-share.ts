@@ -35,6 +35,20 @@ export function buildIcs(b: ShareBooking, minutes = 30): string {
   ]
     .filter(Boolean)
     .join("\\n");
+  const alarms: string[] = [];
+  const pushAlarm = (trigger: string, desc: string) => {
+    alarms.push(
+      "BEGIN:VALARM",
+      `TRIGGER:${trigger}`,
+      "ACTION:DISPLAY",
+      `DESCRIPTION:${desc}`,
+      "END:VALARM",
+    );
+  };
+  // Default to true when the field isn't provided (matches booking defaults).
+  if (b.reminder_24h !== false) pushAlarm("-PT24H", `تذكير قبل 24 ساعة — ${summary}`);
+  if (b.reminder_2h !== false) pushAlarm("-PT2H", `تذكير قبل ساعتين — ${summary}`);
+
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -49,6 +63,7 @@ export function buildIcs(b: ShareBooking, minutes = 30): string {
     `SUMMARY:${summary}`,
     `DESCRIPTION:${desc}`,
     `LOCATION:${SITE.addressAr}`,
+    ...alarms,
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
