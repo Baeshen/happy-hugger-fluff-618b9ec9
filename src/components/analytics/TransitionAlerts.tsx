@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, Bell, Settings } from "lucide-react";
+import { AlertTriangle, Bell, History, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import type { TransitionsStats } from "@/lib/patients-analytics.functions";
-import { loadRules, evaluateRules, STATUS_LABEL, SEVERITY_LABEL, SEVERITY_STYLES, type AlertRule } from "@/lib/transition-alerts";
+import {
+  loadRules,
+  evaluateRules,
+  buildAlertTimeline,
+  STATUS_LABEL,
+  SCOPE_LABEL,
+  SEVERITY_LABEL,
+  SEVERITY_STYLES,
+  TIMELINE_KIND_LABEL,
+  type AlertRule,
+} from "@/lib/transition-alerts";
 
 
 export function TransitionAlerts({ stats }: { stats: TransitionsStats }) {
@@ -18,6 +28,8 @@ export function TransitionAlerts({ stats }: { stats: TransitionsStats }) {
   }, []);
 
   const triggered = useMemo(() => evaluateRules(rules, stats), [rules, stats]);
+  const timeline = useMemo(() => buildAlertTimeline(rules, stats), [rules, stats]);
+  const [showTimeline, setShowTimeline] = useState(true);
   const activeRules = rules.filter((r) => r.enabled).length;
   const counts = useMemo(() => {
     const c = { high: 0, medium: 0, low: 0 } as Record<"high" | "medium" | "low", number>;
