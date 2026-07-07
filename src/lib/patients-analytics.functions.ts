@@ -649,6 +649,10 @@ const TransitionRowsInput = z.object({
   pageSize: z.number().int().min(1).max(200).optional(),
   search: z.string().max(200).nullable().optional(),
   statusTo: z.enum(["active", "inactive", "archived", "deceased"]).nullable().optional(),
+  statusFrom: z.enum(["active", "inactive", "archived", "deceased", "__none__"]).nullable().optional(),
+  txFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  txTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  bulkOnly: z.boolean().nullable().optional(),
   sortKey: z.enum(["created_at", "patient_name", "patient_mrn", "branch_name", "from", "to", "actor_name"]).optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
 });
@@ -801,6 +805,19 @@ export const listPatientTransitionRows = createServerFn({ method: "POST" })
     // Apply search/status filters (server-side so pagination reflects filtered set)
     let filtered = rows;
     if (data.statusTo) filtered = filtered.filter((r) => r.to === data.statusTo);
+    if (data.statusFrom) {
+      if (data.statusFrom === "__none__") filtered = filtered.filter((r) => r.from == null);
+      else filtered = filtered.filter((r) => r.from === data.statusFrom);
+    }
+    if (data.bulkOnly) filtered = filtered.filter((r) => r.bulk);
+    if (data.txFrom) {
+      const ts = new Date(`${data.txFrom}T00:00:00`).getTime();
+      filtered = filtered.filter((r) => new Date(r.created_at).getTime() >= ts);
+    }
+    if (data.txTo) {
+      const ts = new Date(`${data.txTo}T23:59:59`).getTime();
+      filtered = filtered.filter((r) => new Date(r.created_at).getTime() <= ts);
+    }
     if (data.search && data.search.trim()) {
       const s = data.search.trim().toLowerCase();
       filtered = filtered.filter((r) =>
