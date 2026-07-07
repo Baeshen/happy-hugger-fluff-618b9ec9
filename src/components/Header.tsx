@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X, Globe, Phone, LayoutDashboard, LogIn, User } from "lucide-react";
+import { Menu, X, Globe, Phone, LayoutDashboard, LogIn, User, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
@@ -90,6 +90,13 @@ export function Header() {
                 title={t("nav_my")}
               >
                 <User className="h-3.5 w-3.5" /> {t("nav_my")}
+              </Link>
+              <Link
+                to="/settings"
+                className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                title="الإعدادات"
+              >
+                <Settings className="h-3.5 w-3.5" /> إعدادات
               </Link>
               <Link
                 to="/admin"

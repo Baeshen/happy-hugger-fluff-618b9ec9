@@ -556,6 +556,23 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
         }[]
       }
+      my_appointments_with_reminders: {
+        Args: never
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          doctor_name_ar: string
+          doctor_name_en: string
+          id: string
+          patient_name: string
+          patient_phone: string
+          reminder_24h: boolean
+          reminder_2h: boolean
+          specialty_name_ar: string
+          specialty_name_en: string
+          status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
       my_reminder_preference_audit: {
         Args: { _appointment_id: string }
         Returns: {
