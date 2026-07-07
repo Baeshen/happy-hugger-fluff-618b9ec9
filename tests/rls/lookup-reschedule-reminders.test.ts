@@ -1298,6 +1298,201 @@ async function main() {
       },
     );
 
+    // ── lookup_appointment: wrong ref / wrong "reminder id" must NOT leak
+    // another appointment's reminder preferences. The schema has no separate
+    // reminder id — reminders live on the appointment row itself — so a
+    // "wrong reminder id" is exercised by (a) a wrong appointment ref, and
+    // (b) a mismatched (ref, phone) pair pointing at a different owner. ──
+
+    await test(
+      "lookup with unknown ref returns empty and leaks no reminder prefs",
+      async () => {
+        // Seed a real appointment with distinctive prefs to make sure the
+        // unknown-ref lookup can't accidentally return them.
+        await newAppt({ reminder_24h: false, reminder_2h: true });
+
+        const { data, error } = await anon.rpc(
+          "lookup_appointment" as never,
+          { _ref: "deadbeef", _phone: phone } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(
+          Array.isArray(data) && data.length === 0,
+          `expected empty array, got ${JSON.stringify(data)}`,
+        );
+      },
+    );
+
+    await test(
+      "lookup with correct ref but wrong phone returns empty (no reminder leak)",
+      async () => {
+        const { ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: false,
+        });
+        const { data, error } = await anon.rpc(
+          "lookup_appointment" as never,
+          { _ref: ref, _phone: "0599999999" } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(
+          Array.isArray(data) && data.length === 0,
+          `expected empty array, got ${JSON.stringify(data)}`,
+        );
+      },
+    );
+
+    await test(
+      "lookup with empty ref + wrong phone returns empty (no leak across owners)",
+      async () => {
+        for (const args of [
+          { _ref: "", _phone: "0599999999" },
+          { _ref: "deadbeef", _phone: "" },
+          { _ref: "", _phone: "" },
+        ]) {
+          const { data, error } = await anon.rpc(
+            "lookup_appointment" as never,
+            args as never,
+          );
+          assert(!error, `rpc error: ${error?.message}`);
+          const rows = (data as Array<{ patient_phone: string }>) ?? [];
+          // May return rows only if the phone matches an existing owner —
+          // never rows belonging to a different owner.
+          for (const r of rows) {
+            assert(
+              r.patient_phone.replace(/\D/g, "") ===
+                (args._phone || "").replace(/\D/g, ""),
+              `phone leak: got ${r.patient_phone} for phone=${args._phone}`,
+            );
+          }
+        }
+      },
+    );
+
+    await test(
+      "lookup with ref of another appointment (mismatched phone) returns empty and does not leak that owner's prefs",
+      async () => {
+        // Owner A — distinctive reminder settings.
+        const { ref: refA } = await newAppt({
+          reminder_24h: false,
+          reminder_2h: true,
+        });
+        // Owner B uses a DIFFERENT phone; try to read A's row with B's phone.
+        const otherPhone = "0511111111";
+        const { data, error } = await anon.rpc(
+          "lookup_appointment" as never,
+          { _ref: refA, _phone: otherPhone } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(
+          Array.isArray(data) && data.length === 0,
+          `must not return A's row for B's phone; got ${JSON.stringify(data)}`,
+        );
+      },
+    );
+
+    await test(
+      "lookup with a syntactically-valid but non-existent ref returns empty",
+      async () => {
+        const bogusRefs = [
+          "aaaaaaaa", // 8 hex chars, none exist
+          "12345678",
+          "ffffffff",
+        ];
+        for (const _ref of bogusRefs) {
+          const { data, error } = await anon.rpc(
+            "lookup_appointment" as never,
+            { _ref, _phone: phone } as never,
+          );
+          assert(!error, `rpc error for ${_ref}: ${error?.message}`);
+          // May coincidentally match if a UUID actually starts with those
+          // 8 chars — accept 0 rows OR a single row that matches the phone.
+          const rows = data as Array<{ patient_phone: string }>;
+          if (Array.isArray(rows) && rows.length > 0) {
+            assert(
+              rows.length === 1,
+              `expected at most one row, got ${rows.length}`,
+            );
+            assert(
+              rows[0].patient_phone.replace(/\D/g, "") ===
+                phone.replace(/\D/g, ""),
+              `phone mismatch on coincidental match for ${_ref}`,
+            );
+          }
+        }
+      },
+    );
+
+    await test(
+      "lookup with the exact ref+phone returns the CURRENT reminder prefs (not stale)",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+
+        // Toggle reminders directly on the appointment row.
+        const { error: upErr } = await admin
+          .from("appointments")
+          .update({ reminder_24h: false, reminder_2h: true })
+          .eq("id", id);
+        assert(!upErr, `admin update err: ${upErr?.message}`);
+
+        const { data, error } = await anon.rpc(
+          "lookup_appointment" as never,
+          { _ref: ref, _phone: phone } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        const rows = data as Array<{
+          id: string;
+          reminder_24h: boolean;
+          reminder_2h: boolean;
+        }>;
+        assert(
+          Array.isArray(rows) && rows.length === 1,
+          `expected one row, got ${JSON.stringify(rows)}`,
+        );
+        assert(rows[0].id === id, "id mismatch");
+        assert(
+          rows[0].reminder_24h === false,
+          `expected reminder_24h=false, got ${rows[0].reminder_24h}`,
+        );
+        assert(
+          rows[0].reminder_2h === true,
+          `expected reminder_2h=true, got ${rows[0].reminder_2h}`,
+        );
+      },
+    );
+
+    await test(
+      "lookup with garbage 'reminder id' shapes never leaks another owner's row",
+      async () => {
+        // Strings that look like ids from other domains (uuids/hex/ints)
+        // and SQL-LIKE wildcards. The RPC uses `LIKE lower(_ref) || '%'`,
+        // so wildcards may match rows for the SAME phone, but must never
+        // return rows belonging to a different phone.
+        const bogus = [
+          "00000000-0000-0000-0000-000000000000",
+          "not-a-ref!!",
+          "'; DROP TABLE appointments;--",
+          "%",
+          "________",
+        ];
+        const otherPhone = "0588888888";
+        for (const _ref of bogus) {
+          const { data, error } = await anon.rpc(
+            "lookup_appointment" as never,
+            { _ref, _phone: otherPhone } as never,
+          );
+          assert(!error, `rpc error for ${_ref}: ${error?.message}`);
+          assert(
+            Array.isArray(data) && (data as unknown[]).length === 0,
+            `expected empty (no cross-owner leak) for ${_ref}, got ${JSON.stringify(data)}`,
+          );
+        }
+      },
+    );
+
   } finally {
     if (created.length) {
       await admin.from("appointments").delete().in("id", created);
