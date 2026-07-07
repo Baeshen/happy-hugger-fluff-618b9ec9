@@ -175,6 +175,12 @@ function AdminDashboard() {
       icon: ShieldAlert,
       show: isAdmin,
     },
+    {
+      id: "content" as Tab,
+      label: "المحتوى",
+      icon: FileText,
+      show: isAdmin,
+    },
   ].filter((t) => t.show);
 
   return (
