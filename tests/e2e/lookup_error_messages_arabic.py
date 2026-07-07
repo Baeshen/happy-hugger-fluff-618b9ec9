@@ -37,17 +37,35 @@ URL = os.environ["SUPABASE_URL"]
 SVC = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 
-def sb(path, method="POST", body=None):
-    req = urllib.request.Request(
-        f"{URL}{path}", method=method,
-        headers={"apikey": SVC, "Authorization": f"Bearer {SVC}",
-                 "Content-Type": "application/json",
-                 "Prefer": "return=representation"},
-        data=json.dumps(body).encode() if body is not None else None,
-    )
-    with urllib.request.urlopen(req) as r:
-        raw = r.read().decode()
-        return json.loads(raw) if raw else None
+def sb(path, method="POST", body=None, retries=4):
+    last_err = None
+    for attempt in range(retries):
+        req = urllib.request.Request(
+            f"{URL}{path}", method=method,
+            headers={"apikey": SVC, "Authorization": f"Bearer {SVC}",
+                     "Content-Type": "application/json",
+                     "Prefer": "return=representation"},
+            data=json.dumps(body).encode() if body is not None else None,
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                raw = r.read().decode()
+                return json.loads(raw) if raw else None
+        except urllib.error.HTTPError as e:
+            # 5xx from the edge/proxy → retry with backoff.
+            if e.code >= 500 and attempt < retries - 1:
+                time.sleep(2 ** attempt)
+                last_err = e
+                continue
+            raise
+        except Exception as e:
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+                last_err = e
+                continue
+            raise
+    if last_err:
+        raise last_err
 
 
 # Substrings that must NEVER appear in a user-facing toast on /lookup.
