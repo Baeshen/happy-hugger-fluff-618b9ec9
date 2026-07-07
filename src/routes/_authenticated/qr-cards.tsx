@@ -88,7 +88,7 @@ function PatientCardTab() {
   });
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const url = selected ? `${origin}/patients/${selected.id}` : "";
+  const url = selected ? `${origin}/patients/${selected.id}?src=qr` : "";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
