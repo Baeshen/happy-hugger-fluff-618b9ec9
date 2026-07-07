@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, X as XIcon } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, Search, X as XIcon } from "lucide-react";
 
 export type ReminderAuditRow = {
   id: string;
@@ -38,6 +38,9 @@ export function ReminderPreferenceHistoryList({
   showActor?: boolean;
 }) {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [kindFilter, setKindFilter] = useState<"all" | "reminder_24h" | "reminder_2h">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "self_service" | "staff" | "system">("all");
+  const [query, setQuery] = useState("");
 
   if (!rows.length) {
     return (
@@ -47,9 +50,35 @@ export function ReminderPreferenceHistoryList({
     );
   }
 
+  const q = query.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => {
+    if (kindFilter !== "all" && r.reminder_kind !== kindFilter) return false;
+    if (sourceFilter !== "all" && (r.source ?? "") !== sourceFilter) return false;
+    if (q) {
+      const hay = [
+        r.reason ?? "",
+        r.changed_by_name ?? "",
+        KIND_LABEL[r.reminder_kind] ?? r.reminder_kind,
+        SOURCE_LABEL[r.source ?? ""] ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
   // Input arrives newest-first from the RPCs. Reverse when asc so both
   // the day headers and rows within each day render oldest-first.
-  const orderedRows = sortOrder === "asc" ? [...rows].reverse() : rows;
+  const orderedRows = sortOrder === "asc" ? [...filteredRows].reverse() : filteredRows;
+
+  const hasActiveFilter =
+    kindFilter !== "all" || sourceFilter !== "all" || q.length > 0;
+  const resetFilters = () => {
+    setKindFilter("all");
+    setSourceFilter("all");
+    setQuery("");
+  };
 
   // Group rows by local calendar date (YYYY-MM-DD), preserving order.
   const groups: { key: string; date: Date; rows: ReminderAuditRow[] }[] = [];
@@ -85,11 +114,63 @@ export function ReminderPreferenceHistoryList({
     });
   };
 
+  const selectCls =
+    "rounded-md border border-border bg-background px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40";
+
   return (
     <div className="space-y-4">
+      <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ابحث في السبب أو الاسم…"
+            className="w-full rounded-md border border-border bg-background py-1.5 pe-7 ps-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>النوع:</span>
+            <select
+              value={kindFilter}
+              onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)}
+              className={selectCls}
+            >
+              <option value="all">الكل</option>
+              <option value="reminder_24h">قبل 24 ساعة</option>
+              <option value="reminder_2h">قبل ساعتين</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>المصدر:</span>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
+              className={selectCls}
+            >
+              <option value="all">الكل</option>
+              <option value="self_service">تعديل ذاتي</option>
+              <option value="staff">موظف</option>
+              <option value="system">النظام</option>
+            </select>
+          </label>
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="ms-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+            >
+              <XIcon className="h-3 w-3" />
+              مسح
+            </button>
+          )}
+        </div>
+      </div>
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">
-          {rows.length} تعديل
+          {filteredRows.length} من {rows.length} تعديل
         </span>
         <button
           type="button"
@@ -110,6 +191,11 @@ export function ReminderPreferenceHistoryList({
           )}
         </button>
       </div>
+      {groups.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
+          لا توجد نتائج مطابقة للتصفية الحالية
+        </div>
+      )}
       {groups.map((g) => (
         <section key={g.key}>
           <h5 className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
