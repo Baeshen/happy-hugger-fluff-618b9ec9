@@ -27,7 +27,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle, History, ExternalLink, User as UserIcon, FileSpreadsheet, FileText, RotateCcw } from "lucide-react";
+import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle, History, ExternalLink, User as UserIcon, FileSpreadsheet, FileText, RotateCcw, Search, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   getPatientAnalytics,
   getPatientTransitions,
