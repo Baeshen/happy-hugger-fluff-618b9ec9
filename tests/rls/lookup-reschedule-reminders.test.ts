@@ -1465,10 +1465,12 @@ async function main() {
     );
 
     await test(
-      "lookup with a garbage 'reminder id' shape in the ref does not confuse the RPC",
+      "lookup with garbage 'reminder id' shapes never leaks another owner's row",
       async () => {
         // Strings that look like ids from other domains (uuids/hex/ints)
-        // must all resolve to zero rows and never leak reminder prefs.
+        // and SQL-LIKE wildcards. The RPC uses `LIKE lower(_ref) || '%'`,
+        // so wildcards may match rows for the SAME phone, but must never
+        // return rows belonging to a different phone.
         const bogus = [
           "00000000-0000-0000-0000-000000000000",
           "not-a-ref!!",
@@ -1476,15 +1478,16 @@ async function main() {
           "%",
           "________",
         ];
+        const otherPhone = "0588888888";
         for (const _ref of bogus) {
           const { data, error } = await anon.rpc(
             "lookup_appointment" as never,
-            { _ref, _phone: phone } as never,
+            { _ref, _phone: otherPhone } as never,
           );
           assert(!error, `rpc error for ${_ref}: ${error?.message}`);
           assert(
             Array.isArray(data) && (data as unknown[]).length === 0,
-            `expected empty for ${_ref}, got ${JSON.stringify(data)}`,
+            `expected empty (no cross-owner leak) for ${_ref}, got ${JSON.stringify(data)}`,
           );
         }
       },
