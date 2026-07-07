@@ -1,7 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import {
   Area,
   AreaChart,
@@ -18,7 +20,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle, History, ExternalLink, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle, History, ExternalLink, User as UserIcon, FileSpreadsheet, FileText, RotateCcw } from "lucide-react";
 import {
   getPatientAnalytics,
   getPatientTransitions,
@@ -28,8 +30,29 @@ import {
   type RecentStatusEvent,
 } from "@/lib/patients-analytics.functions";
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
+import { exportXlsx, exportPdf, type Column } from "@/lib/export-utils";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+function daysAgoISO(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+const searchSchema = z.object({
+  branchId: fallback(z.string().nullable(), null).default(null),
+  doctorId: fallback(z.string().nullable(), null).default(null),
+  gender: fallback(z.enum(["male", "female", "other"]).nullable(), null).default(null),
+  minAge: fallback(z.string(), "").default(""),
+  maxAge: fallback(z.string(), "").default(""),
+  from: fallback(z.string(), daysAgoISO(30)).default(daysAgoISO(30)),
+  to: fallback(z.string(), todayISO()).default(todayISO()),
+});
 
 export const Route = createFileRoute("/_authenticated/patients-analytics")({
+  validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [
       { title: "تحليلات المرضى | مجمع باعشن الطبي" },
@@ -61,23 +84,30 @@ const COLORS = [
   "hsl(180 60% 45%)",
 ];
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-function daysAgoISO(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
+
+
 
 function PatientsAnalyticsPage() {
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [doctorId, setDoctorId] = useState<string | null>(null);
-  const [gender, setGender] = useState<"male" | "female" | "other" | null>(null);
-  const [minAge, setMinAge] = useState<string>("");
-  const [maxAge, setMaxAge] = useState<string>("");
-  const [from, setFrom] = useState<string>(daysAgoISO(30));
-  const [to, setTo] = useState<string>(todayISO());
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: "/patients-analytics" });
+  const { branchId, doctorId, gender, minAge, maxAge, from, to } = search;
+
+  const update = (patch: Partial<typeof search>) =>
+    navigate({ search: (prev: typeof search) => ({ ...prev, ...patch }), replace: true });
+
+  const resetFilters = () =>
+    navigate({
+      search: {
+        branchId: null,
+        doctorId: null,
+        gender: null,
+        minAge: "",
+        maxAge: "",
+        from: daysAgoISO(30),
+        to: todayISO(),
+      },
+      replace: true,
+    });
 
   const branchesFn = useServerFn(listBranchesForAnalytics);
   const doctorsFn = useServerFn(listDoctorsForAnalytics);
@@ -87,12 +117,14 @@ function PatientsAnalyticsPage() {
   const branchesQ = useQuery({
     queryKey: ["pa-branches"],
     queryFn: () => branchesFn(),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
   const doctorsQ = useQuery({
     queryKey: ["pa-doctors"],
     queryFn: () => doctorsFn(),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
 
   const filters = {
@@ -104,14 +136,21 @@ function PatientsAnalyticsPage() {
     to,
   };
 
+
   const q = useQuery({
     queryKey: ["patients-analytics", filters],
     queryFn: () => analyticsFn({ data: filters }),
+    staleTime: 2 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const transitionsQ = useQuery({
     queryKey: ["patients-transitions", { branchId, doctorId, from, to }],
     queryFn: () => transitionsFn({ data: { branchId, doctorId, from, to } }),
+    staleTime: 2 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const data = q.data;
@@ -188,29 +227,40 @@ function PatientsAnalyticsPage() {
             توزيع الحالات والوسوم وتغيّرات الحالة خلال الفترة المحددة.
           </p>
         </div>
-        <Link
-          to="/admin"
-          className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          لوحة التحكم
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportMenu data={data} transitions={transitions} filters={{ branchId, doctorId, gender, from, to }} branches={branches} doctors={doctors} />
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            لوحة التحكم
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 rounded-xl border border-border bg-card p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <Filter className="h-4 w-4" /> الفلاتر
+      <div className="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold text-muted-foreground">
+          <span className="inline-flex items-center gap-2">
+            <Filter className="h-4 w-4" /> الفلاتر
+            {q.isFetching && <span className="text-[10px] font-normal text-primary">جارٍ التحديث…</span>}
+          </span>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal hover:bg-muted"
+          >
+            <RotateCcw className="h-3 w-3" />
+            إعادة تعيين
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">الفرع</label>
             <select
               value={branchId ?? ""}
-              onChange={(e) => {
-                setBranchId(e.target.value || null);
-                setDoctorId(null);
-              }}
+              onChange={(e) => update({ branchId: e.target.value || null, doctorId: null })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
               <option value="">كل الفروع</option>
@@ -225,7 +275,7 @@ function PatientsAnalyticsPage() {
             <label className="mb-1 block text-xs text-muted-foreground">الطبيب</label>
             <select
               value={doctorId ?? ""}
-              onChange={(e) => setDoctorId(e.target.value || null)}
+              onChange={(e) => update({ doctorId: e.target.value || null })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
               <option value="">كل الأطباء</option>
@@ -241,7 +291,7 @@ function PatientsAnalyticsPage() {
             <select
               value={gender ?? ""}
               onChange={(e) =>
-                setGender((e.target.value || null) as "male" | "female" | "other" | null)
+                update({ gender: (e.target.value || null) as "male" | "female" | "other" | null })
               }
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
@@ -258,7 +308,7 @@ function PatientsAnalyticsPage() {
               min={0}
               max={150}
               value={minAge}
-              onChange={(e) => setMinAge(e.target.value)}
+              onChange={(e) => update({ minAge: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
@@ -269,7 +319,7 @@ function PatientsAnalyticsPage() {
               min={0}
               max={150}
               value={maxAge}
-              onChange={(e) => setMaxAge(e.target.value)}
+              onChange={(e) => update({ maxAge: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
@@ -278,7 +328,7 @@ function PatientsAnalyticsPage() {
             <input
               type="date"
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={(e) => update({ from: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
@@ -287,12 +337,13 @@ function PatientsAnalyticsPage() {
             <input
               type="date"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => update({ to: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
         </div>
       </div>
+
 
       {q.isLoading && (
         <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
@@ -546,15 +597,15 @@ function Kpi({
   tone: "primary" | "success" | "info" | "warning";
 }) {
   const toneClass: Record<string, string> = {
-    primary: "text-primary",
-    success: "text-emerald-600 dark:text-emerald-400",
-    info: "text-sky-600 dark:text-sky-400",
-    warning: "text-amber-600 dark:text-amber-400",
+    primary: "text-primary from-primary/10",
+    success: "text-emerald-600 dark:text-emerald-400 from-emerald-500/10",
+    info: "text-sky-600 dark:text-sky-400 from-sky-500/10",
+    warning: "text-amber-600 dark:text-amber-400 from-amber-500/10",
   };
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className={`rounded-xl border border-border bg-gradient-to-br to-card p-4 shadow-sm transition hover:shadow-md ${toneClass[tone].split(" ").slice(-1)[0]}`}>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-2 text-3xl font-bold tabular-nums ${toneClass[tone]}`}>
+      <p className={`mt-2 text-3xl font-bold tabular-nums ${toneClass[tone].split(" ")[0]}`}>
         {value.toLocaleString("ar-SA")}
       </p>
     </div>
@@ -944,6 +995,9 @@ function RecentStatusEventsSection({
   const q = useQuery({
     queryKey: ["recent-status-events", { branchId, doctorId, from, to }],
     queryFn: () => fn({ data: { branchId, doctorId, from, to, limit: 20 } }),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
   });
   const events = (q.data as RecentStatusEvent[] | undefined) ?? [];
 
@@ -1085,5 +1139,107 @@ function StatusChip({ s, muted }: { s: string; muted?: boolean }) {
   );
 }
 
+// ============ Export menu ============
 
+type AnalyticsData = NonNullable<ReturnType<typeof useQuery<Awaited<ReturnType<typeof getPatientAnalytics>>>>["data"]>;
+type TransitionsData = NonNullable<ReturnType<typeof useQuery<Awaited<ReturnType<typeof getPatientTransitions>>>>["data"]>;
+
+function ExportMenu({
+  data,
+  transitions,
+  filters,
+  branches,
+  doctors,
+}: {
+  data: AnalyticsData | undefined;
+  transitions: TransitionsData | undefined;
+  filters: { branchId: string | null; doctorId: string | null; gender: string | null; from: string; to: string };
+  branches: { id: string; name_ar: string }[];
+  doctors: { id: string; name_ar: string }[];
+}) {
+  const disabled = !data;
+  const branchName = filters.branchId ? branches.find((b) => b.id === filters.branchId)?.name_ar ?? "-" : "الكل";
+  const doctorName = filters.doctorId ? doctors.find((d) => d.id === filters.doctorId)?.name_ar ?? "-" : "الكل";
+  const genderLabel = filters.gender ? STATUS_LABEL[filters.gender] ?? filters.gender : "الكل";
+  const meta = {
+    الفترة: `${filters.from} → ${filters.to}`,
+    الفرع: branchName,
+    الطبيب: doctorName,
+    الجنس: genderLabel,
+  };
+
+  const buildRows = (): { section: string; label: string; value: string | number }[] => {
+    if (!data) return [];
+    const rows: { section: string; label: string; value: string | number }[] = [];
+    rows.push({ section: "ملخص", label: "إجمالي المرضى", value: data.total });
+    for (const s of data.byStatus) {
+      rows.push({ section: "الحالات", label: STATUS_LABEL[s.status] ?? s.status, value: s.count });
+    }
+    for (const g of data.byGender) {
+      rows.push({ section: "الجنس", label: GENDER_LABEL[g.gender] ?? g.gender, value: g.count });
+    }
+    for (const a of data.byAgeGroup) {
+      rows.push({ section: "الفئة العمرية", label: a.group, value: a.count });
+    }
+    for (const b of data.byBranch) {
+      rows.push({ section: "الفروع", label: b.branch_name, value: b.count });
+    }
+    for (const t of data.byTag) {
+      rows.push({ section: "الوسوم", label: t.tag, value: t.count });
+    }
+    if (transitions) {
+      for (const k of ["active", "inactive", "archived", "deceased"] as const) {
+        rows.push({
+          section: "انتقال الحالات",
+          label: `→ ${STATUS_LABEL[k]}`,
+          value: `${transitions.current.perTarget[k]} (${transitions.current.ratePerTarget[k]}%)`,
+        });
+      }
+    }
+    return rows;
+  };
+
+  const cols: Column<{ section: string; label: string; value: string | number }>[] = [
+    { header: "القسم", accessor: (r) => r.section, width: 20 },
+    { header: "البند", accessor: (r) => r.label, width: 32 },
+    { header: "القيمة", accessor: (r) => r.value, width: 20 },
+  ];
+
+  const filename = `patients-analytics-${filters.from}_${filters.to}`;
+
+  return (
+    <div className="inline-flex overflow-hidden rounded-md border border-input bg-background text-sm">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => exportXlsx(filename, cols, buildRows(), "التحليلات")}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-muted disabled:opacity-50"
+        title="تصدير إلى Excel"
+      >
+        <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+        Excel
+      </button>
+      <div className="w-px bg-border" />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() =>
+          exportPdf({
+            filename,
+            title: "تحليلات المرضى",
+            subtitle: `${filters.from} → ${filters.to}`,
+            cols,
+            rows: buildRows(),
+            meta,
+          })
+        }
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-muted disabled:opacity-50"
+        title="تصدير إلى PDF"
+      >
+        <FileText className="h-4 w-4 text-red-600" />
+        PDF
+      </button>
+    </div>
+  );
+}
 
