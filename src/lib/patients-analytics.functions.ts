@@ -787,5 +787,9 @@ export const listPatientTransitionRows = createServerFn({ method: "POST" })
       }
     }
 
-    return rows;
+    const page = Math.max(1, data.page ?? 1);
+    const pageSize = Math.max(1, Math.min(200, data.pageSize ?? 25));
+    const total = rows.length;
+    const start = (page - 1) * pageSize;
+    return { rows: rows.slice(start, start + pageSize), total, page, pageSize };
   });
