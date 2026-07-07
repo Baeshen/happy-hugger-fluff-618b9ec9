@@ -862,10 +862,13 @@ export type TransitionsStats = {
   perTransition: { from: string; to: string; count: number }[];
   byBranch: { branch_id: string; branch_name: string; count: number }[];
   byActor: { actor_id: string; actor_name: string; count: number }[];
+  byBranchStatus: { branch_id: string; branch_name: string; status: string; count: number }[];
+  byActorStatus: { actor_id: string; actor_name: string; status: string; count: number }[];
   daily: { day: string; total: number; active: number; inactive: number; archived: number; deceased: number }[];
   hourly: { hour: number; count: number }[];
   weekday: { weekday: number; label: string; count: number }[];
 };
+
 
 export const getTransitionsStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
