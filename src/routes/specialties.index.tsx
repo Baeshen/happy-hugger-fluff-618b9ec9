@@ -30,7 +30,7 @@ async function fetchSpecialties(): Promise<Specialty[]> {
   return (data ?? []) as Specialty[];
 }
 
-export const Route = createFileRoute("/specialties")({
+export const Route = createFileRoute("/specialties/")({
   loader: async ({ context }) =>
     context.queryClient.ensureQueryData({
       queryKey: ["specialties"],
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/specialties")({
         "@type": "ListItem",
         position: i + 1,
         name: s.name_ar,
-        url: `${SITE_URL}/doctors?specialty=${encodeURIComponent(s.slug)}`,
+        url: `${SITE_URL}/specialties/${encodeURIComponent(s.slug)}`,
       })),
     };
     return {
@@ -93,24 +93,32 @@ function SpecialtiesPage() {
             <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center text-primary">
               <Stethoscope className="h-6 w-6" />
             </div>
-            <h3 className="mt-4 font-bold text-lg">{lang === "ar" ? s.name_ar : s.name_en}</h3>
+            <h3 className="mt-4 font-bold text-lg">
+              <Link
+                to="/specialties/$slug"
+                params={{ slug: s.slug }}
+                className="hover:text-primary"
+              >
+                {lang === "ar" ? s.name_ar : s.name_en}
+              </Link>
+            </h3>
             <p className="mt-2 text-sm text-muted-foreground leading-6">
               {lang === "ar" ? s.description_ar : s.description_en}
             </p>
             <div className="mt-5 flex gap-2">
               <Link
-                to="/book"
-                search={{ specialty: s.slug }}
+                to="/specialties/$slug"
+                params={{ slug: s.slug }}
                 className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                {t("cta_book")}
+                {lang === "ar" ? "المزيد" : "Read more"}
               </Link>
               <Link
-                to="/doctors"
+                to="/book"
                 search={{ specialty: s.slug }}
                 className="inline-flex items-center rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-muted"
               >
-                {t("nav_doctors")}
+                {t("cta_book")}
               </Link>
             </div>
           </div>
