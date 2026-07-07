@@ -122,6 +122,8 @@ function LookupPage() {
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
   const [savingReminders, setSavingReminders] = useState(false);
+  const [rescheduleReminder24h, setRescheduleReminder24h] = useState(true);
+  const [rescheduleReminder2h, setRescheduleReminder2h] = useState(true);
 
   const toggleReminder = async (which: "24h" | "2h", value: boolean) => {
     if (!appt) return;
@@ -148,6 +150,13 @@ function LookupPage() {
   const [availability, setAvailability] = useState<
     { weekday: number; start_time: string; end_time: string; slot_minutes: number }[] | null
   >(null);
+
+  useEffect(() => {
+    if (showReschedule && appt) {
+      setRescheduleReminder24h(appt.reminder_24h ?? true);
+      setRescheduleReminder2h(appt.reminder_2h ?? true);
+    }
+  }, [showReschedule, appt]);
 
   useEffect(() => {
     if (!showReschedule || !appt?.doctor_id) return;
@@ -228,26 +237,21 @@ function LookupPage() {
       return;
     }
     if (data) {
-      // Carry over the current reminder preferences explicitly so they survive
-      // any future changes to the reschedule RPC and reassure the patient.
-      const hasReminders = appt.reminder_24h !== null || appt.reminder_2h !== null;
-      const carry24 = appt.reminder_24h ?? true;
-      const carry2 = appt.reminder_2h ?? true;
-
-      if (!hasReminders) {
-        toast.info(
-          "لم يتم تسجيل تفضيلات تذكير لهذا الحجز؛ سيتم تفعيل التذكيرات الافتراضية (24 ساعة وساعتين) على الموعد الجديد.",
-          { duration: 6000 },
-        );
-      }
-
+      // Apply the reminder choices selected by the user inside the reschedule panel.
       await supabase.rpc("update_reminders_by_ref", {
         _ref: ref.trim(),
         _phone: phone.trim(),
-        _reminder_24h: carry24,
-        _reminder_2h: carry2,
+        _reminder_24h: rescheduleReminder24h,
+        _reminder_2h: rescheduleReminder2h,
       });
-      const reminderMsg = hasReminders ? "تم نقل إعدادات التذكير" : "تم تفعيل التذكيرات الافتراضية";
+      const reminderList = [
+        rescheduleReminder24h && "24 ساعة",
+        rescheduleReminder2h && "ساعتين",
+      ].filter(Boolean);
+      const reminderMsg =
+        reminderList.length > 0
+          ? `تم تعيين تذكير: ${reminderList.join(" و ")}`
+          : "تم إيقاف جميع التذكيرات";
       toast.success(`تمت إعادة الجدولة — ${reminderMsg}`);
       setShowReschedule(false);
       setNewDate("");
@@ -576,31 +580,44 @@ function LookupPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
                       </p>
-                      {appt.reminder_24h === null && appt.reminder_2h === null ? (
-                        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                            <div>
-                              <span className="font-semibold">تنبيه:</span> لا توجد تفضيلات تذكير محفوظة لهذا الحجز. سيتم تفعيل التذكيرات الافتراضية{" "}
-                              <span className="font-semibold">(24 ساعة وساعتين)</span> على الموعد الجديد بعد تأكيد إعادة الجدولة.
-                            </div>
+                      <div className="mt-3 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <div>
+                            <span className="font-semibold">تنبيه:</span> اختر تفضيلات التذكير للموعد الجديد قبل تأكيد إعادة الجدولة. ستُطبّق هذه الإعدادات على الحجز المُعاد جدولته.
                           </div>
                         </div>
-                      ) : (
-                        <div className="mt-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                            <div>
-                              <span className="font-semibold">تنبيه:</span> تفضيلات التذكير الحالية{" "}
-                              <span className="font-semibold">
-                                ({appt.reminder_24h ? "24 ساعة" : "—"} و{" "}
-                                {appt.reminder_2h ? "ساعتين" : "—"})
-                              </span>{" "}
-                              ستنتقل تلقائياً إلى الموعد الجديد قبل تأكيد الحجز.
-                            </div>
-                          </div>
+                      </div>
+                      <div className="mt-3">
+                        <div className="mb-2 text-xs font-medium text-muted-foreground">تذكيرات الموعد الجديد</div>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { key: "24h" as const, label: "قبل 24 ساعة", value: rescheduleReminder24h, setter: setRescheduleReminder24h },
+                            { key: "2h" as const, label: "قبل ساعتين", value: rescheduleReminder2h, setter: setRescheduleReminder2h },
+                          ].map((r) => (
+                            <button
+                              key={r.key}
+                              onClick={() => r.setter(!r.value)}
+                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                r.value
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-2 w-2 rounded-full ${
+                                  r.value ? "bg-primary-foreground" : "bg-muted-foreground/40"
+                                }`}
+                                aria-hidden
+                              />
+                              {r.label}
+                              <span className="text-[10px] opacity-80">
+                                {r.value ? "مفعّل" : "معطّل"}
+                              </span>
+                            </button>
+                          ))}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
