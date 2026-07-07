@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      about_sections: {
+        Row: {
+          body_ar: string | null
+          body_en: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          section_key: string
+          sort_order: number
+          title_ar: string | null
+          title_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          body_ar?: string | null
+          body_en?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          section_key: string
+          sort_order?: number
+          title_ar?: string | null
+          title_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body_ar?: string | null
+          body_en?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          section_key?: string
+          sort_order?: number
+          title_ar?: string | null
+          title_en?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appointment_audit: {
         Row: {
           appointment_id: string
@@ -226,6 +265,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      faqs: {
+        Row: {
+          answer_ar: string
+          answer_en: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          question_ar: string
+          question_en: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          answer_ar: string
+          answer_en?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          question_ar: string
+          question_en?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          answer_ar?: string
+          answer_en?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          question_ar?: string
+          question_en?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       medicine_orders: {
         Row: {
