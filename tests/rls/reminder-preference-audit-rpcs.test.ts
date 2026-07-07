@@ -544,6 +544,123 @@ async function main() {
       await assertBlankPhoneLeaksNothing("nbsp", "\u00A0\u00A0\u00A0");
     });
 
+    // ── Non-digit characters INSIDE the phone (mixed content) ───────
+    // The normalization strips every non-ASCII-digit char. These tests prove:
+    //   (a) mixed junk around own digits still resolves to own appts, and
+    //   (b) junk-heavy strings without the correct digit sequence never leak
+    //       another user's rows — even under interleaved calls.
+    async function makeMixedUser(label: string, profilePhone: string) {
+      const u = await createUserWithPhone(
+        `rpa-mix-${label}-${stamp}@test.local`,
+        "0599111111", // placeholder; overwritten
+      );
+      createdUsers.push(u.userId);
+      const upd = await admin
+        .from("profiles").update({ phone: profilePhone }).eq("id", u.userId);
+      assert(!upd.error, `profile update failed: ${upd.error?.message}`);
+      const c = await signIn(u.email, u.password);
+      return { userId: u.userId, client: c };
+    }
+
+    // Isolate this block with its own owner phone/appt so mixed users cannot
+    // accidentally collide with existing test users.
+    const mixOwnerPhone = "0533444" + String(stamp).slice(-3);
+    const mixApptId = await seedAppt(mixOwnerPhone);
+
+    await test("my_audit: profile.phone with LATIN LETTERS around correct digits still matches own", async () => {
+      const junk = "abc" + mixOwnerPhone + "xyz";
+      const { client } = await makeMixedUser("letters", junk);
+      const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: mixApptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length >= 1, `letters-wrapped digits failed to match, got ${rows.length}`);
+    });
+
+    await test("my_audit: profile.phone with EMOJI inside digits still matches own", async () => {
+      const withEmoji =
+        mixOwnerPhone.slice(0, 3) + "📞" + mixOwnerPhone.slice(3, 6) + "✨" + mixOwnerPhone.slice(6);
+      const { client } = await makeMixedUser("emoji", withEmoji);
+      const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: mixApptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length >= 1, `emoji-inside digits failed to match, got ${rows.length}`);
+    });
+
+    await test("my_audit: profile.phone with ZERO-WIDTH SPACE inside digits still matches own", async () => {
+      const zwsp = mixOwnerPhone.slice(0, 4) + "\u200B\u200C" + mixOwnerPhone.slice(4);
+      const { client } = await makeMixedUser("zwsp", zwsp);
+      const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: mixApptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length >= 1, `zwsp-inside digits failed to match, got ${rows.length}`);
+    });
+
+    await test("my_audit: profile.phone with ARABIC-INDIC digits (٠-٩) does NOT match ASCII-digit appt", async () => {
+      // Postgres \D treats U+0660..0669 as non-digit; they get stripped.
+      // So "٠٥٣٣" normalizes to "" — must not leak the ASCII-digit appt.
+      const arabicIndic = mixOwnerPhone.replace(/\d/g, (d) =>
+        String.fromCharCode(0x0660 + Number(d)),
+      );
+      const { client } = await makeMixedUser("arabic-indic", arabicIndic);
+      for (const id of [mixApptId, ownerAppt, otherAppt]) {
+        const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: id,
+        } as never);
+        assert(!error, `err on ${id}: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        assert(rows.length === 0, `arabic-indic digits leaked ${rows.length} rows for appt ${id}`);
+      }
+    });
+
+    await test("my_audit: profile.phone with junk + WRONG digit tail cannot read anyone", async () => {
+      // Letters around a completely unrelated digit sequence → no match anywhere.
+      const bogus = "hello" + "1029384756" + "world";
+      const { client } = await makeMixedUser("bogus", bogus);
+      for (const id of [mixApptId, ownerAppt, otherAppt]) {
+        const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: id,
+        } as never);
+        assert(!error, `err on ${id}: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        assert(rows.length === 0, `bogus mixed phone leaked ${rows.length} rows for appt ${id}`);
+      }
+    });
+
+    await test("my_audit: mixed-junk user cannot read OTHER users' appts and vice versa", async () => {
+      // Cross-check: the mixed-owner-digit user reads mixApptId only, and existing
+      // ownerC/otherC users cannot see mixApptId. Interleaved to catch any bleed.
+      const junk = "\t[" + mixOwnerPhone + "]\n";
+      const { client: mixC } = await makeMixedUser("cross", junk);
+      const seq = [
+        ["mix→mixAppt", await callMyLocal(mixC, mixApptId)],
+        ["mix→ownerAppt", await callMyLocal(mixC, ownerAppt)],
+        ["mix→otherAppt", await callMyLocal(mixC, otherAppt)],
+        ["owner→mixAppt", await callMyLocal(ownerC, mixApptId)],
+        ["other→mixAppt", await callMyLocal(otherC, mixApptId)],
+      ] as const;
+      assert(seq[0][1] >= 1, `${seq[0][0]}: expected own rows, got ${seq[0][1]}`);
+      assert(seq[1][1] === 0, `${seq[1][0]}: leaked ${seq[1][1]}`);
+      assert(seq[2][1] === 0, `${seq[2][0]}: leaked ${seq[2][1]}`);
+      assert(seq[3][1] === 0, `${seq[3][0]}: owner leaked into mix appt (${seq[3][1]})`);
+      assert(seq[4][1] === 0, `${seq[4][0]}: other leaked into mix appt (${seq[4][1]})`);
+    });
+
+    async function callMyLocal(client: SupabaseClient, apptId: string) {
+      const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: apptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      return ((data ?? []) as unknown[]).length;
+    }
+
+
+
 
     // ── Rapid interleaved calls across a live profile.phone change ──
     // Guards against any per-session/per-user caching on the server side.
