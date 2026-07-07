@@ -199,18 +199,36 @@ function PatientsAnalyticsPage() {
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
           <Filter className="h-4 w-4" /> الفلاتر
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">الفرع</label>
             <select
               value={branchId ?? ""}
-              onChange={(e) => setBranchId(e.target.value || null)}
+              onChange={(e) => {
+                setBranchId(e.target.value || null);
+                setDoctorId(null);
+              }}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
               <option value="">كل الفروع</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name_ar}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">الطبيب</label>
+            <select
+              value={doctorId ?? ""}
+              onChange={(e) => setDoctorId(e.target.value || null)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">كل الأطباء</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name_ar}
                 </option>
               ))}
             </select>
