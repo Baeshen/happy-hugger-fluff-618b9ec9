@@ -643,6 +643,7 @@ const TransitionRowsInput = z.object({
   gender: z.enum(["male", "female", "other"]).nullable().optional(),
   minAge: z.number().int().min(0).max(150).nullable().optional(),
   maxAge: z.number().int().min(0).max(150).nullable().optional(),
+  patientId: z.string().uuid().nullable().optional(),
   limit: z.number().int().min(1).max(2000).optional(),
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(200).optional(),
