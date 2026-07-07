@@ -31,8 +31,12 @@ export const Route = createFileRoute("/sitemap.xml")({
         const entries: SitemapEntry[] = [...staticEntries];
 
         try {
-          const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+          const url =
+            import.meta.env.VITE_SUPABASE_URL ||
+            process.env.VITE_SUPABASE_URL ||
+            process.env.SUPABASE_URL;
           const key =
+            import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
             process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
             process.env.SUPABASE_PUBLISHABLE_KEY ||
             process.env.SUPABASE_ANON_KEY;
