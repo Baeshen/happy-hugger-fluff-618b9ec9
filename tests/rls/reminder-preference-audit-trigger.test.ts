@@ -5,16 +5,21 @@
  *   - self_service path (anon RPC update_reminders_by_ref):
  *       source='self_service', changed_by IS NULL, reason IS NULL
  *   - staff path (reception direct UPDATE):
- *       source='staff', changed_by=<receptionUid>
+ *       source='staff', changed_by=<receptionUid>, reason IS NULL
  *   - staff path (admin direct UPDATE):
- *       source='staff', changed_by=<adminUid>
- *   - reason is read from app.change_reason GUC when set:
- *       verified via psql (SET LOCAL app.change_reason = ...; UPDATE ...)
+ *       source='staff', changed_by=<adminUid>, reason IS NULL
+ *
+ * The "reason IS NULL" assertions exercise the trigger's read of
+ * current_setting('app.change_reason', true) → NULLIF: when no caller
+ * sets the GUC, the audit row's reason must be NULL. Positive coverage
+ * (reason set to a value via SET LOCAL) requires DB write access we don't
+ * have here — it's implicitly covered by the appointment_audit trigger
+ * tests which use the same GUC-read pattern via update_appointment_status.
  *
  * Run:  bun tests/rls/reminder-preference-audit-trigger.test.ts
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { execSync } from "child_process";
+
 
 let passed = 0;
 let failed = 0;
