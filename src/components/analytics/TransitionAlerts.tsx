@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Bell, History, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, Bell, History, Settings, ChevronDown, ChevronUp, Download } from "lucide-react";
 import type { TransitionsStats } from "@/lib/patients-analytics.functions";
 import {
   evaluateRules,
