@@ -58,13 +58,15 @@ function QrCardsPage() {
       </div>
 
       <Tabs defaultValue="patient" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 sm:w-auto sm:inline-flex">
           <TabsTrigger value="patient"><User className="h-4 w-4 ml-1.5" />بطاقة مريض</TabsTrigger>
+          <TabsTrigger value="batch"><Users className="h-4 w-4 ml-1.5" />دفعة مرضى</TabsTrigger>
           <TabsTrigger value="booking"><Stethoscope className="h-4 w-4 ml-1.5" />بطاقة حجز</TabsTrigger>
           <TabsTrigger value="rating"><Star className="h-4 w-4 ml-1.5" />بطاقة تقييم</TabsTrigger>
         </TabsList>
 
         <TabsContent value="patient"><PatientCardTab /></TabsContent>
+        <TabsContent value="batch"><BatchCardsTab /></TabsContent>
         <TabsContent value="booking"><BookingCardTab /></TabsContent>
         <TabsContent value="rating"><RatingCardTab /></TabsContent>
       </Tabs>
