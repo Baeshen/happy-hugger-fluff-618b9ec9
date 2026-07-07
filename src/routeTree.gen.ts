@@ -29,6 +29,7 @@ import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
+import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 
@@ -131,6 +132,12 @@ const AuthenticatedMyRoute = AuthenticatedMyRouteImport.update({
   path: '/my',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedClinicSettingsRoute =
+  AuthenticatedClinicSettingsRouteImport.update({
+    id: '/clinic-settings',
+    path: '/clinic-settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -154,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
@@ -177,6 +185,7 @@ export interface FileRoutesByTo {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
@@ -202,6 +211,7 @@ export interface FileRoutesById {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/admin'
+    | '/clinic-settings'
     | '/my'
     | '/settings'
     | '/doctors/$slug'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/admin'
+    | '/clinic-settings'
     | '/my'
     | '/settings'
     | '/doctors/$slug'
@@ -274,6 +286,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/_authenticated/admin'
+    | '/_authenticated/clinic-settings'
     | '/_authenticated/my'
     | '/_authenticated/settings'
     | '/doctors/$slug'
@@ -450,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clinic-settings': {
+      id: '/_authenticated/clinic-settings'
+      path: '/clinic-settings'
+      fullPath: '/clinic-settings'
+      preLoaderRoute: typeof AuthenticatedClinicSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -469,12 +489,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedClinicSettingsRoute: typeof AuthenticatedClinicSettingsRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedClinicSettingsRoute: AuthenticatedClinicSettingsRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
