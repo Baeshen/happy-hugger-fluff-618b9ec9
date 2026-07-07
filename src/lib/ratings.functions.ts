@@ -76,7 +76,7 @@ export const listRatings = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("patient_ratings" as never)
-      .select("id, branch_id, doctor_id, patient_name, patient_phone, rating, comment, source, created_at")
+      .select("id, branch_id, doctor_id, patient_name, patient_phone, rating, comment, source, created_at, staff_reply, staff_reply_at, staff_reply_by")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 100);
     if (data.branchId) q = q.eq("branch_id", data.branchId);
