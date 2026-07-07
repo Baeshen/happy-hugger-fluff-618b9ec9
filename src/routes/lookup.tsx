@@ -36,6 +36,8 @@ type AppointmentRow = {
   created_at: string;
   reminder_24h: boolean | null;
   reminder_2h: boolean | null;
+  cancel_reason: string | null;
+  cancelled_at: string | null;
 };
 
 
