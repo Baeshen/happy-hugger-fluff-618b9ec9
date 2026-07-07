@@ -187,117 +187,135 @@ function TransitionAlertsPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        {/* Evaluation window */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-bold mb-3">نافذة التقييم</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">الفرع</label>
-              <select
-                value={branchId ?? ""}
-                onChange={(e) => setBranchId(e.target.value || null)}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">كل الفروع</option>
-                {(branchesQ.data ?? []).map((b) => (
-                  <option key={b.id} value={b.id}>{b.name_ar}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">من</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">إلى</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </div>
-            <div className="flex items-end gap-2 flex-wrap">
-              {[7, 30, 90].map((n) => (
-                <button key={n} onClick={() => { setFrom(daysAgoISO(n)); setTo(todayISO()); }}
-                  className="rounded-md border border-border bg-background px-3 py-2 text-xs hover:bg-muted">
-                  آخر {n} يوم
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
+      <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
+        <Accordion type="multiple" defaultValue={[]} className="space-y-3">
+          {/* Evaluation window (collapsed by default) */}
+          <AccordionItem value="window" className="rounded-xl border border-border bg-card px-4">
+            <AccordionTrigger className="text-sm font-bold hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-primary" />
+                نافذة التقييم
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({from} → {to}{branchId ? " · فرع محدد" : " · كل الفروع"})
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 pb-4">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">الفرع</label>
+                  <select
+                    value={branchId ?? ""}
+                    onChange={(e) => setBranchId(e.target.value || null)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">كل الفروع</option>
+                    {(branchesQ.data ?? []).map((b) => (
+                      <option key={b.id} value={b.id}>{b.name_ar}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">من</label>
+                  <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">إلى</label>
+                  <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+                </div>
+                <div className="flex items-end gap-2 flex-wrap">
+                  {[7, 30, 90].map((n) => (
+                    <button key={n} onClick={() => { setFrom(daysAgoISO(n)); setTo(todayISO()); }}
+                      className="rounded-md border border-border bg-background px-3 py-2 text-xs hover:bg-muted">
+                      آخر {n} يوم
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Add new rule */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            إضافة قاعدة جديدة
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
-            <div className="md:col-span-2">
-              <label className="text-xs text-muted-foreground mb-1 block">اسم القاعدة (اختياري)</label>
-              <input
-                type="text"
-                value={draft.label ?? ""}
-                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-                placeholder="مثال: تنبيه الأرشفة الشهرية"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">النطاق</label>
-              <select
-                value={draft.scope}
-                onChange={(e) => setDraft({ ...draft, scope: e.target.value as AlertScope })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                {SCOPE_OPTIONS.map((s) => <option key={s} value={s}>{SCOPE_LABEL[s]}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">الحالة</label>
-              <select
-                value={draft.status}
-                onChange={(e) => setDraft({ ...draft, status: e.target.value as AlertStatus })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">العتبة (≥)</label>
-              <input
-                type="number"
-                min={1}
-                value={draft.threshold}
-                onChange={(e) => setDraft({ ...draft, threshold: Number(e.target.value) || 0 })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={addRule}
-                disabled={createM.isPending}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm hover:opacity-90 disabled:opacity-50"
-              >
-                <Save className="h-4 w-4" />
-                {createM.isPending ? "جارٍ الحفظ…" : "حفظ"}
-              </button>
-            </div>
-            <div className="md:col-span-6 flex items-center gap-2 pt-1">
-              <input
-                id="shared-new"
-                type="checkbox"
-                checked={draft.is_shared}
-                onChange={(e) => setDraft({ ...draft, is_shared: e.target.checked })}
-                className="h-4 w-4 accent-primary"
-              />
-              <label htmlFor="shared-new" className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
-                <Share2 className="h-3.5 w-3.5" />
-                مشاركة هذه القاعدة مع بقية الموظفين
-              </label>
-            </div>
-          </div>
-        </section>
+          {/* Add new rule (collapsed by default) */}
+          <AccordionItem value="new" className="rounded-xl border border-border bg-card px-4">
+            <AccordionTrigger className="text-sm font-bold hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Plus className="h-4 w-4 text-primary" />
+                إضافة قاعدة جديدة
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-2 pt-2 pb-4">
+                <div className="md:col-span-2">
+                  <label className="text-xs text-muted-foreground mb-1 block">اسم القاعدة (اختياري)</label>
+                  <input
+                    type="text"
+                    value={draft.label ?? ""}
+                    onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+                    placeholder="مثال: تنبيه الأرشفة الشهرية"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">النطاق</label>
+                  <select
+                    value={draft.scope}
+                    onChange={(e) => setDraft({ ...draft, scope: e.target.value as AlertScope })}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    {SCOPE_OPTIONS.map((s) => <option key={s} value={s}>{SCOPE_LABEL[s]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">الحالة</label>
+                  <select
+                    value={draft.status}
+                    onChange={(e) => setDraft({ ...draft, status: e.target.value as AlertStatus })}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">العتبة (≥)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={draft.threshold}
+                    onChange={(e) => setDraft({ ...draft, threshold: Number(e.target.value) || 0 })}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={addRule}
+                    disabled={createM.isPending}
+                    className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm hover:opacity-90 disabled:opacity-50"
+                  >
+                    <Save className="h-4 w-4" />
+                    {createM.isPending ? "جارٍ الحفظ…" : "حفظ"}
+                  </button>
+                </div>
+                <div className="md:col-span-6 flex items-center gap-2 pt-1">
+                  <input
+                    id="shared-new"
+                    type="checkbox"
+                    checked={draft.is_shared}
+                    onChange={(e) => setDraft({ ...draft, is_shared: e.target.checked })}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <label htmlFor="shared-new" className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+                    <Share2 className="h-3.5 w-3.5" />
+                    مشاركة هذه القاعدة مع بقية الموظفين
+                  </label>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+
 
         {/* Rules list */}
         <section className="rounded-xl border border-border bg-card overflow-hidden">
