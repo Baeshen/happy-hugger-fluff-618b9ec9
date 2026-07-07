@@ -140,6 +140,53 @@ async function main() {
       assert(rows.length === 0, `leaked ${rows.length} rows for phone/ref mismatch`);
     });
 
+    await test("by_ref: empty phone → 0 rows", async () => {
+      const { data, error } = await anon.rpc("list_reminder_preferences_by_ref" as never, {
+        _ref: ownerRef, _phone: "",
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length === 0, `leaked ${rows.length} rows for empty phone`);
+    });
+
+    await test("by_ref: empty ref → 0 rows even with valid phone", async () => {
+      // LIKE '' || '%' = LIKE '%' matches all appts, but phone filter must still scope
+      // to the caller's own appts. We assert the function does not leak OTHER phones'
+      // rows: with empty ref + owner phone, we should get only owner's rows (or 0 if
+      // the impl also rejects empty ref). Either way — no rows from `otherAppt`.
+      const { data, error } = await anon.rpc("list_reminder_preferences_by_ref" as never, {
+        _ref: "", _phone: otherPhone,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = ((data ?? []) as Array<{ id: string }>);
+      // Must not contain rows from the owner's appointment.
+      const { data: ownerRows } = await admin
+        .from("reminder_preference_audit").select("id").eq("appointment_id", ownerAppt);
+      const ownerIds = new Set((ownerRows ?? []).map((r) => r.id));
+      const leaked = rows.filter((r) => ownerIds.has(r.id));
+      assert(leaked.length === 0, `leaked ${leaked.length} owner rows via empty ref + other phone`);
+    });
+
+    await test("by_ref: null ref → error or 0 rows (no leak)", async () => {
+      const { data, error } = await anon.rpc("list_reminder_preferences_by_ref" as never, {
+        _ref: null, _phone: ownerPhone,
+      } as never);
+      // Postgres may reject nulls; both outcomes are acceptable as long as no rows leak.
+      const rows = (data ?? []) as unknown[];
+      assert(error !== null || rows.length === 0, `null ref leaked ${rows.length} rows`);
+    });
+
+    await test("by_ref: uppercase ref still matches (case-insensitive)", async () => {
+      const { data, error } = await anon.rpc("list_reminder_preferences_by_ref" as never, {
+        _ref: ownerRef.toUpperCase(), _phone: ownerPhone,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length >= 1, `case-insensitive lookup failed, got ${rows.length}`);
+    });
+
+
+
     // ── my_reminder_preference_audit (authenticated) ────────────────
     const ownerU = await createUserWithPhone(`rpa-owner-${stamp}@test.local`, ownerPhone);
     const otherU = await createUserWithPhone(`rpa-other-${stamp}@test.local`, otherPhone);
@@ -183,6 +230,37 @@ async function main() {
       const rows = (data ?? []) as unknown[];
       assert(rows.length === 0, `leaked ${rows.length} rows for random id`);
     });
+
+    await test("my_audit: malformed uuid → error, no leak", async () => {
+      const { data, error } = await ownerC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: "not-a-uuid",
+      } as never);
+      const rows = (data ?? []) as unknown[];
+      assert(error !== null || rows.length === 0, `malformed uuid leaked ${rows.length} rows`);
+    });
+
+    await test("my_audit: null appointment id → error or 0 rows", async () => {
+      const { data, error } = await ownerC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: null,
+      } as never);
+      const rows = (data ?? []) as unknown[];
+      assert(error !== null || rows.length === 0, `null id leaked ${rows.length} rows`);
+    });
+
+    await test("my_audit: authenticated user with NO profile phone → 0 rows", async () => {
+      const noPhoneU = await createUserWithPhone(`rpa-nophone-${stamp}@test.local`, ownerPhone);
+      createdUsers.push(noPhoneU.userId);
+      // Clear the profile phone AFTER creation to simulate a user without phone linkage.
+      await admin.from("profiles").update({ phone: null }).eq("id", noPhoneU.userId);
+      const noPhoneC = await signIn(noPhoneU.email, noPhoneU.password);
+      const { data, error } = await noPhoneC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: ownerAppt,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length === 0, `user without profile phone leaked ${rows.length} rows`);
+    });
+
   } finally {
     if (createdAppts.length) {
       await admin.from("appointments").delete().in("id", createdAppts);
