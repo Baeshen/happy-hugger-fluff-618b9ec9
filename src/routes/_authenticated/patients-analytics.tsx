@@ -18,10 +18,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter } from "lucide-react";
+import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import {
   getPatientAnalytics,
+  getPatientTransitions,
   listBranchesForAnalytics,
+  listDoctorsForAnalytics,
 } from "@/lib/patients-analytics.functions";
 
 export const Route = createFileRoute("/_authenticated/patients-analytics")({
