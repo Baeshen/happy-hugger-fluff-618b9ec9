@@ -99,7 +99,7 @@ function BookPage() {
     reason: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [confirmed, setConfirmed] = useState<{ ref: string } | null>(null);
+  const [confirmed, setConfirmed] = useState<{ ref: string; share: ShareBooking } | null>(null);
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
