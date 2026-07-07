@@ -310,6 +310,8 @@ function LookupPage() {
         appointment_time: appt.appointment_time,
       doctor: doctorName ?? undefined,
       specialty: specialtyName ?? undefined,
+      reminder_24h: appt.reminder_24h,
+      reminder_2h: appt.reminder_2h,
       }
     : null;
 
