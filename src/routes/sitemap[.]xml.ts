@@ -40,10 +40,9 @@ export const Route = createFileRoute("/sitemap.xml")({
             process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
             process.env.SUPABASE_PUBLISHABLE_KEY ||
             process.env.SUPABASE_ANON_KEY;
-          console.log("sitemap env", { hasUrl: !!url, hasKey: !!key });
 
           if (url && key) {
-            const headers = { apikey: key, Authorization: `Bearer ${key}` };
+            const headers = { apikey: key };
             const [sr, dr] = await Promise.all([
               fetch(
                 `${url}/rest/v1/specialties?select=slug,created_at&is_active=eq.true&order=sort_order`,
@@ -54,10 +53,8 @@ export const Route = createFileRoute("/sitemap.xml")({
                 { headers },
               ),
             ]);
-            console.log("sitemap fetch", sr.status, dr.status);
             const specialtiesRes = sr.ok ? await sr.json() : [];
             const doctorsRes = dr.ok ? await dr.json() : [];
-            console.log("sitemap counts", (specialtiesRes as unknown[]).length, (doctorsRes as unknown[]).length);
 
             for (const s of (specialtiesRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
