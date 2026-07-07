@@ -1067,3 +1067,71 @@ export const deleteAboutSection = createServerFn({ method: "POST" })
     if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
+
+// ============= Clinic Settings =============
+
+const OpeningHoursSchema = z.object({
+  days: z.array(z.string()).min(1),
+  opens: z.string().regex(/^\d{2}:\d{2}$/),
+  closes: z.string().regex(/^\d{2}:\d{2}$/),
+});
+
+const UpdateClinicSettingsSchema = z.object({
+  name_ar: z.string().min(1),
+  name_en: z.string().min(1),
+  phone: z.string().min(1),
+  phone_display: z.string().nullable().optional(),
+  mobile: z.string().nullable().optional(),
+  mobile_display: z.string().nullable().optional(),
+  whatsapp: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional().or(z.literal("")),
+  address_ar: z.string().min(1),
+  address_en: z.string().min(1),
+  street_address: z.string().min(1),
+  address_locality: z.string().min(1),
+  address_region: z.string().min(1),
+  postal_code: z.string().nullable().optional(),
+  address_country: z.string().min(2),
+  lat: z.number(),
+  lng: z.number(),
+  maps_url: z.string().url().nullable().optional().or(z.literal("")),
+  price_range: z.string().nullable().optional(),
+  currencies_accepted: z.string().nullable().optional(),
+  payment_accepted: z.string().nullable().optional(),
+  medical_specialties: z.array(z.string()),
+  same_as: z.array(z.string()),
+  opening_hours: z.array(OpeningHoursSchema),
+});
+
+export const getClinicSettingsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { data, error } = await context.supabase
+      .from("clinic_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return data;
+  });
+
+export const updateClinicSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => UpdateClinicSettingsSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const payload = {
+      ...data,
+      email: data.email || null,
+      maps_url: data.maps_url || null,
+    };
+    const { error } = await context.supabase
+      .from("clinic_settings")
+      .update(payload)
+      .eq("id", 1);
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return { ok: true };
+  });
