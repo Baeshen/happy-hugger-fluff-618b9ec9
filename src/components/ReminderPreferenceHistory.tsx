@@ -47,10 +47,14 @@ export function ReminderPreferenceHistoryList({
     );
   }
 
+  // Input arrives newest-first from the RPCs. Reverse when asc so both
+  // the day headers and rows within each day render oldest-first.
+  const orderedRows = sortOrder === "asc" ? [...rows].reverse() : rows;
+
   // Group rows by local calendar date (YYYY-MM-DD), preserving order.
   const groups: { key: string; date: Date; rows: ReminderAuditRow[] }[] = [];
   const indexByKey = new Map<string, number>();
-  for (const r of rows) {
+  for (const r of orderedRows) {
     const d = new Date(r.changed_at);
     const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     let idx = indexByKey.get(key);
