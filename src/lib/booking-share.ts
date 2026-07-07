@@ -8,6 +8,8 @@ export type ShareBooking = {
   appointment_time: string; // HH:mm[:ss]
   doctor?: string | null;
   specialty?: string | null;
+  reminder_24h?: boolean | null;
+  reminder_2h?: boolean | null;
 };
 
 function pad(n: number) {
