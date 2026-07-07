@@ -230,15 +230,25 @@ function LookupPage() {
     if (data) {
       // Carry over the current reminder preferences explicitly so they survive
       // any future changes to the reschedule RPC and reassure the patient.
+      const hasReminders = appt.reminder_24h !== null || appt.reminder_2h !== null;
       const carry24 = appt.reminder_24h ?? true;
       const carry2 = appt.reminder_2h ?? true;
+
+      if (!hasReminders) {
+        toast.info(
+          "لم يتم تسجيل تفضيلات تذكير لهذا الحجز؛ سيتم تفعيل التذكيرات الافتراضية (24 ساعة وساعتين) على الموعد الجديد.",
+          { duration: 6000 },
+        );
+      }
+
       await supabase.rpc("update_reminders_by_ref", {
         _ref: ref.trim(),
         _phone: phone.trim(),
         _reminder_24h: carry24,
         _reminder_2h: carry2,
       });
-      toast.success("تمت إعادة الجدولة — تم نقل إعدادات التذكير");
+      const reminderMsg = hasReminders ? "تم نقل إعدادات التذكير" : "تم تفعيل التذكيرات الافتراضية";
+      toast.success(`تمت إعادة الجدولة — ${reminderMsg}`);
       setShowReschedule(false);
       setNewDate("");
       setNewTime("");
@@ -566,19 +576,31 @@ function LookupPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
                       </p>
-                      <div className="mt-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                          <div>
-                            <span className="font-semibold">تنبيه:</span> تفضيلات التذكير الحالية{" "}
-                            <span className="font-semibold">
-                              ({appt.reminder_24h ? "24 ساعة" : "—"} و{" "}
-                              {appt.reminder_2h ? "ساعتين" : "—"})
-                            </span>{" "}
-                            ستنتقل تلقائياً إلى الموعد الجديد قبل تأكيد الحجز.
+                      {appt.reminder_24h === null && appt.reminder_2h === null ? (
+                        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <div>
+                              <span className="font-semibold">تنبيه:</span> لا توجد تفضيلات تذكير محفوظة لهذا الحجز. سيتم تفعيل التذكيرات الافتراضية{" "}
+                              <span className="font-semibold">(24 ساعة وساعتين)</span> على الموعد الجديد بعد تأكيد إعادة الجدولة.
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="mt-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <div>
+                              <span className="font-semibold">تنبيه:</span> تفضيلات التذكير الحالية{" "}
+                              <span className="font-semibold">
+                                ({appt.reminder_24h ? "24 ساعة" : "—"} و{" "}
+                                {appt.reminder_2h ? "ساعتين" : "—"})
+                              </span>{" "}
+                              ستنتقل تلقائياً إلى الموعد الجديد قبل تأكيد الحجز.
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
