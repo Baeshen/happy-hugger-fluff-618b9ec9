@@ -307,6 +307,14 @@ function AdminDashboard() {
               سجل التدقيق
             </Link>
           )}
+          {(roles.includes("admin") || roles.includes("reception")) && (
+            <Link
+              to="/audit-export"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              تصدير السجلات CSV
+            </Link>
+          )}
           {roles.includes("admin") && (
             <Link
               to="/clinic-settings"
