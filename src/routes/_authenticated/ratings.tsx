@@ -49,6 +49,7 @@ function RatingsPage() {
   const summaryFn = useServerFn(getRatingsSummary);
   const listFn = useServerFn(listRatings);
   const deleteFn = useServerFn(deleteRating);
+  const replyFn = useServerFn(replyToRating);
   const branchesFn = useServerFn(listBranchesForRatings);
   const doctorsFn = useServerFn(listDoctorsForRatings);
 
