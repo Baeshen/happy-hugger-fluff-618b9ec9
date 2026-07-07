@@ -421,6 +421,21 @@ git push --no-verify
 
 CI يستخدم `oven-sh/setup-bun@v2` بإصدار `latest` على Linux. لإعادة إنتاج نفس البيئة محليًا اختَر أحد المسارين التاليين.
 
+### الطريقة الأسرع: سكربت CLI موحّد
+
+`scripts/run-tests.sh` يكتشف تلقائيًا أفضل طريقة (داخل حاوية بالفعل → `bun` مباشرة، وإلا `docker compose`، ثم `docker`، ثم `bun` محلي).
+
+```bash
+bun run test:all                       # الاكتشاف التلقائي
+bun run test:all -- --method=compose   # فرض docker compose
+bun run test:all -- --method=docker    # فرض docker مباشر
+bun run test:all -- --method=bun       # bun محلي فقط
+bun run test:all -- --no-rls           # تخطّي اختبارات RLS
+bun run test:all -- -- bun test tests/rls/appointments.rls.test.ts  # أمر مخصّص
+```
+
+يتحقّق السكربت من وجود `.env.local` عند الحاجة، ويحمّله تلقائيًا في وضع `bun`، ويبني الصورة قبل التشغيل في وضع `compose`/`docker`.
+
 ### الخيار 1: Docker Compose (موصى به)
 
 المتطلبات: Docker Desktop أو Docker Engine + plugin `compose`.

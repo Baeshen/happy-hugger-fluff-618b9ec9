@@ -15,7 +15,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "check:rls": "bash scripts/pre-push-rls-checks.sh"
+    "check:rls": "bash scripts/pre-push-rls-checks.sh",
+    "test:all": "bash scripts/run-tests.sh"
 
   },
   "dependencies": {
