@@ -81,6 +81,16 @@ function RatingsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const replyM = useMutation({
+    mutationFn: (v: { id: string; reply: string | null }) => replyFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ratings-list"] });
+      toast.success("تم حفظ الرد");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   const overall = useMemo(() => {
     const rows = summaryQ.data ?? [];
     if (rows.length === 0) return { avg: 0, count: 0 };
