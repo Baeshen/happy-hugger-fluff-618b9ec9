@@ -296,6 +296,53 @@ export type Database = {
         }
         Relationships: []
       }
+      reminder_preference_audit: {
+        Row: {
+          appointment_id: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_reminder_24h: boolean | null
+          new_reminder_2h: boolean | null
+          old_reminder_24h: boolean | null
+          old_reminder_2h: boolean | null
+          reason: string | null
+          source: string
+        }
+        Insert: {
+          appointment_id: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_reminder_24h?: boolean | null
+          new_reminder_2h?: boolean | null
+          old_reminder_24h?: boolean | null
+          old_reminder_2h?: boolean | null
+          reason?: string | null
+          source: string
+        }
+        Update: {
+          appointment_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_reminder_24h?: boolean | null
+          new_reminder_2h?: boolean | null
+          old_reminder_24h?: boolean | null
+          old_reminder_2h?: boolean | null
+          reason?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_preference_audit_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_audit_log: {
         Row: {
           action: string
