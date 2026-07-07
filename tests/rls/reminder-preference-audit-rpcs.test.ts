@@ -261,6 +261,86 @@ async function main() {
       assert(rows.length === 0, `user without profile phone leaked ${rows.length} rows`);
     });
 
+    // ── Cross-user isolation with multiple appointments ─────────────
+    const ownerAppt2 = await seedAppt(ownerPhone);
+    const otherAppt2 = await seedAppt(otherPhone);
+
+    await test("my_audit: owner sees rows for each of their own appts, one at a time", async () => {
+      for (const id of [ownerAppt, ownerAppt2]) {
+        const { data, error } = await ownerC.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: id,
+        } as never);
+        assert(!error, `err on ${id}: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        assert(rows.length >= 1, `owner missed own appt ${id}`);
+      }
+    });
+
+    await test("my_audit: owner cannot read either of other's appts", async () => {
+      for (const id of [otherAppt, otherAppt2]) {
+        const { data, error } = await ownerC.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: id,
+        } as never);
+        assert(!error, `err on ${id}: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        assert(rows.length === 0, `owner leaked ${rows.length} rows from other's appt ${id}`);
+      }
+    });
+
+    await test("my_audit: other user cannot read either of owner's appts", async () => {
+      for (const id of [ownerAppt, ownerAppt2]) {
+        const { data, error } = await otherC.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: id,
+        } as never);
+        assert(!error, `err on ${id}: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        assert(rows.length === 0, `other leaked ${rows.length} rows from owner's appt ${id}`);
+      }
+    });
+
+    await test("my_audit: returned rows belong ONLY to the requested appointment", async () => {
+      // Regression guard: fn must filter by _appointment_id, not just by phone.
+      const { data, error } = await ownerC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: ownerAppt,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = ((data ?? []) as Array<{ id: string }>);
+      const { data: expected } = await admin
+        .from("reminder_preference_audit").select("id").eq("appointment_id", ownerAppt);
+      const expectedIds = new Set((expected ?? []).map((r) => r.id));
+      for (const r of rows) {
+        assert(expectedIds.has(r.id), `row ${r.id} does not belong to appt ${ownerAppt}`);
+      }
+      const { data: appt2 } = await admin
+        .from("reminder_preference_audit").select("id").eq("appointment_id", ownerAppt2);
+      const appt2Ids = new Set((appt2 ?? []).map((r) => r.id));
+      const bleed = rows.filter((r) => appt2Ids.has(r.id));
+      assert(bleed.length === 0, `bled ${bleed.length} rows from sibling own-appt`);
+    });
+
+    await test("my_audit: profile phone swap re-scopes access dynamically", async () => {
+      // Move owner's profile phone to otherPhone. Owner should now see other's appts
+      // and lose access to own — matching is dynamic on profile.phone, not cached.
+      await admin.from("profiles").update({ phone: otherPhone }).eq("id", ownerU.userId);
+      try {
+        const gain = await ownerC.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: otherAppt,
+        } as never);
+        const lose = await ownerC.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: ownerAppt,
+        } as never);
+        assert(!gain.error && !lose.error, "rpc err");
+        const gained = ((gain.data ?? []) as unknown[]).length;
+        const kept = ((lose.data ?? []) as unknown[]).length;
+        assert(gained >= 1, `expected access to other's appt after swap, got ${gained}`);
+        assert(kept === 0, `expected loss of own-appt access after swap, still saw ${kept}`);
+      } finally {
+        await admin.from("profiles").update({ phone: ownerPhone }).eq("id", ownerU.userId);
+      }
+    });
+
+
+
   } finally {
     if (createdAppts.length) {
       await admin.from("appointments").delete().in("id", createdAppts);
