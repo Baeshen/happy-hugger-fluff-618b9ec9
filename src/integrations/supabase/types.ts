@@ -74,6 +74,7 @@ export type Database = {
           specialty_id: string | null
           status: Database["public"]["Enums"]["appointment_status"]
           updated_at: string
+          whatsapp_opt_in: boolean
         }
         Insert: {
           appointment_date: string
@@ -90,6 +91,7 @@ export type Database = {
           specialty_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
+          whatsapp_opt_in?: boolean
         }
         Update: {
           appointment_date?: string
@@ -106,6 +108,7 @@ export type Database = {
           specialty_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
+          whatsapp_opt_in?: boolean
         }
         Relationships: [
           {
@@ -388,6 +391,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_appointment_by_ref: {
+        Args: { _phone: string; _reason?: string; _ref: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -405,6 +412,42 @@ export type Database = {
           _to_status?: string
         }
         Returns: undefined
+      }
+      lookup_appointment: {
+        Args: { _phone: string; _ref: string }
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          created_at: string
+          doctor_name_ar: string
+          doctor_name_en: string
+          id: string
+          notes: string
+          patient_name: string
+          patient_phone: string
+          reason: string
+          specialty_name_ar: string
+          specialty_name_en: string
+          status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
+      my_appointments: {
+        Args: never
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          created_at: string
+          doctor_name_ar: string
+          doctor_name_en: string
+          id: string
+          notes: string
+          patient_name: string
+          patient_phone: string
+          reason: string
+          specialty_name_ar: string
+          specialty_name_en: string
+          status: Database["public"]["Enums"]["appointment_status"]
+        }[]
       }
       normalize_reason: { Args: { _raw: string }; Returns: string }
       update_appointment_notes: {
