@@ -430,7 +430,7 @@ function PatientsAnalyticsPage() {
 
 
 
-          <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <Card title="توزيع الحالات">
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -490,7 +490,7 @@ function PatientsAnalyticsPage() {
             </Card>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card title="حسب الفرع">
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={branchChart} layout="vertical" margin={{ left: 20 }}>
@@ -542,7 +542,7 @@ function PatientsAnalyticsPage() {
             </Card>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card title="تسجيلات المرضى اليومية">
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={regChart}>
