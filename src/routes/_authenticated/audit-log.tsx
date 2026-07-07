@@ -184,6 +184,15 @@ function AuditLogPage() {
     enabled: isAdmin,
   });
 
+  // Auto-open the requested audit event when deep-linked via ?id=
+  useEffect(() => {
+    if (!highlightId || !log.data) return;
+    const found = (log.data as any[]).find((r) => r.id === highlightId);
+    if (found) setSelected(found);
+  }, [highlightId, log.data]);
+
+
+
   if (myRoles.isLoading) {
     return (
       <div className="container-app py-16 text-center text-muted-foreground">جارٍ التحميل…</div>
