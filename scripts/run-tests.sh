@@ -9,6 +9,7 @@
 #   bash scripts/run-tests.sh                 # كل الاختبارات
 #   bash scripts/run-tests.sh --method=bun    # فرض طريقة معيّنة
 #   bash scripts/run-tests.sh --explain       # عرض تفسير الاختيار فقط
+#   bash scripts/run-tests.sh --explain-json  # نفس التفسير كـ JSON للاستهلاك الآلي
 #   bash scripts/run-tests.sh --no-rls        # تخطّي اختبارات RLS
 #   bash scripts/run-tests.sh -- bun test x   # مرّر أمرًا مخصّصًا للحاوية
 set -euo pipefail
