@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Bell, History, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, Bell, History, Settings, ChevronDown, ChevronUp, Download } from "lucide-react";
 import type { TransitionsStats } from "@/lib/patients-analytics.functions";
 import {
   evaluateRules,
@@ -102,20 +102,33 @@ export function TransitionAlerts({ stats }: { stats: TransitionsStats }) {
       {/* Timeline of alert activations within the current period */}
       {rules.length > 0 && (
         <div className="mt-4 border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setShowTimeline((v) => !v)}
-            className="w-full flex items-center justify-between text-sm font-semibold hover:text-primary"
-          >
-            <span className="flex items-center gap-2">
-              <History className="h-4 w-4 text-primary" />
-              السجل الزمني للتنبيهات
-              <span className="text-xs text-muted-foreground font-normal">
-                ({timeline.length} حدث خلال {stats.period.from} → {stats.period.to})
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowTimeline((v) => !v)}
+              className="flex-1 min-w-0 flex items-center justify-between text-sm font-semibold hover:text-primary"
+            >
+              <span className="flex items-center gap-2 flex-wrap">
+                <History className="h-4 w-4 text-primary" />
+                السجل الزمني للتنبيهات
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({timeline.length} حدث خلال {stats.period.from} → {stats.period.to})
+                </span>
               </span>
-            </span>
-            {showTimeline ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+              {showTimeline ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => exportTimelineCsv(timeline, stats.period.from, stats.period.to)}
+              disabled={timeline.length === 0}
+              title="تصدير السجل الزمني إلى CSV"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </button>
+          </div>
+
 
           {showTimeline && (
             timeline.length === 0 ? (
@@ -171,4 +184,52 @@ export function TransitionAlerts({ stats }: { stats: TransitionsStats }) {
     </section>
   );
 }
+
+function exportTimelineCsv(
+  timeline: ReturnType<typeof buildAlertTimeline>,
+  from: string,
+  to: string,
+) {
+  const headers = [
+    "التاريخ",
+    "نوع الحدث",
+    "الشدة",
+    "النطاق",
+    "الحالة",
+    "الموضوع",
+    "الزيادة",
+    "التراكمي",
+    "العتبة",
+    "النسبة",
+    "القاعدة",
+  ];
+  const escape = (v: string | number) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = timeline.map((e) => [
+    e.day,
+    TIMELINE_KIND_LABEL[e.kind],
+    SEVERITY_LABEL[e.severity],
+    SCOPE_LABEL[e.scope],
+    STATUS_LABEL[e.status],
+    e.subjectName,
+    e.delta,
+    e.cumulative,
+    e.threshold,
+    e.ratio.toFixed(2),
+    e.ruleLabel ?? "",
+  ].map(escape).join(","));
+  const csv = "\uFEFF" + [headers.map(escape).join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `alerts-timeline_${from}_${to}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 
