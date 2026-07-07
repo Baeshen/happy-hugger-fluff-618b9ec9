@@ -229,7 +229,19 @@ function BookPage() {
       toast.error(friendlyInsertError(error));
       return;
     }
-    setConfirmed({ ref: newId.slice(0, 8).toUpperCase() });
+    const ref = newId.slice(0, 8).toUpperCase();
+    const doc = doctors?.find((x) => x.id === doctorId);
+    const spec = specialties?.find((x) => x.id === specialtyId);
+    const share: ShareBooking = {
+      ref,
+      patient_name: v.name,
+      patient_phone: v.phone,
+      appointment_date: date,
+      appointment_time: time,
+      doctor: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : undefined,
+      specialty: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : undefined,
+    };
+    setConfirmed({ ref, share });
   };
 
   if (confirmed) {
@@ -245,12 +257,36 @@ function BookPage() {
             {t("booking_ref")}:{" "}
             <span className="font-mono font-bold text-primary">{confirmed.ref}</span>
           </div>
-          <Link
-            to="/"
-            className="mt-8 inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-          >
-            {t("nav_home")}
-          </Link>
+          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+            <button
+              onClick={() => downloadIcs(confirmed.share)}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+            >
+              <CalIcon className="h-4 w-4" /> {t("add_to_calendar")}
+            </button>
+            <a
+              href={whatsappShareUrl(confirmed.share)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+            >
+              {t("share_whatsapp")}
+            </a>
+          </div>
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <Link
+              to="/lookup"
+              className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+            >
+              <Search className="h-4 w-4" /> {t("track_booking")}
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              {t("nav_home")}
+            </Link>
+          </div>
         </div>
       </div>
     );
