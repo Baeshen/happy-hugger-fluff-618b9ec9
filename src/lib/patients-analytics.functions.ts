@@ -422,3 +422,155 @@ export const getPatientTransitions = createServerFn({ method: "POST" })
     };
   });
 
+const RecentEventsInput = z.object({
+  branchId: z.string().uuid().nullable().optional(),
+  doctorId: z.string().uuid().nullable().optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
+export type RecentStatusEvent = {
+  audit_id: string;
+  created_at: string;
+  action: string;
+  from: string | null;
+  to: string;
+  reason: string | null;
+  patient_id: string | null;
+  patient_name: string | null;
+  patient_mrn: string | null;
+  branch_name: string | null;
+  actor_name: string | null;
+  count: number; // >1 for bulk events
+};
+
+export const listRecentStatusChanges = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => RecentEventsInput.parse(d))
+  .handler(async ({ data, context }): Promise<RecentStatusEvent[]> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb: any = context.supabase;
+    const roles = await getRoles(sb, context.userId);
+    ensureStaff(roles);
+
+    // Eligible pool for branch/doctor filters
+    let pq = sb.from("patients").select("id, branch_id");
+    if (data.branchId) pq = pq.eq("branch_id", data.branchId);
+    const { data: pRows } = await pq.limit(20000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let eligible = new Set<string>(((pRows ?? []) as any[]).map((r) => r.id as string));
+    if (data.doctorId) {
+      const { data: vRows } = await sb
+        .from("patient_visits")
+        .select("patient_id")
+        .eq("doctor_id", data.doctorId)
+        .limit(20000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const withDoc = new Set<string>(((vRows ?? []) as any[]).map((r) => r.patient_id as string));
+      eligible = new Set([...eligible].filter((id) => withDoc.has(id)));
+    }
+    const applyFilter = data.branchId != null || data.doctorId != null;
+
+    const { data: rows } = await sb
+      .from("security_audit_log")
+      .select("id, created_at, action, reason, actor, metadata")
+      .in("action", ["patient.status_changed", "patient.bulk_status_changed"])
+      .gte("created_at", `${data.from}T00:00:00`)
+      .lte("created_at", `${data.to}T23:59:59`)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    const limit = data.limit ?? 20;
+    const events: RecentStatusEvent[] = [];
+    const patientIds = new Set<string>();
+    const actorIds = new Set<string>();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const row of (rows ?? []) as any[]) {
+      if (events.length >= limit) break;
+      const meta = row.metadata ?? {};
+      if (row.action === "patient.status_changed") {
+        const pid = meta.patient_id as string | undefined;
+        if (applyFilter && (!pid || !eligible.has(pid))) continue;
+        if (pid) patientIds.add(pid);
+        if (row.actor) actorIds.add(row.actor);
+        events.push({
+          audit_id: row.id,
+          created_at: row.created_at,
+          action: row.action,
+          from: (meta.from as string) ?? null,
+          to: String(meta.to ?? ""),
+          reason: (row.reason as string) ?? (meta.reason as string) ?? null,
+          patient_id: pid ?? null,
+          patient_name: null,
+          patient_mrn: null,
+          branch_name: null,
+          actor_name: null,
+          count: 1,
+        });
+      } else {
+        const ids: string[] = Array.isArray(meta.ids) ? meta.ids : [];
+        const rel = applyFilter ? ids.filter((id) => eligible.has(id)) : ids;
+        if (!rel.length) continue;
+        if (row.actor) actorIds.add(row.actor);
+        events.push({
+          audit_id: row.id,
+          created_at: row.created_at,
+          action: row.action,
+          from: null,
+          to: String(meta.to ?? ""),
+          reason: (row.reason as string) ?? (meta.reason as string) ?? null,
+          patient_id: null,
+          patient_name: null,
+          patient_mrn: null,
+          branch_name: null,
+          actor_name: null,
+          count: rel.length,
+        });
+      }
+    }
+
+    // Enrich patient info
+    if (patientIds.size) {
+      const { data: pats } = await sb
+        .from("patients")
+        .select("id, full_name_ar, mrn, branches(name_ar)")
+        .in("id", [...patientIds]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const map = new Map<string, any>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const p of (pats ?? []) as any[]) map.set(p.id, p);
+      for (const e of events) {
+        if (e.patient_id && map.has(e.patient_id)) {
+          const p = map.get(e.patient_id);
+          e.patient_name = p.full_name_ar ?? null;
+          e.patient_mrn = p.mrn ?? null;
+          e.branch_name = p.branches?.name_ar ?? null;
+        }
+      }
+    }
+
+    // Enrich actor names
+    if (actorIds.size) {
+      const { data: profs } = await sb
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", [...actorIds]);
+      const nameMap = new Map<string, string>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name ?? "");
+      // We stored actor id in a local; re-loop using rows
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rowMap = new Map<string, string | null>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const row of (rows ?? []) as any[]) rowMap.set(row.id, row.actor ?? null);
+      for (const e of events) {
+        const actor = rowMap.get(e.audit_id);
+        if (actor) e.actor_name = nameMap.get(actor) ?? null;
+      }
+    }
+
+    return events;
+  });
+
