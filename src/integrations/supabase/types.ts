@@ -1027,6 +1027,41 @@ export type Database = {
           },
         ]
       }
+      patient_qr_scans: {
+        Row: {
+          id: string
+          patient_id: string
+          scanned_at: string
+          scanned_by: string | null
+          source: string
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          patient_id: string
+          scanned_at?: string
+          scanned_by?: string | null
+          source?: string
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          patient_id?: string
+          scanned_at?: string
+          scanned_by?: string | null
+          source?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_qr_scans_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_ratings: {
         Row: {
           appointment_ref: string | null
@@ -1859,6 +1894,14 @@ export type Database = {
         }[]
       }
       normalize_reason: { Args: { _raw: string }; Returns: string }
+      patient_qr_scan_stats: {
+        Args: { _patient_ids: string[] }
+        Returns: {
+          last_scanned_at: string
+          patient_id: string
+          scan_count: number
+        }[]
+      }
       reply_to_rating: {
         Args: { _id: string; _reply: string }
         Returns: undefined

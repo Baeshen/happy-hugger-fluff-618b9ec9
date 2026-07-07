@@ -1,10 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getAttachmentSignedUrl } from "@/lib/patients.functions";
+import {
+  logPatientQrScan,
+  listPatientQrScans,
+  getPatientQrScanCount,
+} from "@/lib/patient-qr-scans.functions";
 import {
   Tabs,
   TabsList,
@@ -28,6 +33,8 @@ import {
   Phone,
   IdCard,
   Calendar,
+  QrCode,
+  ScanLine,
 } from "lucide-react";
 import { PatientQrDialog } from "@/components/PatientQrDialog";
 
@@ -73,6 +80,33 @@ function calcAge(dob: string | null) {
 function PatientDetail() {
   const { patientId } = Route.useParams();
   const qc = useQueryClient();
+  const logScanFn = useServerFn(logPatientQrScan);
+
+  // Log a QR scan when the page is opened via ?src=qr
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("src") !== "qr") return;
+    logScanFn({
+      data: {
+        patientId,
+        source: "qr",
+        userAgent: navigator.userAgent.slice(0, 500),
+      },
+    })
+      .then(() => {
+        qc.invalidateQueries({ queryKey: ["patient-qr-scans", patientId] });
+        qc.invalidateQueries({ queryKey: ["patient-qr-scan-count", patientId] });
+        // Clean the URL so a refresh doesn't double-count
+        const url = new URL(window.location.href);
+        url.searchParams.delete("src");
+        window.history.replaceState({}, "", url.toString());
+      })
+      .catch(() => {
+        /* silent — non-critical */
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]);
 
   const patientQ = useQuery({
     queryKey: ["patient", patientId],
@@ -173,12 +207,15 @@ function PatientDetail() {
               />
             </div>
           </div>
-          <PatientQrDialog
-            patientId={p.id}
-            mrn={p.mrn}
-            fullNameAr={p.full_name_ar}
-            variant="button"
-          />
+          <div className="flex flex-col items-end gap-2">
+            <PatientQrDialog
+              patientId={p.id}
+              mrn={p.mrn}
+              fullNameAr={p.full_name_ar}
+              variant="button"
+            />
+            <QrScanStats patientId={p.id} />
+          </div>
         </div>
       </div>
 
@@ -245,6 +282,128 @@ function PatientDetail() {
 
     </div>
   );
+}
+
+function QrScanStats({ patientId }: { patientId: string }) {
+  const [open, setOpen] = useState(false);
+  const countFn = useServerFn(getPatientQrScanCount);
+  const listFn = useServerFn(listPatientQrScans);
+
+  const countQ = useQuery({
+    queryKey: ["patient-qr-scan-count", patientId],
+    queryFn: () => countFn({ data: { patientId } }),
+    staleTime: 30_000,
+  });
+  const listQ = useQuery({
+    queryKey: ["patient-qr-scans", patientId],
+    queryFn: () => listFn({ data: { patientId, limit: 50 } }),
+    enabled: open,
+  });
+
+  const count = countQ.data?.count ?? 0;
+  const last = countQ.data?.lastScannedAt ?? null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="سجل مسح QR"
+        className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs hover:bg-muted"
+      >
+        <ScanLine className="h-3.5 w-3.5 text-primary" />
+        <span>
+          <b className="text-foreground">{count}</b>{" "}
+          <span className="text-muted-foreground">مسح</span>
+        </span>
+        {last && (
+          <span className="text-muted-foreground border-r pr-1.5 mr-0.5 hidden sm:inline">
+            آخر: {formatWhen(last)}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+          onClick={() => setOpen(false)}
+          dir="rtl"
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-card p-5 shadow-xl max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <QrCode className="h-5 w-5 text-primary" /> سجل مسح QR
+              </h3>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-md px-2 py-0.5 text-sm hover:bg-muted"
+              >
+                إغلاق
+              </button>
+            </div>
+            <div className="mb-3 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">إجمالي المسح</p>
+                <p className="text-2xl font-bold">{count}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">آخر مسح</p>
+                <p className="text-sm font-medium mt-1">{last ? formatFull(last) : "—"}</p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto rounded-md border border-border">
+              {listQ.isLoading ? (
+                <p className="p-4 text-sm text-muted-foreground text-center">جارٍ التحميل…</p>
+              ) : (listQ.data ?? []).length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground text-center">لا يوجد مسح مسجّل بعد.</p>
+              ) : (
+                <ul className="divide-y divide-border text-sm">
+                  {(listQ.data ?? []).map((r) => (
+                    <li key={r.id} className="px-3 py-2 flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
+                          {r.scanner_name ?? "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          المصدر: {r.source}
+                        </p>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                        {formatFull(r.scanned_at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function formatWhen(iso: string) {
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return "الآن";
+  if (diff < 3600) return `${Math.floor(diff / 60)}د`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}س`;
+  return `${Math.floor(diff / 86400)}ي`;
+}
+
+function formatFull(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("ar-SA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function InfoRow({

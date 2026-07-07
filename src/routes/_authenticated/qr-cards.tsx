@@ -88,7 +88,7 @@ function PatientCardTab() {
   });
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const url = selected ? `${origin}/patients/${selected.id}` : "";
+  const url = selected ? `${origin}/patients/${selected.id}?src=qr` : "";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -311,7 +311,7 @@ function BatchCardsTab() {
     return Promise.all(
       selectedList.map(async (p) => ({
         p,
-        dataUrl: await QRCode.toDataURL(`${origin}/patients/${p.id}`, {
+        dataUrl: await QRCode.toDataURL(`${origin}/patients/${p.id}?src=qr`, {
           width: 400,
           margin: 1,
           errorCorrectionLevel: "M",
