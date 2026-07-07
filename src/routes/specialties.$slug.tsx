@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { buildLocalBusinessSchema, buildBreadcrumbs, CLINIC_ID, SITE_URL } from "@/lib/localBusinessSchema";
+import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
 import { Stethoscope, ArrowLeft, MapPin, Phone } from "lucide-react";
 
 type Specialty = {
@@ -46,15 +47,23 @@ const specialtyQuery = (slug: string) => ({
 });
 
 export const Route = createFileRoute("/specialties/$slug")({
-  loader: ({ params, context }) => context.queryClient.ensureQueryData(specialtyQuery(params.slug)),
+  loader: async ({ params, context }) => {
+    const [data, settings] = await Promise.all([
+      context.queryClient.ensureQueryData(specialtyQuery(params.slug)),
+      context.queryClient.ensureQueryData(clinicSettingsQuery()),
+    ]);
+    return { ...data, settings };
+  },
   head: ({ params, loaderData }) => {
-    const data = loaderData as { specialty: Specialty; doctors: DoctorLite[] } | undefined;
-    if (!data) {
+    const ld = loaderData as
+      | { specialty: Specialty; doctors: DoctorLite[]; settings: ClinicSettings }
+      | undefined;
+    if (!ld) {
       return {
         meta: [{ title: "غير متوفر" }, { name: "robots", content: "noindex" }],
       };
     }
-    const { specialty, doctors } = data;
+    const { specialty, doctors, settings } = ld;
     const url = `${SITE_URL}/specialties/${params.slug}`;
     const title = `${specialty.name_ar} — مجمع باعشن الطبي بصبيا، جازان`;
     const desc =
@@ -79,7 +88,7 @@ export const Route = createFileRoute("/specialties/$slug")({
       })),
     };
 
-    const clinic = buildLocalBusinessSchema({ pageUrl: url });
+    const clinic = buildLocalBusinessSchema({ pageUrl: url, settings });
     const breadcrumbs = buildBreadcrumbs([
       { name: "الرئيسية", path: "/" },
       { name: "التخصصات", path: "/specialties" },

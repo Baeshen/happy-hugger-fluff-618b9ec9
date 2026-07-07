@@ -31,11 +31,13 @@ import {
   buildBreadcrumbs,
   SITE_URL,
 } from "@/lib/localBusinessSchema";
+import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
 
 const COMPLEX_URL = `${SITE_URL}/complex`;
 
 export const Route = createFileRoute("/complex")({
-  head: () => ({
+  loader: ({ context }) => context.queryClient.ensureQueryData(clinicSettingsQuery()),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "المجمع الطبي | مجمع باعشن الطبي — صبيا، جازان" },
       {
@@ -62,6 +64,7 @@ export const Route = createFileRoute("/complex")({
         children: JSON.stringify(
           buildLocalBusinessSchema({
             pageUrl: COMPLEX_URL,
+            settings: loaderData as ClinicSettings | undefined,
             extraTypes: ["Place"],
             amenities: [
               { name: "اعتماد CBAHI" },

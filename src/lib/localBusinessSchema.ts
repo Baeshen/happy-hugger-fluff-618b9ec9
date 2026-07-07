@@ -1,4 +1,5 @@
 import { SITE } from "./site";
+import type { ClinicSettings } from "./clinicSettings";
 
 export const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 export const CLINIC_ID = `${SITE_URL}/#clinic`;
@@ -6,6 +7,8 @@ export const CLINIC_ID = `${SITE_URL}/#clinic`;
 type SchemaOpts = {
   /** Absolute URL of the page emitting the schema. Sets `url`. */
   pageUrl: string;
+  /** Clinic settings pulled from the database. Falls back to compile-time SITE. */
+  settings?: ClinicSettings | null;
   /** Extra @type entries to add alongside MedicalClinic + LocalBusiness (e.g. "Place"). */
   extraTypes?: string[];
   /** Optional amenity list for the clinic (Place feature). */
@@ -15,80 +18,110 @@ type SchemaOpts = {
 /**
  * Canonical MedicalClinic + LocalBusiness JSON-LD for Baeshen Medical Complex.
  * A single @id is reused across every page so Google treats them as the same entity.
+ * Values come from `clinic_settings` (DB); SITE constants act as a safety fallback.
  */
-export function buildLocalBusinessSchema({ pageUrl, extraTypes = [], amenities }: SchemaOpts) {
+export function buildLocalBusinessSchema({
+  pageUrl,
+  settings,
+  extraTypes = [],
+  amenities,
+}: SchemaOpts) {
+  const s = settings;
+  const nameAr = s?.name_ar ?? SITE.nameAr;
+  const nameEn = s?.name_en ?? SITE.nameEn;
+  const phone = s?.phone ?? SITE.phone;
+  const mobile = s?.mobile ?? SITE.mobile;
+  const email = s?.email ?? SITE.email;
+  const streetAddress = s?.street_address ?? "King Abdulaziz Rd, Al-Dhabya";
+  const addressLocality = s?.address_locality ?? "Sabya";
+  const addressRegion = s?.address_region ?? "Jazan";
+  const postalCode = s?.postal_code ?? SITE.postalCode;
+  const addressCountry = s?.address_country ?? "SA";
+  const lat = s?.lat ?? SITE.lat;
+  const lng = s?.lng ?? SITE.lng;
+  const mapsUrl = s?.maps_url ?? SITE.mapsUrl;
+  const priceRange = s?.price_range ?? "$$";
+  const currencies = s?.currencies_accepted ?? "SAR";
+  const payment = s?.payment_accepted ?? "Cash, Credit Card, Mada, Insurance";
+  const specialties = s?.medical_specialties?.length
+    ? s.medical_specialties
+    : [
+        "Cardiovascular",
+        "Dermatology",
+        "Pediatric",
+        "Obstetric",
+        "Dentistry",
+        "InternalMedicine",
+        "Ophthalmologic",
+        "Otolaryngologic",
+        "Orthopedic",
+      ];
+  const sameAs = s?.same_as?.length ? s.same_as : [SITE.instagram, SITE.tiktok, SITE.x];
+  const hours = s?.opening_hours?.length
+    ? s.opening_hours
+    : [
+        {
+          days: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+          opens: "09:00",
+          closes: "23:00",
+        },
+        { days: ["Friday"], opens: "16:00", closes: "23:00" },
+      ];
+
   const base: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": ["MedicalClinic", "LocalBusiness", ...extraTypes],
     "@id": CLINIC_ID,
-    name: SITE.nameAr,
-    alternateName: SITE.nameEn,
+    name: nameAr,
+    alternateName: nameEn,
     url: pageUrl,
-    telephone: SITE.phone,
-    email: SITE.email,
+    telephone: phone,
+    email,
     image: `${SITE_URL}/og-image.jpg`,
-    priceRange: "$$",
-    currenciesAccepted: "SAR",
-    paymentAccepted: "Cash, Credit Card, Mada, Insurance",
-    medicalSpecialty: [
-      "Cardiovascular",
-      "Dermatology",
-      "Pediatric",
-      "Obstetric",
-      "Dentistry",
-      "InternalMedicine",
-      "Ophthalmologic",
-      "Otolaryngologic",
-      "Orthopedic",
-    ],
+    priceRange,
+    currenciesAccepted: currencies,
+    paymentAccepted: payment,
+    medicalSpecialty: specialties,
     address: {
       "@type": "PostalAddress",
-      streetAddress: "King Abdulaziz Rd, Al-Dhabya",
-      addressLocality: "Sabya",
-      addressRegion: "Jazan",
-      postalCode: SITE.postalCode,
-      addressCountry: "SA",
+      streetAddress,
+      addressLocality,
+      addressRegion,
+      postalCode,
+      addressCountry,
     },
-    geo: {
-      "@type": "GeoCoordinates",
-      latitude: SITE.lat,
-      longitude: SITE.lng,
-    },
-    hasMap: SITE.mapsUrl,
+    geo: { "@type": "GeoCoordinates", latitude: lat, longitude: lng },
+    hasMap: mapsUrl,
     areaServed: [
-      { "@type": "City", name: "Sabya" },
-      { "@type": "AdministrativeArea", name: "Jazan Region" },
+      { "@type": "City", name: addressLocality },
+      { "@type": "AdministrativeArea", name: `${addressRegion} Region` },
     ],
-    openingHoursSpecification: [
-      {
-        "@type": "OpeningHoursSpecification",
-        dayOfWeek: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
-        opens: "09:00",
-        closes: "23:00",
-      },
-      {
-        "@type": "OpeningHoursSpecification",
-        dayOfWeek: "Friday",
-        opens: "16:00",
-        closes: "23:00",
-      },
-    ],
-    sameAs: [SITE.instagram, SITE.tiktok, SITE.x],
+    openingHoursSpecification: hours.map((h) => ({
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: h.days.length === 1 ? h.days[0] : h.days,
+      opens: h.opens,
+      closes: h.closes,
+    })),
+    sameAs,
     contactPoint: [
       {
         "@type": "ContactPoint",
-        telephone: SITE.phone,
+        telephone: phone,
         contactType: "reservations",
         areaServed: "SA",
         availableLanguage: ["Arabic", "English"],
       },
-      {
-        "@type": "ContactPoint",
-        telephone: SITE.mobile,
-        contactType: "customer service",
-        areaServed: "SA",
-        availableLanguage: ["Arabic", "English"],
-      },
+      ...(mobile
+        ? [
+            {
+              "@type": "ContactPoint",
+              telephone: mobile,
+              contactType: "customer service",
+              areaServed: "SA",
+              availableLanguage: ["Arabic", "English"],
+            },
+          ]
+        : []),
     ],
     isAcceptingNewPatients: true,
   };

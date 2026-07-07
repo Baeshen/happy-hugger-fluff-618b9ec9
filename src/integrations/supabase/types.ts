@@ -210,6 +210,96 @@ export type Database = {
           },
         ]
       }
+      clinic_settings: {
+        Row: {
+          address_ar: string
+          address_country: string
+          address_en: string
+          address_locality: string
+          address_region: string
+          created_at: string
+          currencies_accepted: string | null
+          email: string | null
+          id: number
+          lat: number
+          lng: number
+          maps_url: string | null
+          medical_specialties: string[]
+          mobile: string | null
+          mobile_display: string | null
+          name_ar: string
+          name_en: string
+          opening_hours: Json
+          payment_accepted: string | null
+          phone: string
+          phone_display: string | null
+          postal_code: string | null
+          price_range: string | null
+          same_as: string[]
+          street_address: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address_ar: string
+          address_country?: string
+          address_en: string
+          address_locality: string
+          address_region: string
+          created_at?: string
+          currencies_accepted?: string | null
+          email?: string | null
+          id?: number
+          lat: number
+          lng: number
+          maps_url?: string | null
+          medical_specialties?: string[]
+          mobile?: string | null
+          mobile_display?: string | null
+          name_ar: string
+          name_en: string
+          opening_hours?: Json
+          payment_accepted?: string | null
+          phone: string
+          phone_display?: string | null
+          postal_code?: string | null
+          price_range?: string | null
+          same_as?: string[]
+          street_address: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address_ar?: string
+          address_country?: string
+          address_en?: string
+          address_locality?: string
+          address_region?: string
+          created_at?: string
+          currencies_accepted?: string | null
+          email?: string | null
+          id?: number
+          lat?: number
+          lng?: number
+          maps_url?: string | null
+          medical_specialties?: string[]
+          mobile?: string | null
+          mobile_display?: string | null
+          name_ar?: string
+          name_en?: string
+          opening_hours?: Json
+          payment_accepted?: string | null
+          phone?: string
+          phone_display?: string | null
+          postal_code?: string | null
+          price_range?: string | null
+          same_as?: string[]
+          street_address?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       doctors: {
         Row: {
           bio_ar: string | null

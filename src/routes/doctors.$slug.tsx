@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { buildLocalBusinessSchema, buildBreadcrumbs, CLINIC_ID, SITE_URL } from "@/lib/localBusinessSchema";
+import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
 import { ArrowLeft, Phone, MapPin, Languages } from "lucide-react";
 
 type Doctor = {
@@ -43,12 +44,20 @@ const doctorQuery = (slug: string) => ({
 });
 
 export const Route = createFileRoute("/doctors/$slug")({
-  loader: ({ params, context }) => context.queryClient.ensureQueryData(doctorQuery(params.slug)),
+  loader: async ({ params, context }) => {
+    const [doctor, settings] = await Promise.all([
+      context.queryClient.ensureQueryData(doctorQuery(params.slug)),
+      context.queryClient.ensureQueryData(clinicSettingsQuery()),
+    ]);
+    return { doctor, settings };
+  },
   head: ({ params, loaderData }) => {
-    const d = loaderData as Doctor | undefined;
-    if (!d) {
+    const ld = loaderData as { doctor: Doctor; settings: ClinicSettings } | undefined;
+    if (!ld?.doctor) {
       return { meta: [{ title: "غير متوفر" }, { name: "robots", content: "noindex" }] };
     }
+    const d = ld.doctor;
+    const settings = ld.settings;
     const url = `${SITE_URL}/doctors/${params.slug}`;
     const specName = d.specialties?.name_ar ?? "";
     const title = `${d.name_ar}${specName ? ` — ${specName}` : ""} | مجمع باعشن الطبي`;
@@ -73,15 +82,15 @@ export const Route = createFileRoute("/doctors/$slug")({
       worksFor: { "@id": CLINIC_ID },
       address: {
         "@type": "PostalAddress",
-        streetAddress: SITE.addressAr,
-        addressLocality: "صبيا",
-        addressRegion: "جازان",
-        postalCode: SITE.postalCode,
-        addressCountry: "SA",
+        streetAddress: settings.street_address,
+        addressLocality: settings.address_locality,
+        addressRegion: settings.address_region,
+        postalCode: settings.postal_code ?? undefined,
+        addressCountry: settings.address_country,
       },
     };
 
-    const clinic = buildLocalBusinessSchema({ pageUrl: url });
+    const clinic = buildLocalBusinessSchema({ pageUrl: url, settings });
     const breadcrumbs = buildBreadcrumbs([
       { name: "الرئيسية", path: "/" },
       { name: "الأطباء", path: "/doctors" },
