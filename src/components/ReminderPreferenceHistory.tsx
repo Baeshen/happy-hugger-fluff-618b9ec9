@@ -240,11 +240,12 @@ export function ReminderPreferenceHistoryList({
                     </span>
                   )}
                 </div>
-                {r.reason && (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    السبب: <span className="text-foreground">{r.reason}</span>
-                  </div>
-                )}
+                <div className="mt-1 text-xs text-muted-foreground">
+                  السبب:{" "}
+                  <span className={r.reason ? "text-foreground" : "text-muted-foreground/80 italic"}>
+                    {r.reason || "غير متوفر"}
+                  </span>
+                </div>
               </li>
             ))}
           </ol>
