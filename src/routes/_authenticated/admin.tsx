@@ -201,6 +201,14 @@ function AdminDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {(roles.includes("admin") || roles.includes("reception")) && (
+            <Link
+              to="/dashboard"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              لوحة الإحصائيات
+            </Link>
+          )}
           {roles.includes("admin") && (
             <Link
               to="/clinic-settings"
