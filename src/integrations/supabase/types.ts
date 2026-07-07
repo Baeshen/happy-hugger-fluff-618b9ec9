@@ -1327,12 +1327,15 @@ export type Database = {
           action: string
           actor: string | null
           appointment_id: string | null
+          branch_id: string | null
           created_at: string
           from_status: string | null
           id: string
           ip_address: unknown
           metadata: Json | null
           reason: string | null
+          record_id: string | null
+          table_name: string | null
           to_status: string | null
           user_agent: string | null
         }
@@ -1340,12 +1343,15 @@ export type Database = {
           action: string
           actor?: string | null
           appointment_id?: string | null
+          branch_id?: string | null
           created_at?: string
           from_status?: string | null
           id?: string
           ip_address?: unknown
           metadata?: Json | null
           reason?: string | null
+          record_id?: string | null
+          table_name?: string | null
           to_status?: string | null
           user_agent?: string | null
         }
@@ -1353,12 +1359,15 @@ export type Database = {
           action?: string
           actor?: string | null
           appointment_id?: string | null
+          branch_id?: string | null
           created_at?: string
           from_status?: string | null
           id?: string
           ip_address?: unknown
           metadata?: Json | null
           reason?: string | null
+          record_id?: string | null
+          table_name?: string | null
           to_status?: string | null
           user_agent?: string | null
         }

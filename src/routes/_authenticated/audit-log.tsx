@@ -18,6 +18,9 @@ function downloadCsv(rows: Array<Record<string, unknown>>, filename: string) {
     "actor_name",
     "actor_phone",
     "action",
+    "table_name",
+    "record_id",
+    "branch_name",
     "from_status",
     "to_status",
     "reason",
@@ -31,6 +34,9 @@ function downloadCsv(rows: Array<Record<string, unknown>>, filename: string) {
     "المستخدم",
     "الجوال",
     "العملية",
+    "الجدول",
+    "معرّف السجل",
+    "الفرع",
     "من",
     "إلى",
     "السبب",
@@ -339,6 +345,10 @@ function AuditDetailModal({ row, onClose }: { row: any; onClose: () => void }) {
           <Field label="معرّف الحجز" value={row.appointment_id} mono />
           <Field label="من حالة" value={row.from_status} />
           <Field label="إلى حالة" value={row.to_status} />
+          <Field label="الجدول" value={row.table_name} mono />
+          <Field label="معرّف السجل" value={row.record_id} mono />
+          <Field label="الفرع" value={row.branch_name} />
+          <Field label="معرّف الفرع" value={row.branch_id} mono />
           <Field label="عنوان IP" value={row.ip_address} mono />
           <div className="sm:col-span-2">
             <Field label="المتصفح (User Agent)" value={row.user_agent} mono />
