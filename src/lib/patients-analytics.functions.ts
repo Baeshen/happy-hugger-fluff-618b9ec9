@@ -574,3 +574,61 @@ export const listRecentStatusChanges = createServerFn({ method: "POST" })
     return events;
   });
 
+
+// ============ KPI drill-down: patients list backing a KPI card ============
+
+const KpiPatientsInput = z.object({
+  branchId: z.string().uuid().nullable().optional(),
+  gender: z.enum(["male", "female", "other"]).nullable().optional(),
+  minAge: z.number().int().min(0).max(150).nullable().optional(),
+  maxAge: z.number().int().min(0).max(150).nullable().optional(),
+  status: z.enum(["active", "inactive", "archived", "deceased"]).nullable().optional(),
+  limit: z.number().int().min(1).max(500).optional(),
+});
+
+export type KpiPatientRow = {
+  id: string;
+  full_name_ar: string | null;
+  mrn: string | null;
+  status: string;
+  branch_name: string | null;
+  created_at: string;
+};
+
+export const listPatientsForKpi = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => KpiPatientsInput.parse(d))
+  .handler(async ({ data, context }): Promise<KpiPatientRow[]> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb: any = context.supabase;
+    const roles = await getRoles(sb, context.userId);
+    ensureStaff(roles);
+
+    let q = sb
+      .from("patients")
+      .select("id, full_name_ar, mrn, status, date_of_birth, created_at, branches(name_ar)");
+    if (data.branchId) q = q.eq("branch_id", data.branchId);
+    if (data.gender) q = q.eq("gender", data.gender);
+    if (data.status) q = q.eq("status", data.status);
+    q = q.order("created_at", { ascending: false }).limit(data.limit ?? 200);
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filtered = ((rows ?? []) as any[]).filter((p) => {
+      const age = ageFromDOB(p.date_of_birth);
+      if (data.minAge != null && (age == null || age < data.minAge)) return false;
+      if (data.maxAge != null && (age == null || age > data.maxAge)) return false;
+      return true;
+    });
+
+    return filtered.map((p) => ({
+      id: p.id as string,
+      full_name_ar: (p.full_name_ar as string | null) ?? null,
+      mrn: (p.mrn as string | null) ?? null,
+      status: p.status as string,
+      branch_name: p.branches?.name_ar ?? null,
+      created_at: p.created_at as string,
+    }));
+  });
