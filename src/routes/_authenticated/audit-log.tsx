@@ -6,6 +6,59 @@ import { listAuditLog, listAuditActions } from "@/lib/rbac.functions";
 import { getMyRoles } from "@/lib/admin.functions";
 import { ShieldAlert, ArrowRight, RefreshCw, Download, X } from "lucide-react";
 
+// Fields we never expose in exports even if a legacy row still has them.
+const SENSITIVE_KEYS = new Set([
+  "password",
+  "password_hash",
+  "encrypted_password",
+  "auth_token",
+  "storage_path",
+  "file_url",
+]);
+
+function sanitize(value: any): any {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(sanitize);
+  if (typeof value === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (SENSITIVE_KEYS.has(k)) continue;
+      out[k] = sanitize(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+function formatVal(v: any): string {
+  if (v === null || v === undefined) return "∅";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+/** Human-readable "field: old → new" list, one per line. */
+function formatChanges(metadata: any): string {
+  if (!metadata || typeof metadata !== "object") return "";
+  const clean = sanitize(metadata);
+  const parts: string[] = [];
+  if (clean.changes && typeof clean.changes === "object") {
+    for (const [k, diff] of Object.entries<any>(clean.changes)) {
+      parts.push(`${k}: ${formatVal(diff?.old)} → ${formatVal(diff?.new)}`);
+    }
+  }
+  if (clean.new && typeof clean.new === "object" && !clean.changes) {
+    for (const [k, v] of Object.entries<any>(clean.new)) {
+      parts.push(`+ ${k}: ${formatVal(v)}`);
+    }
+  }
+  if (clean.old && typeof clean.old === "object" && !clean.changes && !clean.new) {
+    for (const [k, v] of Object.entries<any>(clean.old)) {
+      parts.push(`- ${k}: ${formatVal(v)}`);
+    }
+  }
+  return parts.join("\n");
+}
+
 function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return "";
   const s = typeof v === "string" ? v : typeof v === "object" ? JSON.stringify(v) : String(v);
@@ -24,6 +77,7 @@ function downloadCsv(rows: Array<Record<string, unknown>>, filename: string) {
     "from_status",
     "to_status",
     "reason",
+    "changes",
     "metadata",
     "ip_address",
     "user_agent",
@@ -40,14 +94,21 @@ function downloadCsv(rows: Array<Record<string, unknown>>, filename: string) {
     "من",
     "إلى",
     "السبب",
-    "التفاصيل",
+    "الحقول المتغيّرة (قبل → بعد)",
+    "التفاصيل الخام (JSON)",
     "IP",
     "المتصفح",
     "معرّف الحجز",
   ];
   const lines = [headerLabels.join(",")];
   for (const r of rows) {
-    lines.push(headers.map((h) => csvEscape((r as any)[h])).join(","));
+    const row = r as any;
+    const enriched = {
+      ...row,
+      changes: formatChanges(row.metadata),
+      metadata: sanitize(row.metadata),
+    };
+    lines.push(headers.map((h) => csvEscape(enriched[h])).join(","));
   }
   // Prepend BOM so Excel opens UTF-8 Arabic correctly
   const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
