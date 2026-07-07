@@ -32,6 +32,7 @@ while [ $# -gt 0 ]; do
     --method)   METHOD="$2"; shift 2 ;;
     --no-rls)   RUN_RLS=0; shift ;;
     --explain)  EXPLAIN=1; shift ;;
+    --explain-json) EXPLAIN=1; EXPLAIN_JSON=1; shift ;;
     --watch|-w) WATCH=1; shift ;;
     --watch-path=*) WATCH_PATHS+=("${1#*=}"); shift ;;
     -h|--help)
