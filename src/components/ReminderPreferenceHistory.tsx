@@ -37,6 +37,8 @@ export function ReminderPreferenceHistoryList({
   rows: ReminderAuditRow[];
   showActor?: boolean;
 }) {
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+
   if (!rows.length) {
     return (
       <div className="py-6 text-center text-sm text-muted-foreground">
