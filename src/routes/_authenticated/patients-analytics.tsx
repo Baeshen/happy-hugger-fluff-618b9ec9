@@ -1705,17 +1705,6 @@ function PatientTransitionsTable({
           />
         </div>
         <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-        >
-          <option value="">كل الحالات المستهدفة</option>
-          <option value="active">نشط</option>
-          <option value="inactive">غير نشط</option>
-          <option value="archived">مؤرشف</option>
-          <option value="deceased">متوفى</option>
-        </select>
-        <select
           value={pageSize}
           onChange={(e) => setPageSize(Number(e.target.value))}
           className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
@@ -1726,6 +1715,96 @@ function PatientTransitionsTable({
           ))}
         </select>
       </div>
+
+      {/* Advanced filters */}
+      <div className="mb-3 rounded-lg border border-dashed border-border bg-muted/20 p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <Filter className="h-3.5 w-3.5" />
+            فلترة متقدمة
+            {activeAdvancedCount > 0 && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+                {activeAdvancedCount} فلتر نشط
+              </span>
+            )}
+          </div>
+          {activeAdvancedCount > 0 && (
+            <button
+              type="button"
+              onClick={resetAdvanced}
+              className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] hover:bg-muted"
+            >
+              <RotateCcw className="h-3 w-3" />
+              مسح الفلاتر
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
+          <div>
+            <label className="mb-1 block text-[11px] text-muted-foreground">من حالة</label>
+            <select
+              value={statusFromFilter}
+              onChange={(e) => setStatusFromFilter(e.target.value as typeof statusFromFilter)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">الكل</option>
+              <option value="__none__">(بدون / إنشاء)</option>
+              <option value="active">نشط</option>
+              <option value="inactive">غير نشط</option>
+              <option value="archived">مؤرشف</option>
+              <option value="deceased">متوفى</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-muted-foreground">إلى حالة</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">الكل</option>
+              <option value="active">نشط</option>
+              <option value="inactive">غير نشط</option>
+              <option value="archived">مؤرشف</option>
+              <option value="deceased">متوفى</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-muted-foreground">تاريخ الانتقال من</label>
+            <input
+              type="date"
+              value={txFrom}
+              min={from}
+              max={to}
+              onChange={(e) => setTxFrom(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-muted-foreground">تاريخ الانتقال إلى</label>
+            <input
+              type="date"
+              value={txTo}
+              min={from}
+              max={to}
+              onChange={(e) => setTxTo(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          <div className="flex items-end">
+            <label className="inline-flex w-full cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={bulkOnly}
+                onChange={(e) => setBulkOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-input"
+              />
+              الانتقالات الجماعية فقط
+            </label>
+          </div>
+        </div>
+      </div>
+
 
       {q.isLoading && (
         <div className="space-y-2">
