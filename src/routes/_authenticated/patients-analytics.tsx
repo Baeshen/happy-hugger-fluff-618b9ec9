@@ -1,7 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import {
   Area,
   AreaChart,
@@ -18,7 +20,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle, History, ExternalLink, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle, History, ExternalLink, User as UserIcon, FileSpreadsheet, FileText, RotateCcw } from "lucide-react";
 import {
   getPatientAnalytics,
   getPatientTransitions,
@@ -28,8 +30,29 @@ import {
   type RecentStatusEvent,
 } from "@/lib/patients-analytics.functions";
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
+import { exportXlsx, exportPdf, type Column } from "@/lib/export-utils";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+function daysAgoISO(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+const searchSchema = z.object({
+  branchId: fallback(z.string().nullable(), null).default(null),
+  doctorId: fallback(z.string().nullable(), null).default(null),
+  gender: fallback(z.enum(["male", "female", "other"]).nullable(), null).default(null),
+  minAge: fallback(z.string(), "").default(""),
+  maxAge: fallback(z.string(), "").default(""),
+  from: fallback(z.string(), daysAgoISO(30)).default(daysAgoISO(30)),
+  to: fallback(z.string(), todayISO()).default(todayISO()),
+});
 
 export const Route = createFileRoute("/_authenticated/patients-analytics")({
+  validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [
       { title: "تحليلات المرضى | مجمع باعشن الطبي" },
