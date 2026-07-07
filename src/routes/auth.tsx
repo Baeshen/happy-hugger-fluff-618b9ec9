@@ -3,8 +3,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { logAuthEvent } from "@/lib/auth-log.functions";
 
 const search = z.object({ redirect: z.string().optional() });
+
+function safeLog(input: Parameters<typeof logAuthEvent>[0]["data"]) {
+  logAuthEvent({ data: input }).catch(() => {});
+}
 
 export const Route = createFileRoute("/auth")({
   validateSearch: search,
