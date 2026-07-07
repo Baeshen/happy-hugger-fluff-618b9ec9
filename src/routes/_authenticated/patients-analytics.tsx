@@ -1636,7 +1636,7 @@ function PatientTransitionsTable({
           </div>
         </div>
         <span className="text-xs text-muted-foreground">
-          {sorted.length.toLocaleString("ar-SA")} من {rows.length.toLocaleString("ar-SA")}
+          إجمالي: {total.toLocaleString("ar-SA")}
           {q.isFetching && <span className="ms-2 text-primary">جارٍ التحديث…</span>}
         </span>
       </div>
