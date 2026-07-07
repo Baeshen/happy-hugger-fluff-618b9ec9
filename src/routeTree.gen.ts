@@ -94,14 +94,14 @@ const DoctorsIndexRoute = DoctorsIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const SpecialtiesSlugRoute = SpecialtiesSlugRouteImport.update({
-  id: '/specialties/$slug',
-  path: '/specialties/$slug',
-  getParentRoute: () => rootRouteImport,
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => SpecialtiesRoute,
 } as any)
 const DoctorsSlugRoute = DoctorsSlugRouteImport.update({
-  id: '/doctors/$slug',
-  path: '/doctors/$slug',
-  getParentRoute: () => rootRouteImport,
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => DoctorsRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -262,8 +262,6 @@ export interface RootRouteChildren {
   LookupRoute: typeof LookupRoute
   PharmacyRoute: typeof PharmacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  DoctorsSlugRoute: typeof DoctorsSlugRoute
-  SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
   SpecialtiesIndexRoute: typeof SpecialtiesIndexRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
@@ -364,17 +362,17 @@ declare module '@tanstack/react-router' {
     }
     '/specialties/$slug': {
       id: '/specialties/$slug'
-      path: '/specialties/$slug'
+      path: '/$slug'
       fullPath: '/specialties/$slug'
       preLoaderRoute: typeof SpecialtiesSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SpecialtiesRoute
     }
     '/doctors/$slug': {
       id: '/doctors/$slug'
-      path: '/doctors/$slug'
+      path: '/$slug'
       fullPath: '/doctors/$slug'
       preLoaderRoute: typeof DoctorsSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DoctorsRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -434,8 +432,6 @@ const rootRouteChildren: RootRouteChildren = {
   LookupRoute: LookupRoute,
   PharmacyRoute: PharmacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  DoctorsSlugRoute: DoctorsSlugRoute,
-  SpecialtiesSlugRoute: SpecialtiesSlugRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
   SpecialtiesIndexRoute: SpecialtiesIndexRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
@@ -443,3 +439,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
