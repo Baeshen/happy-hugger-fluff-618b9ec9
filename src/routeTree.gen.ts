@@ -44,6 +44,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
+import { Route as AuthenticatedAuditExportRouteImport } from './routes/_authenticated/audit-export'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
@@ -230,6 +231,12 @@ const AuthenticatedAuditLogRoute = AuthenticatedAuditLogRouteImport.update({
   path: '/audit-log',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAuditExportRoute =
+  AuthenticatedAuditExportRouteImport.update({
+    id: '/audit-export',
+    path: '/audit-export',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -266,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/audit-export': typeof AuthenticatedAuditExportRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
@@ -306,6 +314,7 @@ export interface FileRoutesByTo {
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/audit-export': typeof AuthenticatedAuditExportRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
@@ -348,6 +357,7 @@ export interface FileRoutesById {
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/audit-export': typeof AuthenticatedAuditExportRoute
   '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/clinic-settings': typeof AuthenticatedClinicSettingsRoute
@@ -390,6 +400,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/sitemap.xml'
     | '/admin'
+    | '/audit-export'
     | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/sitemap.xml'
     | '/admin'
+    | '/audit-export'
     | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
@@ -471,6 +483,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/sitemap.xml'
     | '/_authenticated/admin'
+    | '/_authenticated/audit-export'
     | '/_authenticated/audit-log'
     | '/_authenticated/calendar'
     | '/_authenticated/clinic-settings'
@@ -769,6 +782,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditLogRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/audit-export': {
+      id: '/_authenticated/audit-export'
+      path: '/audit-export'
+      fullPath: '/audit-export'
+      preLoaderRoute: typeof AuthenticatedAuditExportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -802,6 +822,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAuditExportRoute: typeof AuthenticatedAuditExportRoute
   AuthenticatedAuditLogRoute: typeof AuthenticatedAuditLogRoute
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedClinicSettingsRoute: typeof AuthenticatedClinicSettingsRoute
@@ -824,6 +845,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAuditExportRoute: AuthenticatedAuditExportRoute,
   AuthenticatedAuditLogRoute: AuthenticatedAuditLogRoute,
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedClinicSettingsRoute: AuthenticatedClinicSettingsRoute,

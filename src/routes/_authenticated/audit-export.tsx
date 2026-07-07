@@ -148,7 +148,7 @@ function AuditExportPage() {
       }),
   });
 
-  const preview = useMemo(() => (rowsQ.data ?? []).slice(0, 100), [rowsQ.data]);
+  const preview = useMemo<any[]>(() => ((rowsQ.data as any[]) ?? []).slice(0, 100), [rowsQ.data]);
   const cols = COLUMNS[kind];
 
   async function handleExport() {
