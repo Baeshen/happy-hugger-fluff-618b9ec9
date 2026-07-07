@@ -581,3 +581,96 @@ export const listReminderPreferenceAudit = createServerFn({ method: "GET" })
     };
   });
 
+
+export const getReminderPreferenceStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+    const sb = context.supabase;
+
+    const [
+      total,
+      r24On,
+      r2On,
+      bothOn,
+      bothOff,
+      auditTotal,
+      audit24,
+      audit2,
+      auditSelf,
+      auditStaff,
+      auditSystem,
+      auditApptIds,
+      auditRecent,
+    ] = await Promise.all([
+      sb.from("appointments").select("id", { count: "exact", head: true }),
+      sb.from("appointments").select("id", { count: "exact", head: true }).eq("reminder_24h", true),
+      sb.from("appointments").select("id", { count: "exact", head: true }).eq("reminder_2h", true),
+      sb
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("reminder_24h", true)
+        .eq("reminder_2h", true),
+      sb
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("reminder_24h", false)
+        .eq("reminder_2h", false),
+      sb.from("reminder_preference_audit").select("id", { count: "exact", head: true }),
+      sb
+        .from("reminder_preference_audit")
+        .select("id", { count: "exact", head: true })
+        .eq("reminder_kind", "reminder_24h"),
+      sb
+        .from("reminder_preference_audit")
+        .select("id", { count: "exact", head: true })
+        .eq("reminder_kind", "reminder_2h"),
+      sb
+        .from("reminder_preference_audit")
+        .select("id", { count: "exact", head: true })
+        .eq("source", "self_service"),
+      sb
+        .from("reminder_preference_audit")
+        .select("id", { count: "exact", head: true })
+        .eq("source", "staff"),
+      sb
+        .from("reminder_preference_audit")
+        .select("id", { count: "exact", head: true })
+        .eq("source", "system"),
+      sb.from("reminder_preference_audit").select("appointment_id"),
+      sb
+        .from("reminder_preference_audit")
+        .select("id", { count: "exact", head: true })
+        .gte("changed_at", new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()),
+    ]);
+
+    if (total.error) throw new Error(humanizeSupabaseError(total.error));
+
+    const apptsTotal = total.count ?? 0;
+    const distinctAppts = new Set<string>(
+      (auditApptIds.data ?? []).map((r: any) => r.appointment_id),
+    ).size;
+    const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 1000) / 10 : 0);
+
+    return {
+      appointmentsTotal: apptsTotal,
+      reminder24Enabled: r24On.count ?? 0,
+      reminder2Enabled: r2On.count ?? 0,
+      bothEnabled: bothOn.count ?? 0,
+      bothDisabled: bothOff.count ?? 0,
+      reminder24Pct: pct(r24On.count ?? 0, apptsTotal),
+      reminder2Pct: pct(r2On.count ?? 0, apptsTotal),
+      bothEnabledPct: pct(bothOn.count ?? 0, apptsTotal),
+      bothDisabledPct: pct(bothOff.count ?? 0, apptsTotal),
+      auditTotal: auditTotal.count ?? 0,
+      audit24: audit24.count ?? 0,
+      audit2: audit2.count ?? 0,
+      auditSelfService: auditSelf.count ?? 0,
+      auditStaff: auditStaff.count ?? 0,
+      auditSystem: auditSystem.count ?? 0,
+      auditLast7d: auditRecent.count ?? 0,
+      appointmentsWithAudit: distinctAppts,
+      coveragePct: pct(distinctAppts, apptsTotal),
+    };
+  });
