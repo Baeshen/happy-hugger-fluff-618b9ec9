@@ -44,16 +44,24 @@ export const listPatientQrScans = createServerFn({ method: "POST" })
     const sb: any = context.supabase;
     const { data: rows, error } = await sb
       .from("patient_qr_scans")
-      .select("id, scanned_by, source, scanned_at, profiles:scanned_by(full_name)")
+      .select("id, scanned_by, source, scanned_at")
       .eq("patient_id", data.patientId)
       .order("scanned_at", { ascending: false })
       .limit(data.limit);
     if (error) throw new Error(error.message);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((rows ?? []) as any[]).map((r) => ({
+    const list = (rows ?? []) as any[];
+    const ids = Array.from(new Set(list.map((r) => r.scanned_by).filter(Boolean)));
+    const nameMap = new Map<string, string>();
+    if (ids.length > 0) {
+      const { data: profs } = await sb.from("profiles").select("id, full_name").in("id", ids);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
+    }
+    return list.map((r) => ({
       id: r.id,
       scanned_by: r.scanned_by,
-      scanner_name: r.profiles?.full_name ?? null,
+      scanner_name: r.scanned_by ? nameMap.get(r.scanned_by) ?? null : null,
       source: r.source,
       scanned_at: r.scanned_at,
     })) as PatientQrScanRow[];
