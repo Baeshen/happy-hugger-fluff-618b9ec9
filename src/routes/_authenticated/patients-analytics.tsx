@@ -98,6 +98,7 @@ const COLORS = [
 function PatientsAnalyticsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/patients-analytics" });
+  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
   const { branchId, doctorId, gender, minAge, maxAge, from, to } = search;
 
   const update = (patch: Partial<typeof search>) =>
