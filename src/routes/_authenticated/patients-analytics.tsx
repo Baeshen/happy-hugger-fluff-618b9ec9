@@ -140,11 +140,17 @@ function PatientsAnalyticsPage() {
   const q = useQuery({
     queryKey: ["patients-analytics", filters],
     queryFn: () => analyticsFn({ data: filters }),
+    staleTime: 2 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const transitionsQ = useQuery({
     queryKey: ["patients-transitions", { branchId, doctorId, from, to }],
     queryFn: () => transitionsFn({ data: { branchId, doctorId, from, to } }),
+    staleTime: 2 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const data = q.data;
