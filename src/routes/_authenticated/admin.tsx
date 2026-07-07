@@ -1715,6 +1715,7 @@ function RemindersAuditTab() {
 
   return (
     <div className="space-y-4">
+      <ExportRemindersCsvPanel />
       {/* Filters */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="grid gap-3 md:grid-cols-4">
