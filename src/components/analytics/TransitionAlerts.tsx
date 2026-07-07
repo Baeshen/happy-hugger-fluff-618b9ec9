@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, Bell, Settings } from "lucide-react";
 import type { TransitionsStats } from "@/lib/patients-analytics.functions";
-import { loadRules, evaluateRules, STATUS_LABEL, type AlertRule } from "@/lib/transition-alerts";
+import { loadRules, evaluateRules, STATUS_LABEL, SEVERITY_LABEL, SEVERITY_STYLES, type AlertRule } from "@/lib/transition-alerts";
+
 
 export function TransitionAlerts({ stats }: { stats: TransitionsStats }) {
   const [rules, setRules] = useState<AlertRule[]>([]);
