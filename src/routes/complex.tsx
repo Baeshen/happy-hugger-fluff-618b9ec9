@@ -26,6 +26,14 @@ import clinicImg from "@/assets/complex-clinic.jpg";
 import pharmacyImg from "@/assets/complex-pharmacy.jpg";
 import logoImg from "@/assets/baeshen-logo.png";
 
+import {
+  buildLocalBusinessSchema,
+  buildBreadcrumbs,
+  SITE_URL,
+} from "@/lib/localBusinessSchema";
+
+const COMPLEX_URL = `${SITE_URL}/complex`;
+
 export const Route = createFileRoute("/complex")({
   head: () => ({
     meta: [
@@ -42,8 +50,39 @@ export const Route = createFileRoute("/complex")({
       },
       { property: "og:image", content: heroImg },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: COMPLEX_URL },
+      { property: "og:locale", content: "ar_SA" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: heroImg },
+    ],
+    links: [{ rel: "canonical", href: COMPLEX_URL }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(
+          buildLocalBusinessSchema({
+            pageUrl: COMPLEX_URL,
+            extraTypes: ["Place"],
+            amenities: [
+              { name: "اعتماد CBAHI" },
+              { name: "صيدلية داخلية" },
+              { name: "خدمات طوارئ" },
+              { name: "مواقف سيارات" },
+              { name: "وصول لذوي الاحتياجات الخاصة" },
+              { name: "تأمين طبي مقبول" },
+            ],
+          }),
+        ),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(
+          buildBreadcrumbs([
+            { name: "الرئيسية", path: "/" },
+            { name: "المجمع الطبي", path: "/complex" },
+          ]),
+        ),
+      },
     ],
   }),
   component: ComplexPage,
