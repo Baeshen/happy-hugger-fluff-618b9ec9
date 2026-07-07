@@ -492,6 +492,59 @@ async function main() {
       assert(rows.length === 0, `extra leading zeros should NOT match, leaked ${rows.length} rows`);
     });
 
+
+    // ── Blank / non-digit profile.phone values (must not leak anything) ─
+    // These strings all normalize to "" via regexp_replace(phone,'\D','','g').
+    // The function must NOT return rows for any appt, because a real appt's
+    // patient_phone normalizes to a non-empty digit string.
+    async function assertBlankPhoneLeaksNothing(
+      label: string,
+      profilePhone: string,
+    ) {
+      const u = await createUserWithPhone(
+        `rpa-blank-${label}-${stamp}@test.local`,
+        "0599000000", // any placeholder; overwritten next line
+      );
+      createdUsers.push(u.userId);
+      const upd = await admin
+        .from("profiles").update({ phone: profilePhone }).eq("id", u.userId);
+      assert(!upd.error, `profile update failed: ${upd.error?.message}`);
+      const c = await signIn(u.email, u.password);
+      for (const id of [ownerAppt, otherAppt]) {
+        const { data, error } = await c.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: id,
+        } as never);
+        assert(!error, `err (${label}) on ${id}: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        assert(
+          rows.length === 0,
+          `blank profile phone "${label}" leaked ${rows.length} rows for appt ${id}`,
+        );
+      }
+    }
+
+    await test("my_audit: profile.phone = '' (empty string) → 0 rows, no leak", async () => {
+      await assertBlankPhoneLeaksNothing("empty", "");
+    });
+
+    await test("my_audit: profile.phone = '   ' (spaces only) → 0 rows, no leak", async () => {
+      await assertBlankPhoneLeaksNothing("spaces", "   ");
+    });
+
+    await test("my_audit: profile.phone = tabs/newlines only → 0 rows, no leak", async () => {
+      await assertBlankPhoneLeaksNothing("ws", "\t\n \r");
+    });
+
+    await test("my_audit: profile.phone = non-digit punctuation only ('+-() ') → 0 rows, no leak", async () => {
+      await assertBlankPhoneLeaksNothing("punct", "+-() ");
+    });
+
+    await test("my_audit: profile.phone = Arabic/Unicode whitespace only (NBSP) → 0 rows, no leak", async () => {
+      // \u00A0 is non-breaking space — non-digit; must normalize to "".
+      await assertBlankPhoneLeaksNothing("nbsp", "\u00A0\u00A0\u00A0");
+    });
+
+
     // ── Rapid interleaved calls across a live profile.phone change ──
     // Guards against any per-session/per-user caching on the server side.
     // Assumes ownerU.phone == ownerPhone and otherU.phone == otherPhone at start.
