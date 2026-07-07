@@ -85,7 +85,7 @@ function QrModal({
   const [dataUrl, setDataUrl] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
-  const fileUrl = `${origin}/patients/${patientId}`;
+  const fileUrl = `${origin}/patients/${patientId}?src=qr`;
   const rateParams = new URLSearchParams();
   if (branchId) rateParams.set("branch", branchId);
   if (doctorId) rateParams.set("doctor", doctorId);
