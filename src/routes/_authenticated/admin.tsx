@@ -550,11 +550,17 @@ function AuditModal({
   onClose: () => void;
 }) {
   const fn = useServerFn(listAppointmentAudit);
+  const remFn = useServerFn(listReminderPreferenceAudit);
   const q = useQuery({
     queryKey: ["appt-audit", appointmentId],
     queryFn: () => fn({ data: { appointmentId } }),
   });
+  const rq = useQuery({
+    queryKey: ["appt-reminder-audit", appointmentId],
+    queryFn: () => remFn({ data: { appointmentId, pageSize: 100 } }),
+  });
   const rows = (q.data ?? []) as any[];
+  const reminderRows = ((rq.data as any)?.rows ?? []) as any[];
   const statusLabel = (v: string | null) =>
     v ? (APPT_STATUS.find((s) => s.value === v)?.label ?? v) : "—";
 
