@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
+
 
 const BASE_URL = "https://happy-hugger-fluff.lovable.app";
 
@@ -42,24 +42,19 @@ export const Route = createFileRoute("/sitemap.xml")({
             process.env.SUPABASE_ANON_KEY;
 
           if (url && key) {
-            const supabase = createClient(url, key, {
-              auth: { autoRefreshToken: false, persistSession: false },
-            });
-
+            const headers = { apikey: key, Authorization: `Bearer ${key}` };
             const [specialtiesRes, doctorsRes] = await Promise.all([
-              supabase
-                .from("specialties")
-                .select("slug, created_at")
-                .eq("is_active", true)
-                .order("sort_order"),
-              supabase
-                .from("doctors")
-                .select("id, created_at")
-                .eq("is_active", true)
-                .order("sort_order"),
+              fetch(
+                `${url}/rest/v1/specialties?select=slug,created_at&is_active=eq.true&order=sort_order`,
+                { headers },
+              ).then((r) => (r.ok ? r.json() : [])),
+              fetch(
+                `${url}/rest/v1/doctors?select=id,created_at&is_active=eq.true&order=sort_order`,
+                { headers },
+              ).then((r) => (r.ok ? r.json() : [])),
             ]);
 
-            for (const s of specialtiesRes.data ?? []) {
+            for (const s of (specialtiesRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
                 path: `/book?specialty=${encodeURIComponent(s.slug)}`,
                 lastmod: s.created_at?.slice(0, 10),
@@ -67,7 +62,7 @@ export const Route = createFileRoute("/sitemap.xml")({
                 priority: "0.8",
               });
             }
-            for (const d of doctorsRes.data ?? []) {
+            for (const d of (doctorsRes as Array<{ id: string; created_at: string }>) ?? []) {
               entries.push({
                 path: `/book?doctor=${encodeURIComponent(d.id)}`,
                 lastmod: d.created_at?.slice(0, 10),
