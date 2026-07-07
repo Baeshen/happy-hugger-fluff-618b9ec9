@@ -181,14 +181,7 @@ function PatientDetail() {
         </div>
       </div>
 
-                value={`${calcAge(p.date_of_birth) ?? "—"} / ${
-                  p.gender === "male" ? "ذكر" : p.gender === "female" ? "أنثى" : "—"
-                }`}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+
 
       <Tabs defaultValue="overview">
         <TabsList className="flex-wrap h-auto justify-start">
