@@ -1015,6 +1015,19 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
       byActor: [...byActor.entries()]
         .map(([id, count]) => ({ actor_id: id, actor_name: actorNameMap.get(id) ?? "غير معروف", count }))
         .sort((a, b) => b.count - a.count),
+      byBranchStatus: [...byBranchStatus.entries()]
+        .map(([k, count]) => {
+          const [id, status] = k.split("||");
+          return { branch_id: id, branch_name: branchNameMap.get(id) ?? "غير محدد", status, count };
+        })
+        .sort((a, b) => b.count - a.count),
+      byActorStatus: [...byActorStatus.entries()]
+        .map(([k, count]) => {
+          const [id, status] = k.split("||");
+          return { actor_id: id, actor_name: actorNameMap.get(id) ?? "غير معروف", status, count };
+        })
+        .sort((a, b) => b.count - a.count),
+
       daily,
       hourly: hourly.map((count, hour) => ({ hour, count })),
       weekday: weekday.map((count, i) => ({ weekday: i, label: weekdayLabels[i], count })),
