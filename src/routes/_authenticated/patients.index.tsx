@@ -17,7 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/patients")({
+export const Route = createFileRoute("/_authenticated/patients/")({
   head: () => ({
     meta: [{ title: "السجلات الطبية | مجمع باعشن الطبي" }, { name: "robots", content: "noindex" }],
   }),

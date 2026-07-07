@@ -32,6 +32,7 @@ import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -149,6 +150,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPatientsIndexRoute =
+  AuthenticatedPatientsIndexRouteImport.update({
+    id: '/patients/',
+    path: '/patients/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicBookCreateRoute = ApiPublicBookCreateRouteImport.update({
   id: '/api/public/book/create',
   path: '/api/public/book/create',
@@ -178,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
+  '/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesByTo {
@@ -203,6 +211,7 @@ export interface FileRoutesByTo {
   '/doctors': typeof DoctorsIndexRoute
   '/health': typeof HealthIndexRoute
   '/specialties': typeof SpecialtiesIndexRoute
+  '/patients': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesById {
@@ -230,6 +239,7 @@ export interface FileRoutesById {
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
+  '/_authenticated/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRouteTypes {
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/doctors/'
     | '/health/'
     | '/specialties/'
+    | '/patients/'
     | '/api/public/book/create'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '/doctors'
     | '/health'
     | '/specialties'
+    | '/patients'
     | '/api/public/book/create'
   id:
     | '__root__'
@@ -308,6 +320,7 @@ export interface FileRouteTypes {
     | '/doctors/'
     | '/health/'
     | '/specialties/'
+    | '/_authenticated/patients/'
     | '/api/public/book/create'
   fileRoutesById: FileRoutesById
 }
@@ -496,6 +509,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/patients/': {
+      id: '/_authenticated/patients/'
+      path: '/patients'
+      fullPath: '/patients/'
+      preLoaderRoute: typeof AuthenticatedPatientsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/book/create': {
       id: '/api/public/book/create'
       path: '/api/public/book/create'
@@ -512,6 +532,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedPatientsIndexRoute: typeof AuthenticatedPatientsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -520,6 +541,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedPatientsIndexRoute: AuthenticatedPatientsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
