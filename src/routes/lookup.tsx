@@ -119,6 +119,28 @@ function LookupPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
+  const [savingReminders, setSavingReminders] = useState(false);
+
+  const toggleReminder = async (which: "24h" | "2h", value: boolean) => {
+    if (!appt) return;
+    setSavingReminders(true);
+    const payload = {
+      _ref: ref.trim(),
+      _phone: phone.trim(),
+      _reminder_24h: which === "24h" ? value : appt.reminder_24h,
+      _reminder_2h: which === "2h" ? value : appt.reminder_2h,
+    };
+    const { data, error } = await supabase.rpc("update_reminders_by_ref", payload);
+    setSavingReminders(false);
+    if (error) return toast.error(error.message);
+    if (!data) return toast.error(t("lookup_not_found"));
+    setAppt({
+      ...appt,
+      reminder_24h: payload._reminder_24h,
+      reminder_2h: payload._reminder_2h,
+    });
+    toast.success("تم حفظ إعدادات التذكير");
+  };
   const [newDate, setNewDate] = useState<string>("");
   const [newTime, setNewTime] = useState<string>("");
   const [availability, setAvailability] = useState<
