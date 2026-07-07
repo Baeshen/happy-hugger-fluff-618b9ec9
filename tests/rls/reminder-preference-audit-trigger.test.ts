@@ -184,8 +184,5 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-function quoteLiteral(s: string): string {
-  return "'" + s.replace(/'/g, "''") + "'";
-}
 
 main().catch((e) => { console.error(e); process.exit(1); });
