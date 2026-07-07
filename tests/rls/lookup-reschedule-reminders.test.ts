@@ -1080,6 +1080,224 @@ async function main() {
       },
     );
 
+    // ── Recovery: failed reschedule must not corrupt reminder state ──
+
+    await test(
+      "reminders survive a failed reschedule (wrong phone), then a valid retry applies new prefs",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: false,
+        });
+        const before = await readAppt(id);
+
+        // 1) Failed reschedule with wrong phone → returns false, no mutation.
+        const { data: failData, error: failErr } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "0599999999",
+            _new_date: futureDate(14),
+            _new_time: "09:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!failErr, `unexpected error: ${failErr?.message}`);
+        assert(failData === false, `expected false, got ${failData}`);
+        const afterFail = await readAppt(id);
+        assert(
+          afterFail.appointment_date === before.appointment_date &&
+            String(afterFail.appointment_time) === String(before.appointment_time),
+          "failed reschedule must not change date/time",
+        );
+        assert(
+          afterFail.reminder_24h === before.reminder_24h &&
+            afterFail.reminder_2h === before.reminder_2h,
+          "failed reschedule must not change reminder preferences",
+        );
+
+        // 2) Valid reschedule → succeeds.
+        const newDate = futureDate(15);
+        const { data: okData, error: okErr } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: newDate,
+            _new_time: "10:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!okErr, `rpc error: ${okErr?.message}`);
+        assert(okData === true, `expected true, got ${okData}`);
+
+        // 3) Reminders stay untouched (reschedule alone does not modify them).
+        const afterOk = await readAppt(id);
+        assert(afterOk.appointment_date === newDate, "date must update");
+        assert(
+          afterOk.reminder_24h === before.reminder_24h &&
+            afterOk.reminder_2h === before.reminder_2h,
+          "successful reschedule alone must preserve reminders (they change only via update_reminders_by_ref)",
+        );
+
+        // 4) Now the user submits new reminder prefs on the successful attempt.
+        const { data: remData, error: remErr } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: false,
+            _reminder_2h: true,
+          } as never,
+        );
+        assert(!remErr, `rpc error: ${remErr?.message}`);
+        assert(remData === true, `expected true, got ${remData}`);
+        const final = await readAppt(id);
+        assert(final.reminder_24h === false, "24h should flip to false");
+        assert(final.reminder_2h === true, "2h should flip to true");
+      },
+    );
+
+    await test(
+      "reminders survive multiple failed reschedule attempts before a successful one",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: false,
+          reminder_2h: true,
+        });
+        const before = await readAppt(id);
+
+        // Three different failure modes in a row.
+        const failures = [
+          // wrong phone
+          { _ref: ref, _phone: "0511111111", _new_date: futureDate(16), _new_time: "09:00:00", _reason: "r" },
+          // unknown ref
+          { _ref: "00000000", _phone: phone, _new_date: futureDate(16), _new_time: "09:30:00", _reason: "r" },
+          // past date
+          { _ref: ref, _phone: phone, _new_date: futureDate(-1), _new_time: "09:45:00", _reason: "r" },
+        ];
+        for (const [i, args] of failures.entries()) {
+          const { data, error } = await anon.rpc(
+            "reschedule_appointment_by_ref" as never,
+            args as never,
+          );
+          assert(
+            error != null || data === false,
+            `attempt ${i + 1} unexpectedly succeeded (data=${JSON.stringify(data)})`,
+          );
+          const snap = await readAppt(id);
+          assert(
+            snap.appointment_date === before.appointment_date &&
+              String(snap.appointment_time) === String(before.appointment_time),
+            `attempt ${i + 1} must not change date/time`,
+          );
+          assert(
+            snap.reminder_24h === before.reminder_24h &&
+              snap.reminder_2h === before.reminder_2h,
+            `attempt ${i + 1} must not change reminders`,
+          );
+        }
+
+        // Final valid reschedule + update_reminders → succeeds cleanly.
+        const okDate = futureDate(17);
+        const { data: ok1 } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: okDate,
+            _new_time: "11:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(ok1 === true, `final reschedule failed: ${ok1}`);
+        const { data: ok2 } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: true,
+            _reminder_2h: true,
+          } as never,
+        );
+        assert(ok2 === true, `update_reminders failed: ${ok2}`);
+        const final = await readAppt(id);
+        assert(final.appointment_date === okDate, "date must update");
+        assert(final.reminder_24h === true, "24h should be true");
+        assert(final.reminder_2h === true, "2h should be true");
+      },
+    );
+
+    await test(
+      "failed update_reminders (wrong phone) between two valid reschedules preserves prior prefs",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+
+        // 1) First valid reschedule + explicit reminder prefs → 24h off, 2h on.
+        await anon.rpc("reschedule_appointment_by_ref" as never, {
+          _ref: ref,
+          _phone: phone,
+          _new_date: futureDate(18),
+          _new_time: "09:00:00",
+          _reason: "r",
+        } as never);
+        const { data: rem1 } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: false,
+            _reminder_2h: true,
+          } as never,
+        );
+        assert(rem1 === true, "first reminder update should succeed");
+        const afterFirst = await readAppt(id);
+        assert(afterFirst.reminder_24h === false && afterFirst.reminder_2h === true,
+          "reminders should be (false,true) after first update");
+
+        // 2) Attempt a reminder update with wrong phone → returns false, no change.
+        const { data: badRem, error: badRemErr } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "0577777777",
+            _reminder_24h: true,
+            _reminder_2h: false,
+          } as never,
+        );
+        assert(!badRemErr, `unexpected error: ${badRemErr?.message}`);
+        assert(badRem === false, `expected false, got ${badRem}`);
+        const afterBad = await readAppt(id);
+        assert(
+          afterBad.reminder_24h === false && afterBad.reminder_2h === true,
+          "reminders must remain (false,true) after failed update_reminders",
+        );
+
+        // 3) Second valid reschedule → date changes, reminders unchanged.
+        const finalDate = futureDate(19);
+        const { data: ok } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: finalDate,
+            _new_time: "10:30:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(ok === true, "second reschedule should succeed");
+        const final = await readAppt(id);
+        assert(final.appointment_date === finalDate, "date must update");
+        assert(
+          final.reminder_24h === false && final.reminder_2h === true,
+          "reminders must still be (false,true) after second reschedule",
+        );
+      },
+    );
+
   } finally {
     if (created.length) {
       await admin.from("appointments").delete().in("id", created);
