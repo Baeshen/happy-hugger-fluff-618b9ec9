@@ -9,6 +9,7 @@
 #   bash scripts/run-tests.sh                 # كل الاختبارات
 #   bash scripts/run-tests.sh --method=bun    # فرض طريقة معيّنة
 #   bash scripts/run-tests.sh --explain       # عرض تفسير الاختيار فقط
+#   bash scripts/run-tests.sh --explain-json  # نفس التفسير كـ JSON للاستهلاك الآلي
 #   bash scripts/run-tests.sh --no-rls        # تخطّي اختبارات RLS
 #   bash scripts/run-tests.sh -- bun test x   # مرّر أمرًا مخصّصًا للحاوية
 set -euo pipefail
@@ -20,6 +21,7 @@ METHOD="auto"
 RUN_RLS=1
 WATCH=0
 EXPLAIN=0
+EXPLAIN_JSON=0
 WATCH_PATHS=(src tests scripts package.json Dockerfile.test docker-compose.test.yml)
 CUSTOM_CMD=()
 
@@ -30,6 +32,7 @@ while [ $# -gt 0 ]; do
     --method)   METHOD="$2"; shift 2 ;;
     --no-rls)   RUN_RLS=0; shift ;;
     --explain)  EXPLAIN=1; shift ;;
+    --explain-json) EXPLAIN=1; EXPLAIN_JSON=1; shift ;;
     --watch|-w) WATCH=1; shift ;;
     --watch-path=*) WATCH_PATHS+=("${1#*=}"); shift ;;
     -h|--help)
@@ -166,13 +169,58 @@ choose_method() {
   exit 1
 }
 
-detect_env
-print_env_report
+json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e ':a;N;$!ba;s/\n/\\n/g'; }
 
+emit_explain_json() {
+  cat <<JSON
+{
+  "environment": {
+    "in_container": $([ $IN_CONTAINER -eq 1 ] && echo true || echo false),
+    "in_container_reason": "$(json_escape "$IN_CONTAINER_WHY")",
+    "devcontainer": {
+      "present": $([ $HAS_DEVCONTAINER -eq 1 ] && echo true || echo false),
+      "path": "$(json_escape "$DEVCONTAINER_PATH")"
+    },
+    "docker": {
+      "cli": $([ $HAS_DOCKER -eq 1 ] && echo true || echo false),
+      "daemon": $([ $DOCKER_DAEMON -eq 1 ] && echo true || echo false),
+      "socket": "$(json_escape "$DOCKER_SOCK")"
+    },
+    "compose": {
+      "available": $([ $HAS_COMPOSE -eq 1 ] && echo true || echo false),
+      "kind": "$(json_escape "$COMPOSE_KIND")",
+      "file_present": $([ $HAS_COMPOSE_FILE -eq 1 ] && echo true || echo false)
+    },
+    "dockerfile_test_present": $([ $HAS_DOCKERFILE -eq 1 ] && echo true || echo false),
+    "bun": {
+      "available": $([ $HAS_BUN -eq 1 ] && echo true || echo false),
+      "version": "$(json_escape "$BUN_VERSION")"
+    }
+  },
+  "decision": {
+    "method": "$(json_escape "$METHOD")",
+    "reason": "$(json_escape "$REASON")",
+    "forced": $([ "$1" = "forced" ] && echo true || echo false)
+  }
+}
+JSON
+}
+
+detect_env
+
+FORCED="auto"
 if [ "$METHOD" = "auto" ]; then
+  if [ "$EXPLAIN_JSON" -eq 0 ]; then print_env_report; fi
   choose_method
 else
+  FORCED="forced"
+  if [ "$EXPLAIN_JSON" -eq 0 ]; then print_env_report; fi
   REASON="مفروضة يدويًا عبر --method=$METHOD"
+fi
+
+if [ "$EXPLAIN_JSON" -eq 1 ]; then
+  emit_explain_json "$FORCED"
+  exit 0
 fi
 
 printf '\033[1;36m▶ الطريقة المختارة: %s\033[0m\n' "$METHOD"
