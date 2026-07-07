@@ -632,3 +632,151 @@ export const listPatientsForKpi = createServerFn({ method: "POST" })
       created_at: p.created_at as string,
     }));
   });
+
+// ============ Patient transitions table (per-patient rows) ============
+
+const TransitionRowsInput = z.object({
+  branchId: z.string().uuid().nullable().optional(),
+  doctorId: z.string().uuid().nullable().optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  gender: z.enum(["male", "female", "other"]).nullable().optional(),
+  minAge: z.number().int().min(0).max(150).nullable().optional(),
+  maxAge: z.number().int().min(0).max(150).nullable().optional(),
+  limit: z.number().int().min(1).max(2000).optional(),
+});
+
+export type PatientTransitionRow = {
+  audit_id: string;
+  created_at: string;
+  patient_id: string;
+  patient_name: string | null;
+  patient_mrn: string | null;
+  branch_name: string | null;
+  from: string | null;
+  to: string;
+  reason: string | null;
+  actor_name: string | null;
+  bulk: boolean;
+};
+
+export const listPatientTransitionRows = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => TransitionRowsInput.parse(d))
+  .handler(async ({ data, context }): Promise<PatientTransitionRow[]> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb: any = context.supabase;
+    const roles = await getRoles(sb, context.userId);
+    ensureStaff(roles);
+
+    // Build eligible patient pool respecting branch/doctor/gender/age filters
+    let pq = sb
+      .from("patients")
+      .select("id, full_name_ar, mrn, gender, date_of_birth, branch_id, branches(name_ar)");
+    if (data.branchId) pq = pq.eq("branch_id", data.branchId);
+    if (data.gender) pq = pq.eq("gender", data.gender);
+    const { data: pRows, error: pErr } = await pq.limit(20000);
+    if (pErr) throw new Error(pErr.message);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patientMap = new Map<string, any>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const p of (pRows ?? []) as any[]) {
+      const age = ageFromDOB(p.date_of_birth);
+      if (data.minAge != null && (age == null || age < data.minAge)) continue;
+      if (data.maxAge != null && (age == null || age > data.maxAge)) continue;
+      patientMap.set(p.id as string, p);
+    }
+
+    if (data.doctorId) {
+      const { data: vRows } = await sb
+        .from("patient_visits")
+        .select("patient_id")
+        .eq("doctor_id", data.doctorId)
+        .limit(20000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const withDoc = new Set<string>(((vRows ?? []) as any[]).map((r) => r.patient_id as string));
+      for (const id of [...patientMap.keys()]) if (!withDoc.has(id)) patientMap.delete(id);
+    }
+
+    // Fetch audit log
+    const { data: audit } = await sb
+      .from("security_audit_log")
+      .select("id, created_at, action, actor, reason, metadata")
+      .in("action", ["patient.status_changed", "patient.bulk_status_changed"])
+      .gte("created_at", `${data.from}T00:00:00`)
+      .lte("created_at", `${data.to}T23:59:59`)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+
+    const limit = data.limit ?? 500;
+    const rows: PatientTransitionRow[] = [];
+    const actorIds = new Set<string>();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const ev of ((audit ?? []) as any[])) {
+      if (rows.length >= limit) break;
+      const meta = ev.metadata ?? {};
+      const reason = (ev.reason as string) ?? (meta.reason as string) ?? null;
+      if (ev.action === "patient.status_changed") {
+        const pid = meta.patient_id as string | undefined;
+        if (!pid || !patientMap.has(pid)) continue;
+        const p = patientMap.get(pid);
+        if (ev.actor) actorIds.add(ev.actor);
+        rows.push({
+          audit_id: ev.id,
+          created_at: ev.created_at,
+          patient_id: pid,
+          patient_name: p.full_name_ar ?? null,
+          patient_mrn: p.mrn ?? null,
+          branch_name: p.branches?.name_ar ?? null,
+          from: (meta.from as string) ?? null,
+          to: String(meta.to ?? ""),
+          reason,
+          actor_name: null,
+          bulk: false,
+        });
+      } else {
+        const ids: string[] = Array.isArray(meta.ids) ? meta.ids : [];
+        for (const pid of ids) {
+          if (rows.length >= limit) break;
+          if (!patientMap.has(pid)) continue;
+          const p = patientMap.get(pid);
+          if (ev.actor) actorIds.add(ev.actor);
+          rows.push({
+            audit_id: ev.id,
+            created_at: ev.created_at,
+            patient_id: pid,
+            patient_name: p.full_name_ar ?? null,
+            patient_mrn: p.mrn ?? null,
+            branch_name: p.branches?.name_ar ?? null,
+            from: null,
+            to: String(meta.to ?? ""),
+            reason,
+            actor_name: null,
+            bulk: true,
+          });
+        }
+      }
+    }
+
+    if (actorIds.size) {
+      const { data: profs } = await sb
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", [...actorIds]);
+      const nameMap = new Map<string, string>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const p of ((profs ?? []) as any[])) nameMap.set(p.id, p.full_name ?? "");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const actorByAudit = new Map<string, string | null>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const ev of ((audit ?? []) as any[])) actorByAudit.set(ev.id, ev.actor ?? null);
+      for (const r of rows) {
+        const a = actorByAudit.get(r.audit_id);
+        if (a) r.actor_name = nameMap.get(a) ?? null;
+      }
+    }
+
+    return rows;
+  });
