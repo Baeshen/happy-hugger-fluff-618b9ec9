@@ -886,6 +886,200 @@ async function main() {
       );
     });
 
+    // ── Boundary tests: phone formats & reminder value edges ──
+
+    await test(
+      "phone with spaces and parentheses (same digits) matches",
+      async () => {
+        const { id, ref } = await newAppt();
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "(050) 000 0000",
+            _new_date: futureDate(10),
+            _new_time: "09:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        const row = await readAppt(id);
+        assert(row.appointment_date === futureDate(10), "date should update");
+      },
+    );
+
+    await test(
+      "phone with country-code prefix +966 50 000 0000 (different digits) does NOT match",
+      async () => {
+        const { id, ref } = await newAppt();
+        const before = await readAppt(id);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "+966 50 000 0000",
+            _new_date: futureDate(10),
+            _new_time: "09:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+        const after = await readAppt(id);
+        assert(
+          after.appointment_date === before.appointment_date,
+          "must not reschedule when digits differ",
+        );
+      },
+    );
+
+    await test(
+      "phone containing only non-digit characters returns false",
+      async () => {
+        const { id, ref } = await newAppt();
+        const before = await readAppt(id);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "abc-def-ghij",
+            _new_date: futureDate(11),
+            _new_time: "10:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+        const after = await readAppt(id);
+        assert(
+          after.appointment_date === before.appointment_date,
+          "must not reschedule with non-digit phone",
+        );
+      },
+    );
+
+    await test(
+      "phone with letters mixed into digits doesn't accidentally match",
+      async () => {
+        const { id, ref } = await newAppt();
+        const before = await readAppt(id);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "050abc000xy0000extra", // digits become 05000000000 (11) ≠ 0500000000 (10)
+            _new_date: futureDate(11),
+            _new_time: "10:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+        const after = await readAppt(id);
+        assert(
+          after.appointment_date === before.appointment_date,
+          "digit-count mismatch must not match",
+        );
+      },
+    );
+
+    await test(
+      "very long phone (500 chars of digits) does not match and does not crash",
+      async () => {
+        const { id, ref } = await newAppt();
+        const before = await readAppt(id);
+        const longPhone = "9".repeat(500);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: longPhone,
+            _new_date: futureDate(12),
+            _new_time: "11:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+        const after = await readAppt(id);
+        assert(
+          after.appointment_date === before.appointment_date,
+          "over-long phone must not match",
+        );
+      },
+    );
+
+    await test(
+      "phone with Arabic-Indic digits (٠٥٠٠٠٠٠٠٠٠) does NOT match ASCII-stored phone",
+      async () => {
+        const { id, ref } = await newAppt();
+        const before = await readAppt(id);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "٠٥٠٠٠٠٠٠٠٠",
+            _new_date: futureDate(12),
+            _new_time: "11:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === false, `expected false, got ${JSON.stringify(data)}`);
+        const after = await readAppt(id);
+        assert(
+          after.appointment_date === before.appointment_date,
+          "Arabic-Indic digits are stripped by \\D and must not match ASCII digits",
+        );
+      },
+    );
+
+    await test(
+      "phone with newlines / tabs (same digits) still matches",
+      async () => {
+        const { id, ref } = await newAppt();
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: "050\n000\t0000",
+            _new_date: futureDate(13),
+            _new_time: "12:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        const row = await readAppt(id);
+        assert(row.appointment_date === futureDate(13), "date should update");
+      },
+    );
+
+    await test(
+      "update_reminders_by_ref: only one flag null keeps that flag, changes the other",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+        const { data, error } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: false,
+            _reminder_2h: null,
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        const row = await readAppt(id);
+        assert(row.reminder_24h === false, "24h should flip to false");
+        assert(row.reminder_2h === true, "2h should stay true (null → COALESCE)");
+      },
+    );
+
   } finally {
     if (created.length) {
       await admin.from("appointments").delete().in("id", created);
