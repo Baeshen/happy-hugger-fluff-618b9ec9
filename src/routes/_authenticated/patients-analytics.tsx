@@ -1842,6 +1842,7 @@ function PatientTransitionsTable({
       <TransitionDetailModal
         row={selectedRow}
         filters={{ branchId, doctorId, gender, minAge, maxAge, from, to }}
+        searchTerm={debouncedSearch}
         onClose={() => setSelectedRow(null)}
       />
     </div>
