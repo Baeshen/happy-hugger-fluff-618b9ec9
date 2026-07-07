@@ -152,6 +152,8 @@ async function main() {
       assert(row.changed_by === receptionU.userId,
         `expected changed_by=${receptionU.userId}, got ${row.changed_by}`);
       assert(row.new_value === false, `expected new_value=false, got ${row.new_value}`);
+      assert(row.reason === null,
+        `expected reason NULL (no GUC set), got ${JSON.stringify(row.reason)}`);
     });
 
     // ── 3) staff (admin) direct UPDATE ──────────────────────────────
