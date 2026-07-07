@@ -514,3 +514,70 @@ export const deleteAvailability = createServerFn({ method: "POST" })
     if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
+
+/**
+ * List reminder-preference audit rows for staff dashboards.
+ * Supports:
+ *   - optional appointmentId filter
+ *   - optional reminder_kind filter ("reminder_24h" | "reminder_2h")
+ *   - optional source filter ("staff" | "self_service" | "system")
+ *   - pagination via page (1-based) + pageSize (max 100)
+ * Returns { rows, total, page, pageSize } and enriches actor names.
+ */
+export const listReminderPreferenceAudit = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        appointmentId: z.string().uuid().optional(),
+        reminderKind: z.enum(["reminder_24h", "reminder_2h"]).optional(),
+        source: z.enum(["staff", "self_service", "system"]).optional(),
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(1).max(100).default(50),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+
+    const from = (data.page - 1) * data.pageSize;
+    const to = from + data.pageSize - 1;
+
+    let q = context.supabase
+      .from("reminder_preference_audit")
+      .select("*", { count: "exact" })
+      .order("changed_at", { ascending: false })
+      .range(from, to);
+
+    if (data.appointmentId) q = q.eq("appointment_id", data.appointmentId);
+    if (data.reminderKind) q = q.eq("reminder_kind", data.reminderKind);
+    if (data.source) q = q.eq("source", data.source);
+
+    const { data: rows, error, count } = await q;
+    if (error) throw new Error(humanizeSupabaseError(error));
+
+    // Enrich actor names (best-effort).
+    const ids = Array.from(
+      new Set((rows ?? []).map((r: any) => r.changed_by).filter(Boolean)),
+    );
+    const nameById = new Map<string, string>();
+    if (ids.length) {
+      const { data: profs } = await context.supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", ids);
+      for (const p of profs ?? []) nameById.set(p.id, p.full_name ?? "");
+    }
+
+    return {
+      rows: (rows ?? []).map((r: any) => ({
+        ...r,
+        changed_by_name: r.changed_by ? (nameById.get(r.changed_by) ?? null) : null,
+      })),
+      total: count ?? 0,
+      page: data.page,
+      pageSize: data.pageSize,
+    };
+  });
+
