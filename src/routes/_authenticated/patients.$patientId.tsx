@@ -80,6 +80,33 @@ function calcAge(dob: string | null) {
 function PatientDetail() {
   const { patientId } = Route.useParams();
   const qc = useQueryClient();
+  const logScanFn = useServerFn(logPatientQrScan);
+
+  // Log a QR scan when the page is opened via ?src=qr
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("src") !== "qr") return;
+    logScanFn({
+      data: {
+        patientId,
+        source: "qr",
+        userAgent: navigator.userAgent.slice(0, 500),
+      },
+    })
+      .then(() => {
+        qc.invalidateQueries({ queryKey: ["patient-qr-scans", patientId] });
+        qc.invalidateQueries({ queryKey: ["patient-qr-scan-count", patientId] });
+        // Clean the URL so a refresh doesn't double-count
+        const url = new URL(window.location.href);
+        url.searchParams.delete("src");
+        window.history.replaceState({}, "", url.toString());
+      })
+      .catch(() => {
+        /* silent — non-critical */
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]);
 
   const patientQ = useQuery({
     queryKey: ["patient", patientId],
