@@ -8,6 +8,10 @@ export type AlertRule = {
   status: AlertStatus;
   threshold: number;
   enabled: boolean;
+  is_shared?: boolean;
+  user_id?: string;
+  /** true when the current viewer owns the rule (may edit/delete). */
+  is_owner?: boolean;
 };
 
 export const STATUS_LABEL: Record<AlertStatus, string> = {
@@ -23,39 +27,6 @@ export const SCOPE_LABEL: Record<AlertScope, string> = {
   actor: "لكل موظف",
   any: "الإجمالي",
 };
-
-const STORAGE_KEY = "transition-alerts-rules-v1";
-
-export function loadRules(): AlertRule[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((r) => r && typeof r.id === "string")
-      .map((r) => ({
-        id: String(r.id),
-        label: typeof r.label === "string" ? r.label : undefined,
-        scope: (["branch", "actor", "any"].includes(r.scope) ? r.scope : "branch") as AlertScope,
-        status: (["active", "inactive", "archived", "deceased", "any"].includes(r.status) ? r.status : "any") as AlertStatus,
-        threshold: Number(r.threshold) || 1,
-        enabled: r.enabled !== false,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-export function saveRules(rules: AlertRule[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
-  } catch {
-    /* ignore */
-  }
-}
 
 export type Severity = "low" | "medium" | "high";
 
