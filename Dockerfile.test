@@ -14,5 +14,13 @@ COPY . .
 # الأسرار تُمرَّر وقت التشغيل عبر --env-file أو -e
 ENV CI=true
 
-# الأمر الافتراضي: مجموعة الاختبارات الكاملة كما في CI
-CMD ["bash", "-lc", "bun run format:check && bun run lint && bun run typecheck && bun test && bun run check:rls"]
+# الأمر الافتراضي: نفس خطوات CI بالترتيب (lint-and-typecheck ثم rls-tests)
+CMD ["bash", "-lc", "set -e && \
+  bun install --frozen-lockfile && \
+  bun run format:check && \
+  bun run lint:inserts && \
+  bash tests/lint/book-docs-examples.sh && \
+  bun tests/unit/book-docs-keys.test.ts && \
+  for f in tests/unit/*.test.ts; do echo \"── $f ──\"; bun \"$f\"; done && \
+  bun run typecheck && \
+  bun run check:rls"]

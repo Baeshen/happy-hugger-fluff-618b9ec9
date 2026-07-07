@@ -436,6 +436,50 @@ bun run test:all -- -- bun test tests/rls/appointments.rls.test.ts  # أمر م�
 
 يتحقّق السكربت من وجود `.env.local` عند الحاجة، ويحمّله تلقائيًا في وضع `bun`، ويبني الصورة قبل التشغيل في وضع `compose`/`docker`.
 
+### مطابقة CI ↔ الحاوية المحلية
+
+الأوامر التي ينفّذها `scripts/run-tests.sh` و`Dockerfile.test` مأخوذة حرفيًا من `.github/workflows/ci.yml` بنفس الترتيب. الجدول أدناه هو مصدر الحقيقة لهذه المطابقة — إذا تغيّر أحد الطرفين وجب تحديث الآخر.
+
+| # | خطوة CI (workflow / step) | الأمر في CI | الأمر داخل `Dockerfile.test` / `run-tests.sh` |
+| - | ------------------------- | ----------- | -------------------------------------------- |
+| 1 | `lint-and-typecheck` → Install | `bun install --frozen-lockfile` | `bun install --frozen-lockfile` |
+| 2 | `lint-and-typecheck` → Prettier | `bun run format:check` | `bun run format:check` |
+| 3 | `lint-and-typecheck` → Lint inserts | `bun run lint:inserts` | `bun run lint:inserts` |
+| 4 | `lint-and-typecheck` → Docs examples | `bash tests/lint/book-docs-examples.sh` | `bash tests/lint/book-docs-examples.sh` |
+| 5 | `lint-and-typecheck` → Docs keys | `bun tests/unit/book-docs-keys.test.ts` | `bun tests/unit/book-docs-keys.test.ts` |
+| 6 | `lint-and-typecheck` → Unit tests | `for f in tests/unit/*.test.ts; do bun "$f"; done` | نفس الحلقة حرفيًا |
+| 7 | `lint-and-typecheck` → TypeScript | `bun run typecheck` | `bun run typecheck` |
+| 8 | `rls-tests-*` → Verify secrets | فحص وجود `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | نفس الفحص داخل `scripts/pre-push-rls-checks.sh` (يُستدعى عبر `bun run check:rls`) |
+| 9 | `rls-tests-*` → RLS suite | `for f in tests/rls/*.test.ts; do bun "$f"; done` | نفس الحلقة داخل `check:rls` |
+
+**تكافؤ البيئة:**
+
+| المكوّن | CI (`ubuntu-latest`) | الحاوية المحلية |
+| ------- | -------------------- | ---------------- |
+| نظام التشغيل | Ubuntu (Linux x64/arm64) | Debian slim (`oven/bun:1-debian`) |
+| Bun | `oven-sh/setup-bun@v2` بإصدار `latest` | `oven/bun:1-debian` (نفس القناة) |
+| متغيّر `CI` | `true` | `true` (مضبوط في `Dockerfile.test` و `docker-compose.test.yml`) |
+| الأسرار | `secrets.SUPABASE_*` من Repository secrets | `.env.local` عبر `--env-file` / `env_file` |
+| التبعيات | `bun install --frozen-lockfile` | `bun install --frozen-lockfile` (fallback إلى `bun install` عند اختلاف lockfile) |
+
+**فروق مقصودة:**
+
+- CI يفصل بين وظيفة `lint-and-typecheck` (تعمل دائمًا) و `rls-tests-*` (تعمل فقط عند وجود الأسرار). محليًا كلاهما يعمل بالتسلسل في تنفيذ واحد، ويمكن تخطّي RLS عبر `bun run test:all -- --no-rls` لمحاكاة الحالة بدون أسرار.
+- `rls-tests-pr` يتخطّى صامتًا على PRs بدون أسرار؛ محليًا `check:rls` يفشل صراحةً — لأن الغرض محلي هو منع الـ push، لا الاختيار.
+- `rls-tests-main` يواصل تشغيل بقيّة الملفات عند فشل ملف ويعدّ الفاشلة؛ `check:rls` يفعل نفس الشيء (`failed=$((failed + 1))`).
+
+**كيف تتحقّق يدويًا من التطابق:**
+
+```bash
+# 1. الأوامر داخل الحاوية:
+docker compose -f docker-compose.test.yml run --rm tests bash -lc 'echo "$0"; declare -f'
+
+# 2. قارن بأوامر CI:
+grep -E "^\s+run:|bun |bash tests/" .github/workflows/ci.yml
+```
+
+
+
 ### الخيار 1: Docker Compose (موصى به)
 
 المتطلبات: Docker Desktop أو Docker Engine + plugin `compose`.

@@ -38,8 +38,17 @@ ok()  { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
 err() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; }
 
 # ---------- الأوامر الافتراضية ----------
+# ---------- الأوامر الافتراضية (مطابقة لخطوات CI بالترتيب) ----------
+# مصدر الحقيقة: .github/workflows/ci.yml (jobs: lint-and-typecheck, rls-tests-*)
 if [ ${#CUSTOM_CMD[@]} -eq 0 ]; then
-  BASE_CMD='bun run format:check && bun run lint && bun run typecheck && bun test'
+  BASE_CMD='set -e && \
+bun install --frozen-lockfile && \
+bun run format:check && \
+bun run lint:inserts && \
+bash tests/lint/book-docs-examples.sh && \
+bun tests/unit/book-docs-keys.test.ts && \
+for f in tests/unit/*.test.ts; do echo "── $f ──"; bun "$f"; done && \
+bun run typecheck'
   if [ "$RUN_RLS" -eq 1 ]; then
     FULL_CMD="$BASE_CMD && bun run check:rls"
   else
