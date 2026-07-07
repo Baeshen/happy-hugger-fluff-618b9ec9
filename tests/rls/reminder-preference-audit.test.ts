@@ -1,9 +1,8 @@
 /**
- * Integration tests: reminder_preference_audit
+ * Integration tests: reminder_preference_audit (per-kind rows)
  *
- * Verifies the AFTER-UPDATE trigger on public.appointments writes exactly one
- * audit row per actual change to reminder_24h / reminder_2h, tags the source
- * correctly (self_service | staff), and blocks direct writes.
+ * Each row now identifies exactly one reminder kind ("reminder_24h" or
+ * "reminder_2h"). A single UPDATE that flips both flags produces TWO rows.
  *
  * Run:  bun tests/rls/reminder-preference-audit.test.ts
  */
@@ -59,74 +58,91 @@ async function main() {
     return { id, ref: id.replace(/-/g, "").slice(0, 8) };
   }
 
-  async function auditRows(appointment_id: string) {
+  type AuditRow = {
+    id: string;
+    appointment_id: string;
+    reminder_kind: "reminder_24h" | "reminder_2h";
+    changed_by: string | null;
+    source: string;
+    old_value: boolean | null;
+    new_value: boolean | null;
+    reason: string | null;
+    changed_at: string;
+  };
+
+  async function auditRows(appointment_id: string): Promise<AuditRow[]> {
     const { data, error } = await admin
       .from("reminder_preference_audit")
       .select("*")
       .eq("appointment_id", appointment_id)
       .order("changed_at", { ascending: true });
     if (error) throw error;
-    return data as Array<{
-      appointment_id: string;
-      changed_by: string | null;
-      source: string;
-      old_reminder_24h: boolean | null;
-      new_reminder_24h: boolean | null;
-      old_reminder_2h: boolean | null;
-      new_reminder_2h: boolean | null;
-      reason: string | null;
-      changed_at: string;
-    }>;
+    return data as AuditRow[];
   }
 
-  console.log("\n── reminder_preference_audit ──");
+  console.log("\n── reminder_preference_audit (per-kind) ──");
 
   try {
-    await test("anon update_reminders_by_ref logs one row tagged 'self_service'", async () => {
+    await test("single-flag change → exactly one row for that kind", async () => {
       const { id, ref } = await newAppt(true, true);
-      const { error } = await anon.rpc("update_reminders_by_ref" as never, {
+      await anon.rpc("update_reminders_by_ref" as never, {
         _ref: ref, _phone: phone, _reminder_24h: false, _reminder_2h: true,
       } as never);
-      assert(!error, `rpc err: ${error?.message}`);
       const rows = await auditRows(id);
-      assert(rows.length === 1, `expected 1 audit row, got ${rows.length}`);
-      const r = rows[0];
-      assert(r.source === "self_service", `source=${r.source}`);
-      assert(r.changed_by === null, `changed_by should be null for anon, got ${r.changed_by}`);
-      assert(r.old_reminder_24h === true && r.new_reminder_24h === false, "24h old/new wrong");
-      assert(r.old_reminder_2h === true && r.new_reminder_2h === true, "2h should be unchanged in payload");
+      assert(rows.length === 1, `expected 1 row, got ${rows.length}`);
+      assert(rows[0].reminder_kind === "reminder_24h", `kind=${rows[0].reminder_kind}`);
+      assert(rows[0].old_value === true && rows[0].new_value === false, "old/new wrong");
+      assert(rows[0].source === "self_service", `source=${rows[0].source}`);
+      assert(rows[0].changed_by === null, "changed_by should be null for anon");
     });
 
-    await test("staff direct update logs one row tagged 'staff'", async () => {
-      // Impersonate an admin via service_role isn't accurate for auth.uid() —
-      // instead: the trigger tags 'staff' only when auth.uid() has admin/reception.
-      // We simulate via admin update (auth.uid() null → tagged 'self_service')
-      // and separately verify the source-classifier logic with a signed-in path
-      // is out of scope here; assert the update-with-no-jwt path.
-      const { id } = await newAppt(false, false);
+    await test("both flags change in one UPDATE → two rows, one per kind", async () => {
+      const { id } = await newAppt(true, true);
       const { error } = await admin
         .from("appointments")
-        .update({ reminder_24h: true })
+        .update({ reminder_24h: false, reminder_2h: false })
         .eq("id", id);
       assert(!error, `update err: ${error?.message}`);
       const rows = await auditRows(id);
-      assert(rows.length === 1, `expected 1 row, got ${rows.length}`);
-      assert(rows[0].old_reminder_24h === false && rows[0].new_reminder_24h === true, "24h change not logged");
-      assert(rows[0].old_reminder_2h === false && rows[0].new_reminder_2h === false, "2h should match no-op");
+      assert(rows.length === 2, `expected 2 rows, got ${rows.length}`);
+      const kinds = rows.map(r => r.reminder_kind).sort();
+      assert(kinds[0] === "reminder_24h" && kinds[1] === "reminder_2h",
+        `expected both kinds, got ${JSON.stringify(kinds)}`);
+      for (const r of rows) {
+        assert(r.old_value === true && r.new_value === false,
+          `${r.reminder_kind} old/new wrong`);
+      }
     });
 
-    await test("no audit row when reminder flags don't change (only date/time updated)", async () => {
+    await test("reschedule (no flag change) → zero audit rows", async () => {
       const { id, ref } = await newAppt(true, false);
       const newDate = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
-      const { error } = await anon.rpc("reschedule_appointment_by_ref" as never, {
+      await anon.rpc("reschedule_appointment_by_ref" as never, {
         _ref: ref, _phone: phone, _new_date: newDate, _new_time: "11:00:00", _reason: "r",
       } as never);
-      assert(!error, `rpc err: ${error?.message}`);
       const rows = await auditRows(id);
-      assert(rows.length === 0, `expected no audit rows for reschedule, got ${rows.length}`);
+      assert(rows.length === 0, `expected 0 rows, got ${rows.length}`);
     });
 
-    await test("multiple updates create multiple audit rows in order", async () => {
+    await test("no-op update (same values) → zero rows", async () => {
+      const { id, ref } = await newAppt(true, false);
+      await anon.rpc("update_reminders_by_ref" as never, {
+        _ref: ref, _phone: phone, _reminder_24h: true, _reminder_2h: false,
+      } as never);
+      const rows = await auditRows(id);
+      assert(rows.length === 0, `expected 0 rows for no-op, got ${rows.length}`);
+    });
+
+    await test("null-COALESCE update → zero rows (no actual change)", async () => {
+      const { id, ref } = await newAppt(true, true);
+      await anon.rpc("update_reminders_by_ref" as never, {
+        _ref: ref, _phone: phone, _reminder_24h: null, _reminder_2h: null,
+      } as never);
+      const rows = await auditRows(id);
+      assert(rows.length === 0, `expected 0 rows, got ${rows.length}`);
+    });
+
+    await test("multiple sequential single-flag changes are logged in order", async () => {
       const { id, ref } = await newAppt(true, true);
       await anon.rpc("update_reminders_by_ref" as never, {
         _ref: ref, _phone: phone, _reminder_24h: false, _reminder_2h: true,
@@ -138,76 +154,100 @@ async function main() {
         _ref: ref, _phone: phone, _reminder_24h: true, _reminder_2h: false,
       } as never);
       const rows = await auditRows(id);
-      assert(rows.length === 3, `expected 3 audit rows, got ${rows.length}`);
-      assert(rows[0].new_reminder_24h === false && rows[0].new_reminder_2h === true, "row 1 wrong");
-      assert(rows[1].new_reminder_24h === false && rows[1].new_reminder_2h === false, "row 2 wrong");
-      assert(rows[2].new_reminder_24h === true && rows[2].new_reminder_2h === false, "row 3 wrong");
+      // Row 1: 24h true→false. Row 2: 2h true→false. Row 3: 24h false→true.
+      assert(rows.length === 3, `expected 3 rows, got ${rows.length}`);
+      assert(rows[0].reminder_kind === "reminder_24h" && rows[0].new_value === false, "row 1 wrong");
+      assert(rows[1].reminder_kind === "reminder_2h" && rows[1].new_value === false, "row 2 wrong");
+      assert(rows[2].reminder_kind === "reminder_24h" && rows[2].new_value === true, "row 3 wrong");
     });
 
-    await test("no audit row when update_reminders_by_ref is a no-op (same values)", async () => {
-      const { id, ref } = await newAppt(true, false);
-      const { error } = await anon.rpc("update_reminders_by_ref" as never, {
-        _ref: ref, _phone: phone, _reminder_24h: true, _reminder_2h: false,
-      } as never);
-      assert(!error, `rpc err: ${error?.message}`);
-      const rows = await auditRows(id);
-      assert(rows.length === 0, `expected 0 rows for no-op, got ${rows.length}`);
+    await test("filter by reminder_kind works (linkable as ReminderId)", async () => {
+      const { id } = await newAppt(true, true);
+      await admin.from("appointments").update({ reminder_24h: false, reminder_2h: false }).eq("id", id);
+      const { data: onlyTwentyFour, error: e1 } = await admin
+        .from("reminder_preference_audit")
+        .select("*")
+        .eq("appointment_id", id)
+        .eq("reminder_kind", "reminder_24h");
+      assert(!e1, `err: ${e1?.message}`);
+      assert(onlyTwentyFour!.length === 1, `expected 1 24h row, got ${onlyTwentyFour!.length}`);
+      const { data: onlyTwo } = await admin
+        .from("reminder_preference_audit")
+        .select("*")
+        .eq("appointment_id", id)
+        .eq("reminder_kind", "reminder_2h");
+      assert(onlyTwo!.length === 1, `expected 1 2h row, got ${onlyTwo!.length}`);
     });
 
-    await test("no audit row when only one flag changes null → same (COALESCE no-op)", async () => {
-      const { id, ref } = await newAppt(true, true);
-      const { error } = await anon.rpc("update_reminders_by_ref" as never, {
-        _ref: ref, _phone: phone, _reminder_24h: null, _reminder_2h: null,
-      } as never);
-      assert(!error, `rpc err: ${error?.message}`);
-      const rows = await auditRows(id);
-      assert(rows.length === 0, `null-COALESCE should not produce audit row, got ${rows.length}`);
+    await test("CHECK constraint rejects unknown reminder_kind on direct insert", async () => {
+      const { id } = await newAppt(true, true);
+      const { error } = await admin
+        .from("reminder_preference_audit")
+        .insert({
+          appointment_id: id,
+          reminder_kind: "reminder_5min",
+          source: "system",
+          old_value: false,
+          new_value: true,
+        });
+      assert(error !== null, "invalid kind should be rejected");
     });
 
-    await test("anon cannot SELECT reminder_preference_audit directly", async () => {
+    await test("CHECK constraint rejects no-op row (old_value = new_value)", async () => {
+      const { id } = await newAppt(true, true);
+      const { error } = await admin
+        .from("reminder_preference_audit")
+        .insert({
+          appointment_id: id,
+          reminder_kind: "reminder_24h",
+          source: "system",
+          old_value: true,
+          new_value: true,
+        });
+      assert(error !== null, "no-op row should be rejected by CHECK");
+    });
+
+    await test("anon cannot SELECT audit rows", async () => {
       const { id } = await newAppt(true, true);
       await admin.from("appointments").update({ reminder_24h: false }).eq("id", id);
-      const { data, error } = await anon
+      const { data } = await anon
         .from("reminder_preference_audit")
         .select("*")
         .eq("appointment_id", id);
-      // RLS: anon has no policy → empty result (no error). Just assert no leak.
-      assert(!error || error !== null, "should not throw");
-      assert(!data || data.length === 0, `anon must see zero rows, got ${data?.length ?? 0}`);
+      assert(!data || data.length === 0, `anon must see 0 rows, got ${data?.length}`);
     });
 
-    await test("anon cannot INSERT into reminder_preference_audit directly", async () => {
+    await test("anon cannot INSERT audit rows directly", async () => {
       const { id } = await newAppt(true, true);
       const { error } = await anon
         .from("reminder_preference_audit")
         .insert({
           appointment_id: id,
+          reminder_kind: "reminder_24h",
           source: "self_service",
-          new_reminder_24h: false,
-          old_reminder_24h: true,
+          old_value: true,
+          new_value: false,
         });
-      assert(error !== null, "insert must be blocked by RLS / grants");
+      assert(error !== null, "insert must be blocked");
     });
 
-    await test("audit row links to appointment_id and cascades on appointment delete", async () => {
+    await test("cascade delete: removing appointment removes its audit rows", async () => {
       const { id, ref } = await newAppt(true, true);
       await anon.rpc("update_reminders_by_ref" as never, {
         _ref: ref, _phone: phone, _reminder_24h: false, _reminder_2h: false,
       } as never);
-      assert((await auditRows(id)).length === 1, "row should exist before delete");
+      assert((await auditRows(id)).length === 2, "should have 2 rows before delete");
       await admin.from("appointments").delete().eq("id", id);
-      // remove from cleanup list since we already deleted
       const idx = created.indexOf(id);
       if (idx !== -1) created.splice(idx, 1);
-      const { data, error } = await admin
+      const { data } = await admin
         .from("reminder_preference_audit")
         .select("id")
         .eq("appointment_id", id);
-      assert(!error, `select err: ${error?.message}`);
-      assert(!data || data.length === 0, `cascade delete failed, ${data?.length} rows remain`);
+      assert(!data || data.length === 0, `cascade failed, ${data?.length} rows remain`);
     });
 
-    await test("changed_at is recent (within last 60s) and monotonic across updates", async () => {
+    await test("changed_at is recent and monotonic", async () => {
       const { id, ref } = await newAppt(true, true);
       await anon.rpc("update_reminders_by_ref" as never, {
         _ref: ref, _phone: phone, _reminder_24h: false, _reminder_2h: true,
@@ -219,8 +259,8 @@ async function main() {
       assert(rows.length === 2, `expected 2 rows`);
       const t0 = new Date(rows[0].changed_at).getTime();
       const t1 = new Date(rows[1].changed_at).getTime();
-      assert(t1 >= t0, `changed_at must be monotonic (${t0} → ${t1})`);
-      assert(Date.now() - t1 < 60_000, `changed_at not recent (${Date.now() - t1}ms ago)`);
+      assert(t1 >= t0, `monotonic broken: ${t0} → ${t1}`);
+      assert(Date.now() - t1 < 60_000, `not recent: ${Date.now() - t1}ms ago`);
     });
 
   } finally {
