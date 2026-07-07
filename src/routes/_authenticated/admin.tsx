@@ -30,6 +30,8 @@ import {
   listReminderPreferenceAudit,
   getReminderPreferenceStats,
   exportReminderPreferenceAuditCsv,
+  listSecurityAuditLog,
+  listSecurityAuditActions,
 } from "@/lib/admin.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
@@ -51,6 +53,8 @@ import {
   Bell,
   BarChart3,
   Download,
+  ShieldAlert,
+  Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -60,7 +64,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit" | "reminders-stats";
+type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit" | "reminders-stats" | "security-audit";
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -154,6 +158,12 @@ function AdminDashboard() {
       icon: BarChart3,
       show: canSeeAppts,
     },
+    {
+      id: "security-audit" as Tab,
+      label: "سجل الأمان",
+      icon: ShieldAlert,
+      show: isAdmin,
+    },
   ].filter((t) => t.show);
 
   return (
@@ -214,6 +224,7 @@ function AdminDashboard() {
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
       {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
+      {tab === "security-audit" && isAdmin && <SecurityAuditTab />}
     </div>
   );
 }
