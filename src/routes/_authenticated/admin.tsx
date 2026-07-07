@@ -48,6 +48,7 @@ import {
   CalendarClock,
   History,
   Bell,
+  BarChart3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
