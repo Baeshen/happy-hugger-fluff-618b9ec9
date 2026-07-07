@@ -93,7 +93,7 @@ function PatientsAnalyticsPage() {
   const { branchId, doctorId, gender, minAge, maxAge, from, to } = search;
 
   const update = (patch: Partial<typeof search>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+    navigate({ search: (prev: typeof search) => ({ ...prev, ...patch }), replace: true });
 
   const resetFilters = () =>
     navigate({
