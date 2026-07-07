@@ -20,6 +20,7 @@ import {
   getRatingsSummary,
   listRatings,
   deleteRating,
+  replyToRating,
   listBranchesForRatings,
   listDoctorsForRatings,
 } from "@/lib/ratings.functions";
