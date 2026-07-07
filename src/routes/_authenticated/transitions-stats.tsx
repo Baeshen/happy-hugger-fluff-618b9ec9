@@ -20,12 +20,15 @@ import {
   Legend,
 } from "recharts";
 import { ArrowLeft, Activity, Filter, RefreshCw, TrendingUp, Users, Building2, UserCog, Clock, CalendarDays } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   getTransitionsStats,
   listBranchesForAnalytics,
   type TransitionsStats,
 } from "@/lib/patients-analytics.functions";
 import { TransitionAlerts } from "@/components/analytics/TransitionAlerts";
+
 
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
