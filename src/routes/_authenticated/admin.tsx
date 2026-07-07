@@ -220,6 +220,14 @@ function AdminDashboard() {
           )}
           {(roles.includes("admin") || roles.includes("reception")) && (
             <Link
+              to="/reports"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              التقارير
+            </Link>
+          )}
+          {(roles.includes("admin") || roles.includes("reception")) && (
+            <Link
               to="/calendar"
               className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
             >
