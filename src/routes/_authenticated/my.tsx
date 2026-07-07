@@ -284,6 +284,12 @@ function MyPortal() {
           </div>
         )}
       </div>
+      {reminderHistoryId && (
+        <ReminderHistoryForMyAppointmentModal
+          appointmentId={reminderHistoryId}
+          onClose={() => setReminderHistoryId(null)}
+        />
+      )}
     </div>
   );
 }
