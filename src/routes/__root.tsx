@@ -78,20 +78,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "مجمع باعشن الطبي — صبيا، جازان | Baeshen Medical Complex" },
+      { title: "مجمع باعشن الطبي — رعايتك تبدأ هنا | Baeshen Medical" },
       {
         name: "description",
         content:
           "مجمع طبي معتمد من CBAHI في صبيا بمنطقة جازان. خدمات طبية عامة وتخصصية، صيدلية داخلية، حجز إلكتروني وتوصيل أدوية.",
       },
       { name: "author", content: "Baeshen Medical Complex" },
-      { property: "og:title", content: "مجمع باعشن الطبي — Baeshen Medical Complex" },
+      { property: "og:title", content: "مجمع باعشن الطبي — رعايتك تبدأ هنا | Baeshen Medical" },
       {
         property: "og:description",
         content: "خدمات طبية تخصصية في صبيا، جازان. احجز موعدك أو اطلب دواءك أونلاين.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "مجمع باعشن الطبي — رعايتك تبدأ هنا | Baeshen Medical" },
+      { name: "description", content: "احجز موعدك مع أطباء استشاريين في صبيا، جازان أو اطلب دواءك من صيدليات باعشن. مجمع طبي معتمد من CBAHI." },
+      { property: "og:description", content: "احجز موعدك مع أطباء استشاريين في صبيا، جازان أو اطلب دواءك من صيدليات باعشن. مجمع طبي معتمد من CBAHI." },
+      { name: "twitter:description", content: "احجز موعدك مع أطباء استشاريين في صبيا، جازان أو اطلب دواءك من صيدليات باعشن. مجمع طبي معتمد من CBAHI." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/da5ecdb6-8fc6-4806-a4f3-419040820761/id-preview-7a856abf--550c7bc5-80b4-4118-853f-28cc7bd42f26.lovable.app-1783385951418.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/da5ecdb6-8fc6-4806-a4f3-419040820761/id-preview-7a856abf--550c7bc5-80b4-4118-853f-28cc7bd42f26.lovable.app-1783385951418.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
