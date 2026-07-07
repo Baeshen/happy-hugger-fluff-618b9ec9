@@ -34,6 +34,8 @@ type AppointmentRow = {
   doctor_name_ar: string | null;
   doctor_name_en: string | null;
   created_at: string;
+  reminder_24h: boolean | null;
+  reminder_2h: boolean | null;
 };
 
 
