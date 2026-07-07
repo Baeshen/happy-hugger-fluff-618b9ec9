@@ -302,11 +302,10 @@ export type Database = {
           changed_at: string
           changed_by: string | null
           id: string
-          new_reminder_24h: boolean | null
-          new_reminder_2h: boolean | null
-          old_reminder_24h: boolean | null
-          old_reminder_2h: boolean | null
+          new_value: boolean | null
+          old_value: boolean | null
           reason: string | null
+          reminder_kind: string
           source: string
         }
         Insert: {
@@ -314,11 +313,10 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           id?: string
-          new_reminder_24h?: boolean | null
-          new_reminder_2h?: boolean | null
-          old_reminder_24h?: boolean | null
-          old_reminder_2h?: boolean | null
+          new_value?: boolean | null
+          old_value?: boolean | null
           reason?: string | null
+          reminder_kind: string
           source: string
         }
         Update: {
@@ -326,11 +324,10 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           id?: string
-          new_reminder_24h?: boolean | null
-          new_reminder_2h?: boolean | null
-          old_reminder_24h?: boolean | null
-          old_reminder_2h?: boolean | null
+          new_value?: boolean | null
+          old_value?: boolean | null
           reason?: string | null
+          reminder_kind?: string
           source?: string
         }
         Relationships: [
