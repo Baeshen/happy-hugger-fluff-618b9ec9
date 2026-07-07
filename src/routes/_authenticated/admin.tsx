@@ -115,6 +115,15 @@ function AdminDashboard() {
   const canSeeOrders = isAdmin || isPharmacy;
 
   async function handleSignOut() {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? null;
+      const email = data.user?.email ?? null;
+      const { logAuthEvent } = await import("@/lib/auth-log.functions");
+      await (logAuthEvent as any)({ data: { action: "logout", user_id: uid, email } }).catch(
+        () => {},
+      );
+    } catch {}
     await supabase.auth.signOut();
     router.navigate({ to: "/auth" });
   }
