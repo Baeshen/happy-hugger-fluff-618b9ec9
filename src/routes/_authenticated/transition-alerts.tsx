@@ -3,8 +3,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Bell, Plus, Trash2, Save, Pencil, X, Check, AlertTriangle, CheckCircle2, Power, Share2, Lock } from "lucide-react";
+import { ArrowLeft, Bell, Plus, Trash2, Save, Pencil, X, Check, AlertTriangle, CheckCircle2, Power, Share2, Lock, Filter } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { getTransitionsStats, listBranchesForAnalytics } from "@/lib/patients-analytics.functions";
+
 import {
   evaluateRules,
   STATUS_LABEL,
