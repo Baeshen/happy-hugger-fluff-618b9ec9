@@ -109,88 +109,108 @@ function PatientsList() {
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="ابحث بالاسم، الجوال، الهوية، أو رقم الملف"
-            className="w-full rounded-md border border-input bg-background pr-10 pl-3 py-2 text-sm"
-          />
-        </div>
-        <select
-          value={branchId}
-          onChange={(e) => setBranchId(e.target.value as any)}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="all">كل الفروع</option>
-          {branchesQ.data?.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name_ar}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Tabs defaultValue="list">
+        <TabsList className="grid grid-cols-2 sm:inline-flex h-auto mb-4">
+          <TabsTrigger value="list">
+            <Users className="h-4 w-4 ml-1" /> قائمة المرضى
+          </TabsTrigger>
+          <TabsTrigger value="stats">
+            <BarChart3 className="h-4 w-4 ml-1" /> إحصائيات سريعة
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        {patientsQ.isLoading ? (
-          <div className="p-10 text-center text-muted-foreground">
-            <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-          </div>
-        ) : patientsQ.data && patientsQ.data.length === 0 ? (
-          <div className="p-10 text-center text-muted-foreground">لا توجد نتائج</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-right">رقم الملف</th>
-                <th className="px-4 py-3 text-right">الاسم</th>
-                <th className="px-4 py-3 text-right">الجوال</th>
-                <th className="px-4 py-3 text-right">الهوية</th>
-                <th className="px-4 py-3 text-right">العمر</th>
-                <th className="px-4 py-3 text-right">الجنس</th>
-                <th className="px-4 py-3 text-right">الفرع</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {patientsQ.data?.map((p) => (
-                <tr key={p.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-xs">{p.mrn}</td>
-                  <td className="px-4 py-3 font-medium">{p.full_name_ar}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.phone}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.national_id ?? "—"}</td>
-                  <td className="px-4 py-3">{calcAge(p.date_of_birth) ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {p.gender === "male" ? "ذكر" : p.gender === "female" ? "أنثى" : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {branchName(p.branch_id)}
-                  </td>
-                  <td className="px-4 py-3 text-left">
-                    <div className="inline-flex items-center gap-1.5">
-                      <PatientQrDialog
-                        patientId={p.id}
-                        mrn={p.mrn}
-                        fullNameAr={p.full_name_ar}
-                      />
-                      <Link
-                        to="/patients/$patientId"
-                        params={{ patientId: p.id }}
-                        className="rounded-md border border-input px-3 py-1 text-xs hover:bg-muted"
-                      >
-                        فتح
-                      </Link>
-                    </div>
-                  </td>
-
-                </tr>
+        <TabsContent value="list" className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="ابحث بالاسم، الجوال، الهوية، أو رقم الملف"
+                className="w-full rounded-md border border-input bg-background pr-10 pl-3 py-2 text-sm"
+              />
+            </div>
+            <select
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value as any)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">كل الفروع</option>
+              {branchesQ.data?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name_ar}
+                </option>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </select>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            {patientsQ.isLoading ? (
+              <div className="p-10 text-center text-muted-foreground">
+                <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+              </div>
+            ) : patientsQ.data && patientsQ.data.length === 0 ? (
+              <div className="p-10 text-center text-muted-foreground">لا توجد نتائج</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 text-right">رقم الملف</th>
+                    <th className="px-4 py-3 text-right">الاسم</th>
+                    <th className="px-4 py-3 text-right">الجوال</th>
+                    <th className="px-4 py-3 text-right">الهوية</th>
+                    <th className="px-4 py-3 text-right">العمر</th>
+                    <th className="px-4 py-3 text-right">الجنس</th>
+                    <th className="px-4 py-3 text-right">الفرع</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {patientsQ.data?.map((p) => (
+                    <tr key={p.id} className="border-t border-border hover:bg-muted/30">
+                      <td className="px-4 py-3 font-mono text-xs">{p.mrn}</td>
+                      <td className="px-4 py-3 font-medium">{p.full_name_ar}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.phone}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.national_id ?? "—"}</td>
+                      <td className="px-4 py-3">{calcAge(p.date_of_birth) ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        {p.gender === "male" ? "ذكر" : p.gender === "female" ? "أنثى" : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {branchName(p.branch_id)}
+                      </td>
+                      <td className="px-4 py-3 text-left">
+                        <div className="inline-flex items-center gap-1.5">
+                          <PatientQrDialog
+                            patientId={p.id}
+                            mrn={p.mrn}
+                            fullNameAr={p.full_name_ar}
+                          />
+                          <Link
+                            to="/patients/$patientId"
+                            params={{ patientId: p.id }}
+                            className="rounded-md border border-input px-3 py-1 text-xs hover:bg-muted"
+                          >
+                            فتح
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="stats" className="space-y-4">
+          <QuickStats
+            patients={patientsQ.data ?? []}
+            branches={branchesQ.data ?? []}
+          />
+        </TabsContent>
+      </Tabs>
+
 
       {showCreate && (
         <CreatePatientDialog
