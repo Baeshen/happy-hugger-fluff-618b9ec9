@@ -19,6 +19,7 @@ const STRINGS = {
     nav_about: "من نحن",
     nav_contact: "تواصل معنا",
     nav_faq: "الأسئلة الشائعة",
+    nav_health: "المدونة الصحية",
     cta_book: "احجز موعدًا",
     cta_medicine: "اطلب دواء",
     hero_title: "رعايتك تبدأ هنا",
