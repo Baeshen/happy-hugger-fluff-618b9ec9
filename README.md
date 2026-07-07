@@ -215,7 +215,7 @@ export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 
 **الخيار ب — ملف `.env.local` (لا ترفعه إلى Git):**
 
-نسّخ الملف المُجهّز `/.env.example`:
+نسّخ الملف المُجهّز `.env.example`:
 
 ```bash
 cp .env.example .env.local
