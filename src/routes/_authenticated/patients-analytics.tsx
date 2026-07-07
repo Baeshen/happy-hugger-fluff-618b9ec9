@@ -1732,14 +1732,26 @@ function PatientTransitionsTable({
                   </td>
                   <td className="p-2 text-xs text-muted-foreground">{r.actor_name ?? "-"}</td>
                   <td className="p-2">
-                    <Link
-                      to="/patients/$patientId"
-                      params={{ patientId: r.patient_id }}
-                      className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] hover:bg-muted"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      فتح
-                    </Link>
+                    <div className="flex items-center gap-1">
+                      <Link
+                        to="/patients/$patientId"
+                        params={{ patientId: r.patient_id }}
+                        className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] hover:bg-muted"
+                        title="فتح ملف المريض"
+                      >
+                        <UserIcon className="h-3 w-3" />
+                        ملف
+                      </Link>
+                      <Link
+                        to="/audit-log"
+                        search={{ id: r.audit_id }}
+                        className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] hover:bg-muted"
+                        title="عرض سجل audit log للانتقال"
+                      >
+                        <FileText className="h-3 w-3" />
+                        Audit
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
