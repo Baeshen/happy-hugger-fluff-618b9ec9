@@ -368,21 +368,29 @@ function PatientsAnalyticsPage() {
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Kpi label="إجمالي المرضى" value={data.total} tone="primary" />
+            <Kpi
+              label="إجمالي المرضى"
+              value={data.total}
+              tone="primary"
+              onClick={() => setDrilldown({ kind: "patients", status: null, title: "إجمالي المرضى" })}
+            />
             <Kpi
               label="نشط"
               value={data.byStatus.find((s) => s.status === "active")?.count ?? 0}
               tone="success"
+              onClick={() => setDrilldown({ kind: "patients", status: "active", title: "المرضى النشطون" })}
             />
             <Kpi
               label="مؤرشف"
               value={data.byStatus.find((s) => s.status === "archived")?.count ?? 0}
               tone="info"
+              onClick={() => setDrilldown({ kind: "patients", status: "archived", title: "المرضى المؤرشفون" })}
             />
             <Kpi
               label="تغيّرات الحالة (الفترة)"
               value={data.statusChangesDaily.reduce((s, d) => s + d.count, 0)}
               tone="warning"
+              onClick={() => setDrilldown({ kind: "events", title: "أحداث تغيير الحالة خلال الفترة" })}
             />
           </div>
 
