@@ -153,40 +153,42 @@ async def case_wrong_ref_and_phone(page, failures):
 
 
 async def case_reschedule_missing_datetime(page, ref, phone, failures):
-    """Search for a real appointment, open the reschedule panel, and force-click
-    the confirm button while it is disabled (no date/time selected). This
-    exercises the client-side guard: `toast.error("يرجى اختيار التاريخ والوقت")`."""
+    """The reschedule confirm button must stay disabled until both a date
+    and a time are chosen. This is the primary UX guard that prevents the
+    RPC from firing without required inputs (the toast `يرجى اختيار التاريخ
+    والوقت` is a defensive fallback for the same condition)."""
     await go_lookup(page)
     await fill_search(page, ref, phone)
     await submit_search(page)
-    # The RPC + render takes noticeably longer than the search-only wait;
-    # explicitly wait for the reschedule button before clicking.
     reschedule_btn = page.get_by_role(
         "button", name="إعادة جدولة", exact=False).first
     await reschedule_btn.wait_for(timeout=15000)
     await reschedule_btn.click()
-    await page.wait_for_timeout(400)
+    await page.wait_for_timeout(500)
 
-    # Force-click the disabled confirm button to trigger the guard clause.
-    # React re-syncs `disabled` on every render, so we (a) clear it,
-    # (b) dispatch a synthetic MouseEvent instead of calling .click() which
-    #     the browser blocks when disabled=true.
-    await page.evaluate(r"""
+    state = await page.evaluate(r"""
       () => {
         const btns = Array.from(document.querySelectorAll('button'));
         const target = btns.find(b => b.innerText.includes('تأكيد إعادة الجدولة'));
-        if (!target) throw new Error('confirm button not found');
-        target.removeAttribute('disabled');
-        target.disabled = false;
-        target.dispatchEvent(new MouseEvent('click',
-          { bubbles: true, cancelable: true, view: window }));
+        if (!target) return { found: false };
+        const disabled = target.disabled
+          || target.getAttribute('aria-disabled') === 'true';
+        return { found: true, disabled };
       }
     """)
-    await page.wait_for_timeout(500)
+    if not state.get("found"):
+        failures.append(
+            "[reschedule-missing-datetime] confirm button not rendered")
+    elif not state.get("disabled"):
+        failures.append(
+            "[reschedule-missing-datetime] confirm button must be disabled "
+            "before a date/time is chosen")
     await page.screenshot(path=str(SHOTS / "lookup_err_no_datetime.png"))
-    await expect_visible(
-        page, "reschedule-missing-datetime",
-        "يرجى اختيار التاريخ والوقت", failures)
+
+    # No toast, no error banner text should be present at this point —
+    # the disabled state alone must prevent any provider text from leaking.
+    texts = await toast_texts(page)
+    check_leak("reschedule-missing-datetime", texts, failures)
     await clear_toasts(page)
 
 
