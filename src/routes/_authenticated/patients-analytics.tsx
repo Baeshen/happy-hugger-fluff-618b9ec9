@@ -69,6 +69,7 @@ function daysAgoISO(n: number) {
 
 function PatientsAnalyticsPage() {
   const [branchId, setBranchId] = useState<string | null>(null);
+  const [doctorId, setDoctorId] = useState<string | null>(null);
   const [gender, setGender] = useState<"male" | "female" | "other" | null>(null);
   const [minAge, setMinAge] = useState<string>("");
   const [maxAge, setMaxAge] = useState<string>("");
@@ -76,11 +77,18 @@ function PatientsAnalyticsPage() {
   const [to, setTo] = useState<string>(todayISO());
 
   const branchesFn = useServerFn(listBranchesForAnalytics);
+  const doctorsFn = useServerFn(listDoctorsForAnalytics);
   const analyticsFn = useServerFn(getPatientAnalytics);
+  const transitionsFn = useServerFn(getPatientTransitions);
 
   const branchesQ = useQuery({
     queryKey: ["pa-branches"],
     queryFn: () => branchesFn(),
+    staleTime: 60_000,
+  });
+  const doctorsQ = useQuery({
+    queryKey: ["pa-doctors"],
+    queryFn: () => doctorsFn(),
     staleTime: 60_000,
   });
 
@@ -96,6 +104,11 @@ function PatientsAnalyticsPage() {
   const q = useQuery({
     queryKey: ["patients-analytics", filters],
     queryFn: () => analyticsFn({ data: filters }),
+  });
+
+  const transitionsQ = useQuery({
+    queryKey: ["patients-transitions", { branchId, doctorId, from, to }],
+    queryFn: () => transitionsFn({ data: { branchId, doctorId, from, to } }),
   });
 
   const data = q.data;
