@@ -424,6 +424,8 @@ export type Database = {
         Returns: {
           appointment_date: string
           appointment_time: string
+          cancel_reason: string
+          cancelled_at: string
           created_at: string
           doctor_id: string
           doctor_name_ar: string
