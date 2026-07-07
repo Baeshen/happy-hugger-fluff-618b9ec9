@@ -1,12 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Bell, Plus, Trash2, Save, Pencil, X, Check, AlertTriangle, CheckCircle2, Power } from "lucide-react";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { ArrowLeft, Bell, Plus, Trash2, Save, Pencil, X, Check, AlertTriangle, CheckCircle2, Power, Share2, Lock } from "lucide-react";
 import { getTransitionsStats, listBranchesForAnalytics } from "@/lib/patients-analytics.functions";
 import {
-  loadRules,
-  saveRules,
   evaluateRules,
   STATUS_LABEL,
   SCOPE_LABEL,
@@ -16,6 +15,12 @@ import {
   type AlertScope,
   type AlertStatus,
 } from "@/lib/transition-alerts";
+import {
+  listAlertRules,
+  createAlertRule,
+  updateAlertRule,
+  deleteAlertRule,
+} from "@/lib/transition-alerts.functions";
 
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -34,20 +39,39 @@ export const Route = createFileRoute("/_authenticated/transition-alerts")({
 const STATUS_OPTIONS: AlertStatus[] = ["any", "active", "inactive", "archived", "deceased"];
 const SCOPE_OPTIONS: AlertScope[] = ["branch", "actor", "any"];
 
-type Draft = Omit<AlertRule, "id">;
-const EMPTY_DRAFT: Draft = { label: "", scope: "branch", status: "inactive", threshold: 10, enabled: true };
+type Draft = {
+  label: string;
+  scope: AlertScope;
+  status: AlertStatus;
+  threshold: number;
+  enabled: boolean;
+  is_shared: boolean;
+};
+const EMPTY_DRAFT: Draft = { label: "", scope: "branch", status: "inactive", threshold: 10, enabled: true, is_shared: false };
+
+const RULES_KEY = ["transition-alert-rules"] as const;
 
 function TransitionAlertsPage() {
-  const [rules, setRules] = useState<AlertRule[]>([]);
+  const qc = useQueryClient();
+  const listFn = useServerFn(listAlertRules);
+  const createFn = useServerFn(createAlertRule);
+  const updateFn = useServerFn(updateAlertRule);
+  const deleteFn = useServerFn(deleteAlertRule);
+
+  const rulesQ = useQuery({
+    queryKey: RULES_KEY,
+    queryFn: () => listFn(),
+    staleTime: 15_000,
+  });
+  const rules: AlertRule[] = useMemo(() => rulesQ.data ?? [], [rulesQ.data]);
+
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>(EMPTY_DRAFT);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [from, setFrom] = useState(daysAgoISO(30));
   const [to, setTo] = useState(todayISO());
-
-  useEffect(() => { setRules(loadRules()); }, []);
-  useEffect(() => { saveRules(rules); }, [rules]);
+  const [filterMine, setFilterMine] = useState<"all" | "mine" | "shared">("all");
 
   const branchesFn = useServerFn(listBranchesForAnalytics);
   const statsFn = useServerFn(getTransitionsStats);
@@ -75,38 +99,59 @@ function TransitionAlertsPage() {
     return m;
   }, [triggered]);
 
+  const filteredRules = useMemo(() => {
+    if (filterMine === "mine") return rules.filter((r) => r.is_owner);
+    if (filterMine === "shared") return rules.filter((r) => r.is_shared);
+    return rules;
+  }, [rules, filterMine]);
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: RULES_KEY });
+
+  const createM = useMutation({
+    mutationFn: (d: Draft) => createFn({ data: {
+      label: d.label?.trim() || null,
+      scope: d.scope, status: d.status, threshold: d.threshold, enabled: d.enabled, is_shared: d.is_shared,
+    } }),
+    onSuccess: () => { invalidate(); toast.success("تم إنشاء القاعدة"); setDraft(EMPTY_DRAFT); },
+    onError: (e: Error) => toast.error(e.message || "فشل الإنشاء"),
+  });
+
+  const updateM = useMutation({
+    mutationFn: (payload: { id: string } & Partial<Draft>) => updateFn({ data: {
+      id: payload.id,
+      label: payload.label !== undefined ? (payload.label?.trim() || null) : undefined,
+      scope: payload.scope, status: payload.status, threshold: payload.threshold,
+      enabled: payload.enabled, is_shared: payload.is_shared,
+    } }),
+    onSuccess: () => { invalidate(); toast.success("تم الحفظ"); },
+    onError: (e: Error) => toast.error(e.message || "فشل التعديل"),
+  });
+
+  const deleteM = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { invalidate(); toast.success("تم الحذف"); },
+    onError: (e: Error) => toast.error(e.message || "فشل الحذف"),
+  });
+
   const addRule = () => {
     if (!draft.threshold || draft.threshold < 1) return;
-    const rule: AlertRule = {
-      id: crypto.randomUUID(),
-      label: draft.label?.trim() || undefined,
-      scope: draft.scope,
-      status: draft.status,
-      threshold: draft.threshold,
-      enabled: draft.enabled,
-    };
-    setRules((prev) => [rule, ...prev]);
-    setDraft(EMPTY_DRAFT);
+    createM.mutate(draft);
   };
-  const removeRule = (id: string) => setRules((prev) => prev.filter((r) => r.id !== id));
-  const toggleRule = (id: string) => setRules((prev) => prev.map((r) => r.id === id ? { ...r, enabled: !r.enabled } : r));
   const startEdit = (r: AlertRule) => {
     setEditingId(r.id);
-    setEditDraft({ label: r.label ?? "", scope: r.scope, status: r.status, threshold: r.threshold, enabled: r.enabled });
+    setEditDraft({
+      label: r.label ?? "",
+      scope: r.scope, status: r.status, threshold: r.threshold,
+      enabled: r.enabled, is_shared: r.is_shared === true,
+    });
   };
   const cancelEdit = () => { setEditingId(null); setEditDraft(EMPTY_DRAFT); };
   const saveEdit = () => {
     if (!editingId) return;
-    setRules((prev) => prev.map((r) => r.id === editingId ? {
-      ...r,
-      label: editDraft.label?.trim() || undefined,
-      scope: editDraft.scope,
-      status: editDraft.status,
-      threshold: editDraft.threshold,
-      enabled: editDraft.enabled,
-    } : r));
+    updateM.mutate({ id: editingId, ...editDraft });
     cancelEdit();
   };
+  const toggleRule = (r: AlertRule) => updateM.mutate({ id: r.id, enabled: !r.enabled });
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -139,7 +184,6 @@ function TransitionAlertsPage() {
           })}
         </div>
       </div>
-
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {/* Evaluation window */}
@@ -230,27 +274,53 @@ function TransitionAlertsPage() {
             <div className="flex items-end">
               <button
                 onClick={addRule}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm hover:opacity-90"
+                disabled={createM.isPending}
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm hover:opacity-90 disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                حفظ
+                {createM.isPending ? "جارٍ الحفظ…" : "حفظ"}
               </button>
+            </div>
+            <div className="md:col-span-6 flex items-center gap-2 pt-1">
+              <input
+                id="shared-new"
+                type="checkbox"
+                checked={draft.is_shared}
+                onChange={(e) => setDraft({ ...draft, is_shared: e.target.checked })}
+                className="h-4 w-4 accent-primary"
+              />
+              <label htmlFor="shared-new" className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+                <Share2 className="h-3.5 w-3.5" />
+                مشاركة هذه القاعدة مع بقية الموظفين
+              </label>
             </div>
           </div>
         </section>
 
         {/* Rules list */}
         <section className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <h2 className="text-sm font-bold">قواعد التنبيهات ({rules.length})</h2>
-            <span className="text-xs text-muted-foreground">تُحفظ محلياً في هذا المتصفح</span>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-bold">قواعد التنبيهات ({filteredRules.length}/{rules.length})</h2>
+            <div className="flex items-center gap-1 text-xs">
+              {(["all", "mine", "shared"] as const).map((k) => (
+                <button key={k} onClick={() => setFilterMine(k)}
+                  className={`rounded-md border px-2 py-1 ${filterMine === k ? "bg-primary text-primary-foreground border-primary" : "border-border bg-background hover:bg-muted"}`}>
+                  {k === "all" ? "الكل" : k === "mine" ? "قواعدي" : "مشتركة"}
+                </button>
+              ))}
+            </div>
           </div>
-          {rules.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">لا توجد قواعد بعد.</div>
+          {rulesQ.isLoading ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">جارٍ التحميل…</div>
+          ) : rulesQ.error ? (
+            <div className="p-4 text-sm text-destructive">تعذر التحميل: {(rulesQ.error as Error).message}</div>
+          ) : filteredRules.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">لا توجد قواعد ضمن هذا الفلتر.</div>
           ) : (
             <div className="divide-y divide-border">
-              {rules.map((r) => {
+              {filteredRules.map((r) => {
                 const isEditing = editingId === r.id;
+                const canEdit = r.is_owner === true;
                 const hits = triggeredByRule.get(r.id) ?? [];
                 return (
                   <div key={r.id} className={`p-4 ${r.enabled ? "" : "opacity-60"}`}>
@@ -294,12 +364,39 @@ function TransitionAlertsPage() {
                             <X className="h-4 w-4" />
                           </button>
                         </div>
+                        <div className="md:col-span-6 flex items-center gap-2">
+                          <input
+                            id={`shared-${r.id}`}
+                            type="checkbox"
+                            checked={editDraft.is_shared}
+                            onChange={(e) => setEditDraft({ ...editDraft, is_shared: e.target.checked })}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          <label htmlFor={`shared-${r.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Share2 className="h-3.5 w-3.5" />
+                            مشاركة مع بقية الموظفين
+                          </label>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="text-sm flex-1 min-w-0">
                           <div className="font-semibold flex items-center gap-2 flex-wrap">
                             {r.label || `${SCOPE_LABEL[r.scope]} · ${STATUS_LABEL[r.status]}`}
+                            {r.is_shared ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-blue-500/15 text-blue-700 border border-blue-500/30 px-1.5 py-0.5 rounded-full">
+                                <Share2 className="h-3 w-3" /> مشتركة
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded-full">
+                                <Lock className="h-3 w-3" /> خاصة
+                              </span>
+                            )}
+                            {!canEdit && (
+                              <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                                من موظف آخر
+                              </span>
+                            )}
                             {!r.enabled && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">معطّلة</span>}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
@@ -355,19 +452,22 @@ function TransitionAlertsPage() {
                         </div>
 
                         <div className="flex items-center gap-1">
-                          <button onClick={() => toggleRule(r.id)}
-                            title={r.enabled ? "تعطيل" : "تفعيل"}
-                            className="rounded-md border border-border p-2 hover:bg-muted">
+                          <button onClick={() => toggleRule(r)}
+                            disabled={!canEdit}
+                            title={canEdit ? (r.enabled ? "تعطيل" : "تفعيل") : "لا تملك صلاحية"}
+                            className="rounded-md border border-border p-2 hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed">
                             <Power className={`h-4 w-4 ${r.enabled ? "text-emerald-600" : "text-muted-foreground"}`} />
                           </button>
                           <button onClick={() => startEdit(r)}
-                            title="تعديل"
-                            className="rounded-md border border-border p-2 hover:bg-muted">
+                            disabled={!canEdit}
+                            title={canEdit ? "تعديل" : "لا تملك صلاحية"}
+                            className="rounded-md border border-border p-2 hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed">
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button onClick={() => removeRule(r.id)}
-                            title="حذف"
-                            className="rounded-md border border-border p-2 hover:bg-destructive/10 text-destructive">
+                          <button onClick={() => { if (confirm("حذف هذه القاعدة؟")) deleteM.mutate(r.id); }}
+                            disabled={!canEdit || deleteM.isPending}
+                            title={canEdit ? "حذف" : "لا تملك صلاحية"}
+                            className="rounded-md border border-border p-2 hover:bg-destructive/10 text-destructive disabled:opacity-40 disabled:cursor-not-allowed">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
