@@ -1553,6 +1553,7 @@ function PatientTransitionsTable({
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive" | "archived" | "deceased">("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [selectedRow, setSelectedRow] = useState<PatientTransitionRow | null>(null);
 
   // Debounce search input to avoid firing a request per keystroke
   useEffect(() => {
