@@ -1040,6 +1040,9 @@ export type Database = {
           patient_phone: string | null
           rating: number
           source: string
+          staff_reply: string | null
+          staff_reply_at: string | null
+          staff_reply_by: string | null
         }
         Insert: {
           appointment_ref?: string | null
@@ -1053,6 +1056,9 @@ export type Database = {
           patient_phone?: string | null
           rating: number
           source?: string
+          staff_reply?: string | null
+          staff_reply_at?: string | null
+          staff_reply_by?: string | null
         }
         Update: {
           appointment_ref?: string | null
@@ -1066,6 +1072,9 @@ export type Database = {
           patient_phone?: string | null
           rating?: number
           source?: string
+          staff_reply?: string | null
+          staff_reply_at?: string | null
+          staff_reply_by?: string | null
         }
         Relationships: [
           {
@@ -1850,6 +1859,10 @@ export type Database = {
         }[]
       }
       normalize_reason: { Args: { _raw: string }; Returns: string }
+      reply_to_rating: {
+        Args: { _id: string; _reply: string }
+        Returns: undefined
+      }
       reschedule_appointment_by_ref: {
         Args: {
           _new_date: string
