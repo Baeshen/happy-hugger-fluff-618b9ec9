@@ -25,6 +25,8 @@ import {
   listBranchesForAnalytics,
   type TransitionsStats,
 } from "@/lib/patients-analytics.functions";
+import { TransitionAlerts } from "@/components/analytics/TransitionAlerts";
+
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function daysAgoISO(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
