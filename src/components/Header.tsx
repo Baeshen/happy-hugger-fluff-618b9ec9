@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X, Globe, Phone, LayoutDashboard, LogIn, User } from "lucide-react";
+import { Menu, X, Globe, Phone, LayoutDashboard, LogIn, User, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
