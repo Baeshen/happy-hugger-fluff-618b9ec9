@@ -18,12 +18,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Users, Activity, Tag as TagIcon, Filter, ArrowUpRight, ArrowDownRight, Minus, Sparkles, RefreshCw, AlertTriangle, History, ExternalLink, User as UserIcon } from "lucide-react";
 import {
   getPatientAnalytics,
   getPatientTransitions,
   listBranchesForAnalytics,
   listDoctorsForAnalytics,
+  listRecentStatusChanges,
+  type RecentStatusEvent,
 } from "@/lib/patients-analytics.functions";
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
 
@@ -330,6 +332,9 @@ function PatientsAnalyticsPage() {
 
           {/* AI Summary */}
           <AiSummarySection branchId={branchId} doctorId={doctorId} />
+
+          {/* Recent status-change audit events */}
+          <RecentStatusEventsSection branchId={branchId} doctorId={doctorId} from={from} to={to} />
 
 
 
@@ -916,5 +921,169 @@ function PriorityBadge({ p }: { p: "high" | "medium" | "low" }) {
     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}>{label}</span>
   );
 }
+
+const STATUS_LABEL_LOCAL: Record<string, string> = {
+  active: "نشط",
+  inactive: "غير نشط",
+  archived: "مؤرشف",
+  deceased: "متوفى",
+};
+
+function RecentStatusEventsSection({
+  branchId,
+  doctorId,
+  from,
+  to,
+}: {
+  branchId: string | null;
+  doctorId: string | null;
+  from: string;
+  to: string;
+}) {
+  const fn = useServerFn(listRecentStatusChanges);
+  const q = useQuery({
+    queryKey: ["recent-status-events", { branchId, doctorId, from, to }],
+    queryFn: () => fn({ data: { branchId, doctorId, from, to, limit: 20 } }),
+  });
+  const events = (q.data as RecentStatusEvent[] | undefined) ?? [];
+
+  return (
+    <div className="mt-6 rounded-xl border border-border bg-card p-4 md:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <History className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold">آخر أحداث تغيير الحالات</h2>
+            <p className="text-xs text-muted-foreground">
+              من سجل التدقيق مع أسباب التحويل وروابط مباشرة للسجل الأصلي.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/audit-log"
+          search={{ action: "patient.status_changed", from: `${from}T00:00`, to: `${to}T23:59` }}
+          className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-muted"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          كل السجلات
+        </Link>
+      </div>
+
+      {q.isLoading && (
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-14 animate-pulse rounded-lg bg-muted/60" />
+          ))}
+        </div>
+      )}
+
+      {q.error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {(q.error as Error).message}
+        </div>
+      )}
+
+      {!q.isLoading && events.length === 0 && (
+        <p className="rounded-md bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          لا توجد أحداث تغيير حالة خلال هذه الفترة.
+        </p>
+      )}
+
+      {events.length > 0 && (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {events.map((e) => (
+            <li key={e.audit_id} className="p-3 hover:bg-muted/30">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {e.from && (
+                      <>
+                        <StatusChip s={e.from} muted />
+                        <span className="text-muted-foreground">→</span>
+                      </>
+                    )}
+                    <StatusChip s={e.to} />
+                    {e.count > 1 && (
+                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                        جماعي · {e.count} مريض
+                      </span>
+                    )}
+                    <span className="text-[11px] text-muted-foreground" dir="ltr">
+                      {new Date(e.created_at).toLocaleString("ar-SA", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    {e.patient_name ? (
+                      <span className="font-medium">
+                        {e.patient_name}
+                        {e.patient_mrn && (
+                          <span className="ms-1 font-mono text-[10px] text-muted-foreground" dir="ltr">
+                            #{e.patient_mrn}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {e.count > 1 ? "عملية جماعية" : "مريض غير محدد"}
+                      </span>
+                    )}
+                    {e.branch_name && (
+                      <span className="text-muted-foreground">· {e.branch_name}</span>
+                    )}
+                    {e.actor_name && (
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <UserIcon className="h-3 w-3" />
+                        {e.actor_name}
+                      </span>
+                    )}
+                  </div>
+                  {e.reason && (
+                    <p className="mt-1.5 rounded-md bg-muted/40 p-2 text-xs leading-relaxed text-foreground/90">
+                      <span className="font-semibold text-muted-foreground">السبب: </span>
+                      {e.reason}
+                    </p>
+                  )}
+                </div>
+                <Link
+                  to="/audit-log"
+                  search={{ action: e.action, id: e.audit_id }}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input bg-background px-2.5 py-1 text-[11px] hover:bg-muted"
+                  title="فتح السجل في سجل التدقيق"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  فتح السجل
+                </Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function StatusChip({ s, muted }: { s: string; muted?: boolean }) {
+  const label = STATUS_LABEL_LOCAL[s] ?? s;
+  const cls = muted
+    ? "bg-muted text-muted-foreground"
+    : s === "active"
+      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+      : s === "inactive"
+        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        : s === "archived"
+          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          : s === "deceased"
+            ? "bg-red-500/10 text-red-600 dark:text-red-400"
+            : "bg-muted text-muted-foreground";
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}>{label}</span>
+  );
+}
+
 
 

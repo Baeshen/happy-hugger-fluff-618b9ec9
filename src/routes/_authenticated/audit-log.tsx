@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { listAuditLog, listAuditActions } from "@/lib/rbac.functions";
 import { getMyRoles } from "@/lib/admin.functions";
@@ -123,6 +123,13 @@ function downloadCsv(rows: Array<Record<string, unknown>>, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+type AuditSearch = {
+  action?: string;
+  from?: string;
+  to?: string;
+  id?: string;
+};
+
 export const Route = createFileRoute("/_authenticated/audit-log")({
   head: () => ({
     meta: [
@@ -130,10 +137,17 @@ export const Route = createFileRoute("/_authenticated/audit-log")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  validateSearch: (raw: Record<string, unknown>): AuditSearch => ({
+    action: typeof raw.action === "string" ? raw.action : undefined,
+    from: typeof raw.from === "string" ? raw.from : undefined,
+    to: typeof raw.to === "string" ? raw.to : undefined,
+    id: typeof raw.id === "string" ? raw.id : undefined,
+  }),
   component: AuditLogPage,
 });
 
 function AuditLogPage() {
+  const search = Route.useSearch();
   const myRolesFn = useServerFn(getMyRoles);
   const listFn = useServerFn(listAuditLog);
   const actionsFn = useServerFn(listAuditActions);
@@ -143,11 +157,12 @@ function AuditLogPage() {
     (myRoles.data?.roles ?? []).includes("admin" as any) ||
     (myRoles.data?.roles ?? []).includes("super_admin" as any);
 
-  const [action, setAction] = useState<string>("");
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
+  const [action, setAction] = useState<string>(search.action ?? "");
+  const [from, setFrom] = useState<string>(search.from ?? "");
+  const [to, setTo] = useState<string>(search.to ?? "");
   const [limit, setLimit] = useState<number>(100);
   const [selected, setSelected] = useState<any | null>(null);
+  const highlightId = search.id;
 
   const actions = useQuery({
     queryKey: ["audit-actions"],
@@ -168,6 +183,15 @@ function AuditLogPage() {
       }),
     enabled: isAdmin,
   });
+
+  // Auto-open the requested audit event when deep-linked via ?id=
+  useEffect(() => {
+    if (!highlightId || !log.data) return;
+    const found = (log.data as any[]).find((r) => r.id === highlightId);
+    if (found) setSelected(found);
+  }, [highlightId, log.data]);
+
+
 
   if (myRoles.isLoading) {
     return (
@@ -307,7 +331,7 @@ function AuditLogPage() {
               <tr
                 key={r.id}
                 onClick={() => setSelected(r)}
-                className="cursor-pointer border-t border-border align-top hover:bg-muted/40"
+                className={`cursor-pointer border-t border-border align-top hover:bg-muted/40 ${r.id === highlightId ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}
               >
                 <td className="whitespace-nowrap px-3 py-2 text-xs">
                   {new Date(r.created_at).toLocaleString("ar-SA")}
