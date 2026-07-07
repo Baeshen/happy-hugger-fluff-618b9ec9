@@ -1842,6 +1842,7 @@ function PatientTransitionsTable({
       <TransitionDetailModal
         row={selectedRow}
         filters={{ branchId, doctorId, gender, minAge, maxAge, from, to }}
+        searchTerm={debouncedSearch}
         onClose={() => setSelectedRow(null)}
       />
     </div>
@@ -1851,6 +1852,7 @@ function PatientTransitionsTable({
 function TransitionDetailModal({
   row,
   filters,
+  searchTerm,
   onClose,
 }: {
   row: PatientTransitionRow | null;
@@ -1863,6 +1865,7 @@ function TransitionDetailModal({
     from: string;
     to: string;
   };
+  searchTerm: string;
   onClose: () => void;
 }) {
   const open = row !== null;
@@ -1927,15 +1930,15 @@ function TransitionDetailModal({
               <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                 <div>
                   <span className="text-xs text-muted-foreground">المريض</span>
-                  <p className="font-medium">{row.patient_name ?? "-"}</p>
+                  <p className="font-medium"><HighlightText text={row.patient_name} query={searchTerm} /></p>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">MRN</span>
-                  <p className="font-mono text-xs" dir="ltr">{row.patient_mrn ?? "-"}</p>
+                  <p className="font-mono text-xs" dir="ltr"><HighlightText text={row.patient_mrn} query={searchTerm} /></p>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">الفرع</span>
-                  <p>{row.branch_name ?? "-"}</p>
+                  <p><HighlightText text={row.branch_name} query={searchTerm} /></p>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">تاريخ التغيير</span>
@@ -1945,11 +1948,11 @@ function TransitionDetailModal({
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">الموظف</span>
-                  <p>{row.actor_name ?? "-"}</p>
+                  <p><HighlightText text={row.actor_name} query={searchTerm} /></p>
                 </div>
                 <div className="sm:col-span-2">
                   <span className="text-xs text-muted-foreground">السبب</span>
-                  <p className="mt-0.5 rounded-md bg-background p-2 text-xs">{row.reason ?? "غير محدد"}</p>
+                  <p className="mt-0.5 rounded-md bg-background p-2 text-xs"><HighlightText text={row.reason} query={searchTerm} /></p>
                 </div>
               </div>
               <div className="mt-3 flex items-center gap-2">
@@ -2010,9 +2013,9 @@ function TransitionDetailModal({
                         </td>
                         <td className="p-2">{r.from ? <StatusChip s={r.from} muted /> : <span className="text-muted-foreground">—</span>}</td>
                         <td className="p-2"><StatusChip s={r.to} /></td>
-                        <td className="p-2 text-xs">{r.actor_name ?? "-"}</td>
+                        <td className="p-2 text-xs"><HighlightText text={r.actor_name} query={searchTerm} /></td>
                         <td className="p-2 text-xs text-muted-foreground max-w-[200px] truncate" title={r.reason ?? ""}>
-                          {r.reason ?? "-"}
+                          <HighlightText text={r.reason} query={searchTerm} />
                         </td>
                       </tr>
                     ))}
