@@ -21,6 +21,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
@@ -84,6 +85,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMyRoute = AuthenticatedMyRouteImport.update({
   id: '/my',
   path: '/my',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/specialties': typeof SpecialtiesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/my': typeof AuthenticatedMyRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesByTo {
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/specialties': typeof SpecialtiesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/my': typeof AuthenticatedMyRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesById {
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/specialties': typeof SpecialtiesRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRouteTypes {
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/specialties'
     | '/admin'
     | '/my'
+    | '/settings'
     | '/api/public/book/create'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/specialties'
     | '/admin'
     | '/my'
+    | '/settings'
     | '/api/public/book/create'
   id:
     | '__root__'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/specialties'
     | '/_authenticated/admin'
     | '/_authenticated/my'
+    | '/_authenticated/settings'
     | '/api/public/book/create'
   fileRoutesById: FileRoutesById
 }
@@ -304,6 +316,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/my': {
       id: '/_authenticated/my'
       path: '/my'
@@ -331,11 +350,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
