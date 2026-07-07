@@ -148,3 +148,125 @@ export function evaluateRules(rules: AlertRule[], stats: EvalStats): TriggeredAl
   return out.sort((x, y) => order[x.severity] - order[y.severity] || y.count - x.count);
 }
 
+// ---------- Timeline ----------
+
+export type TimelineEventKind = "first-trigger" | "escalation" | "increment";
+
+export type AlertTimelineEntry = {
+  day: string;
+  ruleId: string;
+  ruleLabel?: string;
+  scope: AlertScope;
+  status: AlertStatus;
+  threshold: number;
+  subjectName: string;
+  subjectId: string; // "__all__" for scope=any
+  delta: number; // events on this day contributing to this subject
+  cumulative: number;
+  severity: Severity;
+  ratio: number;
+  kind: TimelineEventKind;
+};
+
+type TimelineStats = {
+  daily: { day: string; total: number; active: number; inactive: number; archived: number; deceased: number }[];
+  dailyByBranchStatus: { day: string; branch_id: string; branch_name: string; status: string; count: number }[];
+  dailyByActorStatus: { day: string; actor_id: string; actor_name: string; status: string; count: number }[];
+};
+
+const SEV_LEVEL: Record<Severity, number> = { low: 1, medium: 2, high: 3 };
+
+/**
+ * Build a chronological log of when each enabled rule first triggered
+ * (and every subsequent day it escalated or accumulated further) within
+ * the period covered by `stats`.
+ *
+ * Cumulative counts run per (rule, subject) across the visible period.
+ */
+export function buildAlertTimeline(rules: AlertRule[], stats: TimelineStats): AlertTimelineEntry[] {
+  const out: AlertTimelineEntry[] = [];
+
+  // Collect ordered unique days from the daily series.
+  const allDays = [...stats.daily].map((d) => d.day).sort();
+
+  for (const r of rules) {
+    if (!r.enabled) continue;
+
+    // subjectId -> subjectName; deltas per day per subject
+    const subjects = new Map<string, string>();
+    const dayDeltas = new Map<string, Map<string, number>>(); // day -> (subjectId -> delta)
+
+    const addDelta = (day: string, id: string, name: string, n: number) => {
+      if (n <= 0) return;
+      subjects.set(id, name);
+      let m = dayDeltas.get(day);
+      if (!m) { m = new Map(); dayDeltas.set(day, m); }
+      m.set(id, (m.get(id) ?? 0) + n);
+    };
+
+    if (r.scope === "any") {
+      for (const d of stats.daily) {
+        const n = r.status === "any"
+          ? d.total
+          : ((d as unknown as Record<string, number>)[r.status] ?? 0);
+        addDelta(d.day, "__all__", "الإجمالي", n);
+      }
+    } else if (r.scope === "branch") {
+      for (const b of stats.dailyByBranchStatus) {
+        if (r.status !== "any" && b.status !== r.status) continue;
+        addDelta(b.day, b.branch_id, b.branch_name, b.count);
+      }
+    } else {
+      for (const a of stats.dailyByActorStatus) {
+        if (r.status !== "any" && a.status !== r.status) continue;
+        addDelta(a.day, a.actor_id, a.actor_name, a.count);
+      }
+    }
+
+    // Walk days chronologically per subject, tracking cumulative + severity.
+    const cum = new Map<string, number>();
+    const lastSev = new Map<string, Severity | null>();
+    for (const day of allDays) {
+      const perSubject = dayDeltas.get(day);
+      if (!perSubject) continue;
+      for (const [id, delta] of perSubject) {
+        const prev = cum.get(id) ?? 0;
+        const next = prev + delta;
+        cum.set(id, next);
+        if (next < r.threshold) continue; // still below threshold — no timeline entry
+        const { severity, ratio } = computeSeverity(next, r.threshold);
+        const previousSev = lastSev.get(id) ?? null;
+        let kind: TimelineEventKind;
+        if (previousSev == null) kind = "first-trigger";
+        else if (SEV_LEVEL[severity] > SEV_LEVEL[previousSev]) kind = "escalation";
+        else kind = "increment";
+        lastSev.set(id, severity);
+        out.push({
+          day,
+          ruleId: r.id,
+          ruleLabel: r.label,
+          scope: r.scope,
+          status: r.status,
+          threshold: r.threshold,
+          subjectName: subjects.get(id) ?? "—",
+          subjectId: id,
+          delta,
+          cumulative: next,
+          severity,
+          ratio,
+          kind,
+        });
+      }
+    }
+  }
+
+  // Newest first.
+  return out.sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : SEV_LEVEL[b.severity] - SEV_LEVEL[a.severity]));
+}
+
+export const TIMELINE_KIND_LABEL: Record<TimelineEventKind, string> = {
+  "first-trigger": "أول تشغيل",
+  escalation: "تصعيد",
+  increment: "زيادة",
+};
+
