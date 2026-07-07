@@ -29,6 +29,7 @@ import {
   IdCard,
   Calendar,
 } from "lucide-react";
+import { PatientQrDialog } from "@/components/PatientQrDialog";
 
 export const Route = createFileRoute("/_authenticated/patients/$patientId")({
   head: () => ({
