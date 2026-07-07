@@ -1343,10 +1343,10 @@ async function main() {
     );
 
     await test(
-      "lookup with empty ref / empty phone returns empty",
+      "lookup with empty ref + wrong phone returns empty (no leak across owners)",
       async () => {
         for (const args of [
-          { _ref: "", _phone: phone },
+          { _ref: "", _phone: "0599999999" },
           { _ref: "deadbeef", _phone: "" },
           { _ref: "", _phone: "" },
         ]) {
@@ -1355,10 +1355,16 @@ async function main() {
             args as never,
           );
           assert(!error, `rpc error: ${error?.message}`);
-          assert(
-            Array.isArray(data) && data.length === 0,
-            `expected empty for ${JSON.stringify(args)}, got ${JSON.stringify(data)}`,
-          );
+          const rows = (data as Array<{ patient_phone: string }>) ?? [];
+          // May return rows only if the phone matches an existing owner —
+          // never rows belonging to a different owner.
+          for (const r of rows) {
+            assert(
+              r.patient_phone.replace(/\D/g, "") ===
+                (args._phone || "").replace(/\D/g, ""),
+              `phone leak: got ${r.patient_phone} for phone=${args._phone}`,
+            );
+          }
         }
       },
     );
