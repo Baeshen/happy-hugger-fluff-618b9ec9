@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { Calendar, Clock, User, Stethoscope, Plus, Search } from "lucide-react";
+import { Calendar, Clock, User, Stethoscope, Plus, Search, History } from "lucide-react";
 import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 import { toast } from "sonner";
+import { ReminderHistoryForMyAppointmentModal } from "@/components/ReminderPreferenceHistory";
 
 export const Route = createFileRoute("/_authenticated/my")({
   component: MyPortal,
