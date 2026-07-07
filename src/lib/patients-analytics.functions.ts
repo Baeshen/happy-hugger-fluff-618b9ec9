@@ -644,6 +644,12 @@ const TransitionRowsInput = z.object({
   minAge: z.number().int().min(0).max(150).nullable().optional(),
   maxAge: z.number().int().min(0).max(150).nullable().optional(),
   limit: z.number().int().min(1).max(2000).optional(),
+  page: z.number().int().min(1).optional(),
+  pageSize: z.number().int().min(1).max(200).optional(),
+  search: z.string().max(200).nullable().optional(),
+  statusTo: z.enum(["active", "inactive", "archived", "deceased"]).nullable().optional(),
+  sortKey: z.enum(["created_at", "patient_name", "patient_mrn", "branch_name", "from", "to", "actor_name"]).optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
 });
 
 export type PatientTransitionRow = {
@@ -660,10 +666,17 @@ export type PatientTransitionRow = {
   bulk: boolean;
 };
 
+export type PatientTransitionsPage = {
+  rows: PatientTransitionRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export const listPatientTransitionRows = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => TransitionRowsInput.parse(d))
-  .handler(async ({ data, context }): Promise<PatientTransitionRow[]> => {
+  .handler(async ({ data, context }): Promise<PatientTransitionsPage> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb: any = context.supabase;
     const roles = await getRoles(sb, context.userId);
@@ -778,5 +791,33 @@ export const listPatientTransitionRows = createServerFn({ method: "POST" })
       }
     }
 
-    return rows;
+    // Apply search/status filters (server-side so pagination reflects filtered set)
+    let filtered = rows;
+    if (data.statusTo) filtered = filtered.filter((r) => r.to === data.statusTo);
+    if (data.search && data.search.trim()) {
+      const s = data.search.trim().toLowerCase();
+      filtered = filtered.filter((r) =>
+        (r.patient_name ?? "").toLowerCase().includes(s) ||
+        (r.patient_mrn ?? "").toLowerCase().includes(s) ||
+        (r.branch_name ?? "").toLowerCase().includes(s) ||
+        (r.actor_name ?? "").toLowerCase().includes(s) ||
+        (r.reason ?? "").toLowerCase().includes(s),
+      );
+    }
+
+    // Sort
+    const sortKey = data.sortKey ?? "created_at";
+    const sortDir = data.sortDir ?? "desc";
+    filtered = [...filtered].sort((a, b) => {
+      const av = (a[sortKey] ?? "") as string;
+      const bv = (b[sortKey] ?? "") as string;
+      const cmp = av.localeCompare(bv, "ar");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    const page = Math.max(1, data.page ?? 1);
+    const pageSize = Math.max(1, Math.min(200, data.pageSize ?? 25));
+    const total = filtered.length;
+    const start = (page - 1) * pageSize;
+    return { rows: filtered.slice(start, start + pageSize), total, page, pageSize };
   });

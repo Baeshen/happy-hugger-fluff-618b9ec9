@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import {
@@ -1547,14 +1547,28 @@ function PatientTransitionsTable({
 }) {
   const fn = useServerFn(listPatientTransitionRows);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortKey, setSortKey] = useState<TxSortKey>("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive" | "archived" | "deceased">("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  // Debounce search input to avoid firing a request per keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Reset to page 1 whenever filters/search/sort/pageSize change
+  useEffect(() => {
+    setPage(1);
+  }, [branchId, doctorId, gender, minAge, maxAge, from, to, debouncedSearch, statusFilter, sortKey, sortDir, pageSize]);
 
   const q = useQuery({
     queryKey: [
       "patient-transition-rows",
-      { branchId, doctorId, gender, minAge, maxAge, from, to },
+      { branchId, doctorId, gender, minAge, maxAge, from, to, search: debouncedSearch, statusFilter, sortKey, sortDir, page, pageSize },
     ],
     queryFn: () =>
       fn({
@@ -1566,40 +1580,23 @@ function PatientTransitionsTable({
           maxAge: maxAge ? Number(maxAge) : null,
           from,
           to,
-          limit: 500,
+          limit: 2000,
+          page,
+          pageSize,
+          search: debouncedSearch || null,
+          statusTo: statusFilter || null,
+          sortKey,
+          sortDir,
         },
       }),
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
-  const rows = (q.data as PatientTransitionRow[] | undefined) ?? [];
-
-  const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (statusFilter && r.to !== statusFilter) return false;
-      if (!s) return true;
-      return (
-        (r.patient_name ?? "").toLowerCase().includes(s) ||
-        (r.patient_mrn ?? "").toLowerCase().includes(s) ||
-        (r.branch_name ?? "").toLowerCase().includes(s) ||
-        (r.actor_name ?? "").toLowerCase().includes(s) ||
-        (r.reason ?? "").toLowerCase().includes(s)
-      );
-    });
-  }, [rows, search, statusFilter]);
-
-  const sorted = useMemo(() => {
-    const copy = [...filtered];
-    copy.sort((a, b) => {
-      const av = (a[sortKey] ?? "") as string;
-      const bv = (b[sortKey] ?? "") as string;
-      const cmp = av.localeCompare(bv, "ar");
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-    return copy;
-  }, [filtered, sortKey, sortDir]);
+  const pageData = q.data as { rows: PatientTransitionRow[]; total: number; page: number; pageSize: number } | undefined;
+  const sorted = pageData?.rows ?? [];
+  const total = pageData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const toggleSort = (k: TxSortKey) => {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -1639,7 +1636,7 @@ function PatientTransitionsTable({
           </div>
         </div>
         <span className="text-xs text-muted-foreground">
-          {sorted.length.toLocaleString("ar-SA")} من {rows.length.toLocaleString("ar-SA")}
+          إجمالي: {total.toLocaleString("ar-SA")}
           {q.isFetching && <span className="ms-2 text-primary">جارٍ التحديث…</span>}
         </span>
       </div>
@@ -1665,6 +1662,16 @@ function PatientTransitionsTable({
           <option value="inactive">غير نشط</option>
           <option value="archived">مؤرشف</option>
           <option value="deceased">متوفى</option>
+        </select>
+        <select
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value))}
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          title="عدد الصفوف لكل صفحة"
+        >
+          {[10, 25, 50, 100].map((n) => (
+            <option key={n} value={n}>{n} / صفحة</option>
+          ))}
         </select>
       </div>
 
@@ -1738,6 +1745,57 @@ function PatientTransitionsTable({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {total > 0 && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div>
+            عرض{" "}
+            <span className="font-semibold text-foreground">
+              {((page - 1) * pageSize + 1).toLocaleString("ar-SA")}–
+              {Math.min(page * pageSize, total).toLocaleString("ar-SA")}
+            </span>{" "}
+            من {total.toLocaleString("ar-SA")}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              disabled={page <= 1 || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              الأولى
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              السابقة
+            </button>
+            <span className="px-2 py-1">
+              صفحة <span className="font-semibold text-foreground">{page.toLocaleString("ar-SA")}</span> / {totalPages.toLocaleString("ar-SA")}
+              {q.isFetching && <span className="ms-2 text-primary">…جارٍ التحميل</span>}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              التالية
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages || q.isFetching}
+              className="rounded-md border border-input bg-background px-2 py-1 disabled:opacity-40 hover:bg-muted"
+            >
+              الأخيرة
+            </button>
+          </div>
         </div>
       )}
     </div>
