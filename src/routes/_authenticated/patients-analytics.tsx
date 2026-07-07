@@ -1711,7 +1711,11 @@ function PatientTransitionsTable({
             </thead>
             <tbody>
               {sorted.map((r, i) => (
-                <tr key={`${r.audit_id}-${r.patient_id}-${i}`} className="border-b border-border/50 hover:bg-muted/30">
+                <tr
+                  key={`${r.audit_id}-${r.patient_id}-${i}`}
+                  onClick={() => setSelectedRow(r)}
+                  className="border-b border-border/50 cursor-pointer hover:bg-muted/30"
+                >
                   <td className="p-2 text-xs text-muted-foreground" dir="ltr">
                     {new Date(r.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
                   </td>
@@ -1732,7 +1736,7 @@ function PatientTransitionsTable({
                   </td>
                   <td className="p-2 text-xs text-muted-foreground">{r.actor_name ?? "-"}</td>
                   <td className="p-2">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Link
                         to="/patients/$patientId"
                         params={{ patientId: r.patient_id }}
