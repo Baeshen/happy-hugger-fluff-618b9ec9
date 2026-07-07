@@ -701,6 +701,12 @@ export const listPatientTransitionRows = createServerFn({ method: "POST" })
       if (data.maxAge != null && (age == null || age > data.maxAge)) continue;
       patientMap.set(p.id as string, p);
     }
+    // If scoped to a single patient, drop all others
+    if (data.patientId) {
+      for (const id of [...patientMap.keys()]) {
+        if (id !== data.patientId) patientMap.delete(id);
+      }
+    }
 
     if (data.doctorId) {
       const { data: vRows } = await sb
