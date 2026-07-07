@@ -333,6 +333,9 @@ function PatientsAnalyticsPage() {
           {/* AI Summary */}
           <AiSummarySection branchId={branchId} doctorId={doctorId} />
 
+          {/* Recent status-change audit events */}
+          <RecentStatusEventsSection branchId={branchId} doctorId={doctorId} from={from} to={to} />
+
 
 
 
