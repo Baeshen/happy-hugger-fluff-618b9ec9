@@ -72,7 +72,7 @@ function QrCardsPage() {
 
 function PatientCardTab() {
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<{ id: string; mrn: string; full_name_ar: string; branch_name?: string | null } | null>(null);
+  const [selected, setSelected] = useState<{ id: string; mrn: string; full_name_ar: string; branch_name_ar?: string | null } | null>(null);
   const listFn = useServerFn(listPatientsAdvanced);
 
   const searchQ = useQuery({
@@ -108,7 +108,7 @@ function PatientCardTab() {
             (searchQ.data?.rows ?? []).map((p) => (
               <button
                 key={p.id}
-                onClick={() => setSelected({ id: p.id, mrn: p.mrn, full_name_ar: p.full_name_ar, branch_name: p.branch_name })}
+                onClick={() => setSelected({ id: p.id, mrn: p.mrn, full_name_ar: p.full_name_ar, branch_name: p.branch_name_ar })}
                 className={`w-full text-right px-3 py-2 hover:bg-muted transition ${selected?.id === p.id ? "bg-primary/10" : ""}`}
               >
                 <p className="text-sm font-medium">{p.full_name_ar}</p>
@@ -124,7 +124,7 @@ function PatientCardTab() {
           <CardPreview
             title={selected.full_name_ar}
             subtitle={`رقم الملف: ${selected.mrn}`}
-            footer={selected.branch_name ?? CLINIC_NAME}
+            footer={selected.branch_name_ar ?? CLINIC_NAME}
             url={url}
             hint="امسح لفتح ملف المريض"
             tone="primary"
