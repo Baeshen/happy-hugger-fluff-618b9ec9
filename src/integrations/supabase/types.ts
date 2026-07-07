@@ -1598,6 +1598,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      log_auth_event: {
+        Args: {
+          _action: string
+          _email?: string
+          _ip?: string
+          _metadata?: Json
+          _ua?: string
+          _user_id?: string
+        }
+        Returns: undefined
+      }
       log_security_event:
         | {
             Args: {
