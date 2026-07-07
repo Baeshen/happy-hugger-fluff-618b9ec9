@@ -3,8 +3,18 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { logAuthEvent } from "@/lib/auth-log.functions";
 
 const search = z.object({ redirect: z.string().optional() });
+
+function safeLog(input: {
+  action: "login_success" | "login_failed" | "logout" | "signup_success" | "signup_failed";
+  user_id?: string | null;
+  email?: string | null;
+  metadata?: Record<string, any> | null;
+}) {
+  (logAuthEvent as any)({ data: input }).catch(() => {});
+}
 
 export const Route = createFileRoute("/auth")({
   validateSearch: search,
@@ -42,7 +52,7 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data: signup, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -50,11 +60,19 @@ function AuthPage() {
             data: { full_name: fullName },
           },
         });
-        if (error) throw error;
+        if (error) {
+          safeLog({ action: "signup_failed", email, metadata: { error: error.message } });
+          throw error;
+        }
+        safeLog({ action: "signup_success", email, user_id: signup.user?.id ?? null });
         toast.success("تم إنشاء الحساب. تحقق من بريدك الإلكتروني إن لزم.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { data: signin, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          safeLog({ action: "login_failed", email, metadata: { error: error.message } });
+          throw error;
+        }
+        safeLog({ action: "login_success", email, user_id: signin.user?.id ?? null });
         toast.success("مرحبًا بعودتك");
       }
     } catch (err: any) {
