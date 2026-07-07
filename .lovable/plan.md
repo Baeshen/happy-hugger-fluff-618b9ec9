@@ -1,104 +1,52 @@
+
 ## الهدف
+إظهار تاريخ تغيّر تفضيلات التذكير لكل حجز (قبل 24 ساعة / قبل ساعتين) مع القيمة السابقة والجديدة، وقت التعديل، ومصدره (المراجع نفسه أو موظف)، داخل شاشة تفاصيل الحجز في:
+1. لوحة الإدارة (`/_authenticated/admin` → قائمة المواعيد → زر "السجل").
+2. صفحة "حجوزاتي" `/_authenticated/my`.
+3. صفحة البحث عن الحجز `/lookup` (المراجع بدون تسجيل دخول).
 
-إضافة اختبارات للتحقق من مشغّل `log_reminder_preference_change`:
-1. `reason` يُقرأ من `app.change_reason` (GUC) عند التحديث.
-2. `changed_by` = `auth.uid()` للموظّف، و `NULL` للـ self_service.
-3. `source` = `"staff"` عند تحديث من admin/reception، و `"self_service"` عند تحديث بدون auth (عبر RPC عام).
+## التغييرات
 
-## الملف الجديد
+### 1) خلفية — دالتان جديدتان (SECURITY DEFINER) في migration
+تتيح للمراجع/المستخدم قراءة سجل تفضيلاته دون فتح `reminder_preference_audit` للجميع.
 
-`tests/rls/reminder-preference-audit-trigger.test.ts` — بنفس نمط الملف الحالي (bun script، ليس vitest).
+- `list_reminder_preferences_by_ref(_ref text, _phone text)` — تُرجع صفوف السجل لحجز يطابق ref+phone (نفس نمط `lookup_appointment`). تُستخدم في `/lookup`.
+- `my_reminder_preference_audit(_appointment_id uuid)` — تتحقق أن الحجز يخص هاتف الـ `profile` الخاص بـ `auth.uid()` (نفس نمط `my_appointments`) ثم تُرجع سطور السجل. تُستخدم في `/my`.
 
-## السيناريوهات (5 اختبارات)
+كلاهما يُرجع: `id, reminder_kind, old_value, new_value, source, changed_at` (بدون `changed_by` لأنه لا يعني المراجع).
 
-### staff path (تحديث مباشر من موظّف مسجّل دخول)
+لوحة الإدارة تبقى على `listReminderPreferenceAudit` الموجودة (تدعم فلترة `appointmentId` أصلاً).
 
-مستخدم `reception` يسجّل دخول ثم:
-1. يستدعي `admin.rpc('set_config', ...)` — لكن هذا غير متاح للـ authenticated. البديل: استخدام `postgres` RPC مخصّصة أو تنفيذ SQL عبر `admin` (service_role) مع تعيين GUC ثم UPDATE. لكن `service_role` يتجاوز RLS و `auth.uid()` = NULL.
+### 2) واجهة — لوحة الإدارة `src/routes/_authenticated/admin.tsx`
+- توسعة `AuditModal` الحالي: إضافة قسم ثانٍ "سجل تفضيلات التذكير" تحت سجل الحالة/الملاحظات.
+- استدعاء `listReminderPreferenceAudit({ appointmentId, pageSize: 100 })` بجانب `listAppointmentAudit`.
+- عرض كل صف: نوع التذكير (قبل 24 ساعة/قبل ساعتين)، انتقال `old_value → new_value` (مفعّل/معطّل)، المصدر (staff/self_service/system)، الوقت، واسم المُنفّذ عند وجوده.
+- رسالة فارغة عند غياب التغييرات.
 
-**الحل الصحيح:** المسار الحقيقي لتعيين reason من موظّف هو عبر دالة موجودة مثل `update_appointment_notes(_id, _notes, _reason)` أو استدعاء `update_appointment_status`. لكن هذه لا تُغيّر `reminder_*`. لا توجد RPC موظّف لتحديث التذكيرات مع reason.
+### 3) واجهة — `/lookup`
+- إضافة server function جديدة `getReminderPreferenceAuditByRef` في `src/lib/appointments.functions.ts` (أو الملف المناسب) تستدعي RPC `list_reminder_preferences_by_ref` بدون middleware.
+- زر "سجل التذكيرات" داخل بطاقة الحجز يفتح موديل بسيط يعرض الصفوف بنفس التنسيق (بدون اسم مُنفّذ؛ يظهر "تعديل ذاتي" أو "موظف").
 
-**نهج عملي:** إنشاء دالة اختبار مؤقّتة (`_test_update_reminders_as_staff`) عبر migration — أو الأفضل: استخدام RPC عامة مؤقتة قابلة للاستدعاء داخل الاختبار. لكن هذا يتطلب migration.
+### 4) واجهة — `/my`
+- server function `getMyReminderPreferenceAudit({ appointmentId })` بـ `requireSupabaseAuth` تستدعي RPC `my_reminder_preference_audit`.
+- زر "سجل التذكيرات" داخل بطاقة كل حجز يفتح نفس الموديل المستخدم في `/lookup` (مكوّن مشترك في `src/components/`).
 
-**البديل الأنظف بلا migration:** استخدام `admin.rpc('exec_sql', ...)` — غير متوفر. أو استعمال `pg` مباشرة عبر `PGHOST`. الاختبار الحالي يستخدم `@supabase/supabase-js` فقط.
+### 5) اختبارات
+- اختبار RLS/RPC للتأكد أن `list_reminder_preferences_by_ref` لا تُرجع صفوفاً لحجز بهاتف مختلف، وأن `my_reminder_preference_audit` ترفض حجزاً لا يخص المستخدم الحالي.
 
-**قرار:** الاختبارات تُغطّي المسارات الفعلية المتاحة عبر الـ API الحقيقي:
+## التفاصيل التقنية
 
-1. **self_service via RPC** (`update_reminders_by_ref`) — anon يستدعي الـ RPC:
-   - يتحقّق أن صف audit جديد يظهر بـ `source='self_service'`، `changed_by IS NULL`، و `reason IS NULL` (لأن `update_reminders_by_ref` لا يعيّن `app.change_reason`).
-
-2. **staff via direct UPDATE** — reception يسجّل دخول ثم يحدّث `appointments.reminder_24h`:
-   - يتحقّق: `source='staff'`، `changed_by=<reception uid>`، `reason IS NULL` (لم يعيّن GUC).
-
-3. **staff via direct UPDATE مع set_config عبر service_role trick** — نتجنّبها لأنها تختلط بين actor وservice_role.
-
-**بدلاً من ذلك، لتغطية قراءة `reason` من `app.change_reason`:**
-
-3. **service_role مع set_config**: `admin.rpc(...)` عبر دالة مساعدة تُنشأ في migration. لكن هذا يعقّد. الحل الأبسط:
-
-**إضافة migration صغيرة تُنشئ دالة اختبار `_test_update_reminder_with_reason(appt_id, kind, val, reason)` تكون:**
-- `SECURITY INVOKER` (تحترم صلاحيات المستدعي)
-- تُنفّذ `set_config('app.change_reason', _reason, true)` ثم `UPDATE`
-- متاحة للموظّفين فقط
-
-لكن هذا يوسّع سطح الـ API لغرض الاختبار فقط.
-
-**البديل النهائي المعتمد:** الاختبارات تستدعي SQL خام عبر `psql` (متاح في exec لأن `PGHOST` مُعيّن حسب سياسات الـ workspace). في السكربت، نستدعي `child_process.execSync('psql -c "..."')` لتنفيذ:
-```sql
-BEGIN;
-SET LOCAL app.change_reason = 'تعديل من الاستقبال';
-SET LOCAL role authenticated;
-SET LOCAL request.jwt.claims = '{"sub":"<reception-uid>", ...}';
-UPDATE appointments SET reminder_2h = false WHERE id = '<id>';
-COMMIT;
+### شكل صف السجل في الواجهة
 ```
-لكن `psql` يتجاوز RLS بصلاحية `postgres`. يمكن ضبط `SET ROLE authenticated` + `set_config('request.jwt.claim.sub', ...)` لمحاكاة `auth.uid()`.
+قبل 24 ساعة: مفعّل → معطّل
+٠٧/٠٧/٢٠٢٦ ١٠:٣٢ ص · تعديل ذاتي
+```
 
-هذا معقّد وهشّ.
+### مكوّن مشترك
+`ReminderPreferenceHistory` في `src/components/ReminderPreferenceHistory.tsx` يستقبل `rows` جاهزة، لتفادي تكرار الترجمة والتنسيق بين الشاشات الثلاث.
 
-## النهج المُعتمد المُبسّط
-
-الاختبار يُغطّي ما يمكن التحقّق منه عبر الـ API الحقيقي دون migration ولا psql:
-
-**الاختبار 1: self_service عبر RPC `update_reminders_by_ref`**
-- إنشاء موعد بواسطة admin.
-- anon يستدعي `rpc('update_reminders_by_ref', { _ref, _phone, _reminder_24h: false, _reminder_2h: null })`.
-- التحقّق من صف audit جديد: `source='self_service'`, `changed_by IS NULL`, `reminder_kind='reminder_24h'`, `old_value=true`, `new_value=false`, `reason IS NULL`.
-
-**الاختبار 2: staff عبر UPDATE مباشر بلا reason**
-- reception يسجّل دخول، يُحدّث `appointments.reminder_2h = false` عبر `.from('appointments').update(...)`.
-- التحقّق: `source='staff'`, `changed_by=<receptionUid>`, `reason IS NULL`.
-
-**الاختبار 3: admin عبر UPDATE مباشر**
-- admin يسجّل دخول، يُحدّث `reminder_24h`.
-- التحقّق: `source='staff'`, `changed_by=<adminUid>`.
-
-**الاختبار 4: reason يُقرأ من `app.change_reason` — عبر service_role مع set_config**
-- استخدام `admin.rpc('set_config', ...)` عبر دالة `pg_settings`؟ غير متاح.
-- **البديل:** استدعاء migration موجودة تعيّن GUC ثم تُحدّث. الدالة الأنسب: `update_appointment_status(id, 'confirmed', 'reason X')` — لكنها لا تُغيّر reminders.
-- **الحل:** استدعاء `admin.rpc('reschedule_appointment_by_ref', { _reason: 'Y', ...})` — لكن هذا يُغيّر التاريخ لا التذكيرات، ولا يُنشئ صف reminder_audit.
-
-**قرار نهائي للاختبار 4:** إسقاطه، أو تحويله لاختبار مباشر عبر SQL exec.
-
-## اختصار الخطة الفعلية
-
-**تشغيل:** `bun tests/rls/reminder-preference-audit-trigger.test.ts`
-
-**3 اختبارات فقط (بدون migration، بدون psql):**
-
-1. `self_service via update_reminders_by_ref → source='self_service', changed_by NULL`
-2. `staff (reception) direct UPDATE → source='staff', changed_by=<uid>`  
-3. `admin direct UPDATE → source='staff', changed_by=<uid>`
-
-**اختبار reason من `app.change_reason`:** يتطلّب مسار SQL خام. إن أردت تغطيته:
-- **الخيار أ:** إضافة migration بدالة اختبار مؤقّتة `_test_set_reminder_with_reason(...)` (سطح API إضافي).
-- **الخيار ب:** استخدام `psql` عبر `execSync` داخل الاختبار (يعتمد على `PGHOST`).
-- **الخيار ج:** الاكتفاء بالتحقّق أن `reason IS NULL` في السيناريوهات الحالية (تغطية سلبية فقط).
-
-## سؤال قبل التنفيذ
-
-ما التغطية المطلوبة لاختبار قراءة `reason` من `app.change_reason`؟
-
-- (أ) إضافة migration بدالة SECURITY DEFINER محدودة (`admin`/`reception` فقط) تعيّن GUC ثم تُحدّث.
-- (ب) استخدام `psql` مباشرة من داخل الاختبار.
-- (ج) اقتصار الاختبارات على `source` و `changed_by` (بدون تغطية `reason` الإيجابية).
+### الأدوار والصلاحيات
+- admin/reception: عبر `listReminderPreferenceAudit` (موجودة).
+- المستخدم المصادق: عبر RPC جديدة محدودة بهاتفه.
+- المراجع anon: عبر RPC جديدة محدودة بـ ref+phone.
+- لا تُمنح `SELECT` مباشرة على `reminder_preference_audit` لأي دور غير admin/reception.
