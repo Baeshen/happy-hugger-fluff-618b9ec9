@@ -133,7 +133,14 @@ function RatingsPage() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* KPI Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard label="المتوسط العام" value={overall.avg.toFixed(2)} icon={<Star className="h-5 w-5 fill-amber-400 text-amber-400" />} tone="amber" />
+        <KpiCard label="إجمالي التقييمات" value={String(overall.count)} icon={<MessageSquare className="h-5 w-5" />} tone="blue" />
+        <KpiCard label="تقييمات سلبية (≤ 2)" value={String(listStats.negative)} icon={<Star className="h-5 w-5" />} tone="red" />
+        <KpiCard label="معدل الرد" value={`${listStats.replyRate.toFixed(0)}%`} icon={<Reply className="h-5 w-5" />} tone="green" />
+      </div>
+
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-muted-foreground">
           <Filter className="h-4 w-4" />
