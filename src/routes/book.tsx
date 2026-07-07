@@ -97,6 +97,8 @@ function BookPage() {
     national_id: "",
     gender: "male",
     reason: "",
+    reminder_24h: true,
+    reminder_2h: true,
   });
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState<{ ref: string; share: ShareBooking } | null>(null);
@@ -223,6 +225,8 @@ function BookPage() {
       appointment_date: date,
       appointment_time: time,
       reason: v.reason ? v.reason : null,
+      reminder_24h: form.reminder_24h,
+      reminder_2h: form.reminder_2h,
     });
     setSubmitting(false);
     if (error) {
@@ -461,7 +465,43 @@ function BookPage() {
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     />
                   </Field>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-border bg-card p-4">
+                <div className="text-sm font-semibold">تذكيرات قبل الموعد</div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  اختر متى تودّ استلام تذكير قبل موعدك.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <label
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer ${
+                      form.reminder_24h ? "border-primary bg-primary/5" : "border-border"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.reminder_24h}
+                      onChange={(e) => setForm({ ...form, reminder_24h: e.target.checked })}
+                      className="accent-primary"
+                    />
+                    قبل الموعد بـ 24 ساعة
+                  </label>
+                  <label
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer ${
+                      form.reminder_2h ? "border-primary bg-primary/5" : "border-border"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.reminder_2h}
+                      onChange={(e) => setForm({ ...form, reminder_2h: e.target.checked })}
+                      className="accent-primary"
+                    />
+                    قبل الموعد بساعتين
+                  </label>
                 </div>
+              </div>
+
               </div>
 
               <div className="mt-6 rounded-lg bg-muted/60 p-4 text-sm">
