@@ -757,6 +757,71 @@ async function main() {
       assert(results[8] === 0, `X(no-row)→C leaked: ${results[8]}`);
     });
 
+    // ── Extended heterogeneous mix: shared-phone + Arabic-Indic profile ──
+    await test("my_audit: two users sharing same phone digits BOTH read the shared appt; no-profile user sees nothing", async () => {
+      // Business note: if two profiles carry the same digits, both are considered
+      // "the patient" by digit-match. This test locks in that behavior explicitly.
+      const sharedPh = "0571000" + String(stamp).slice(-3);
+      const sharedAppt = await seedAppt(sharedPh);
+
+      const u1 = await mkUser("shared1", { phone: sharedPh });
+      const u2 = await mkUser("shared2", { phone: sharedPh });
+      const uOut = await mkUser("outsider", { phone: "0999000000", deleteRow: true });
+
+      const r1 = await u1.client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: sharedAppt,
+      } as never);
+      const r2 = await u2.client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: sharedAppt,
+      } as never);
+      const r3 = await uOut.client.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: sharedAppt,
+      } as never);
+      assert(!r1.error && !r2.error && !r3.error, "rpc err in shared-phone test");
+      assert(((r1.data ?? []) as unknown[]).length >= 1, "shared user #1 missed shared appt");
+      assert(((r2.data ?? []) as unknown[]).length >= 1, "shared user #2 missed shared appt");
+      assert(((r3.data ?? []) as unknown[]).length === 0, "outsider leaked shared appt");
+    });
+
+    await test("my_audit: heterogeneous mix incl. Arabic-Indic-only profile — only ASCII-digit profiles read their appts", async () => {
+      // Pool: 2 appts (ASCII-digit phones). Users:
+      //   asciiUser  — profile with ASCII digits matching appt1 → sees appt1
+      //   arUser     — profile with Arabic-Indic representation of same digits → sees nothing
+      //   noRowUser  — no profile row → sees nothing
+      const phX = "0574000" + String(stamp).slice(-3);
+      const phY = "0575000" + String(stamp).slice(-3);
+      const apptX = await seedAppt(phX);
+      const apptY = await seedAppt(phY);
+
+      const asciiUser = await mkUser("ascii", { phone: phX });
+      const arDigits = phX.replace(/\d/g, (d) => String.fromCharCode(0x0660 + Number(d)));
+      const arUser = await mkUser("arabic", { phone: arDigits });
+      const noRowUser = await mkUser("norow3", { phone: phX, deleteRow: true });
+
+      const expectations: Array<[string, SupabaseClient, string, "own" | "empty"]> = [
+        ["ascii→X", asciiUser.client, apptX, "own"],
+        ["ascii→Y", asciiUser.client, apptY, "empty"],
+        ["arabic→X", arUser.client, apptX, "empty"], // Arabic-Indic doesn't match ASCII
+        ["arabic→Y", arUser.client, apptY, "empty"],
+        ["norow→X", noRowUser.client, apptX, "empty"],
+        ["norow→Y", noRowUser.client, apptY, "empty"],
+      ];
+      for (const [label, client, apptId, expect] of expectations) {
+        const { data, error } = await client.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: apptId,
+        } as never);
+        assert(!error, `${label} err: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        if (expect === "own") {
+          assert(rows.length >= 1, `${label}: expected own, got ${rows.length}`);
+        } else {
+          assert(rows.length === 0, `${label}: leaked ${rows.length}`);
+        }
+      }
+    });
+
+
+
 
 
 
