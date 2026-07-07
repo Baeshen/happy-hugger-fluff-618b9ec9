@@ -294,27 +294,49 @@ function TransitionAlertsPage() {
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 ضمن الحد
                               </div>
-                            ) : (
-                              <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 p-2">
-                                <div className="text-xs text-destructive font-semibold flex items-center gap-1 mb-1">
-                                  <AlertTriangle className="h-3.5 w-3.5" />
-                                  تجاوز في {hits.length} {hits.length === 1 ? "حالة" : "حالات"}
+                            ) : (() => {
+                              const order = { high: 0, medium: 1, low: 2 } as const;
+                              const maxSev = hits.reduce<keyof typeof order>((acc, h) => order[h.severity] < order[acc] ? h.severity : acc, "low");
+                              const s = SEVERITY_STYLES[maxSev];
+                              return (
+                                <div className={`mt-2 rounded-md border p-2 ${s.ring}`}>
+                                  <div className={`text-xs font-semibold flex items-center gap-2 mb-1 ${s.text}`}>
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    تجاوز في {hits.length} {hits.length === 1 ? "حالة" : "حالات"}
+                                    <span className={`inline-flex items-center gap-1 rounded-full text-[10px] px-1.5 py-0.5 font-semibold border ${s.badge}`}>
+                                      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                                      أعلى: {SEVERITY_LABEL[maxSev]}
+                                    </span>
+                                  </div>
+                                  <ul className="space-y-1 text-xs">
+                                    {hits.slice(0, 5).map((h, i) => {
+                                      const hs = SEVERITY_STYLES[h.severity];
+                                      return (
+                                        <li key={i} className="flex justify-between items-center gap-2">
+                                          <span className="flex items-center gap-2 min-w-0">
+                                            <span className={`inline-flex items-center gap-1 rounded-full text-[10px] px-1.5 py-0.5 font-semibold border ${hs.badge}`}>
+                                              <span className={`h-1.5 w-1.5 rounded-full ${hs.dot}`} />
+                                              {SEVERITY_LABEL[h.severity]}
+                                            </span>
+                                            <span className="truncate">{h.subjectName}</span>
+                                          </span>
+                                          <span className={`font-mono font-semibold ${hs.text}`}>
+                                            {h.count}
+                                            <span className="text-muted-foreground"> ×{h.ratio.toFixed(1)}</span>
+                                          </span>
+                                        </li>
+                                      );
+                                    })}
+                                    {hits.length > 5 && (
+                                      <li className="text-muted-foreground">…و {hits.length - 5} أخرى</li>
+                                    )}
+                                  </ul>
                                 </div>
-                                <ul className="space-y-0.5 text-xs">
-                                  {hits.slice(0, 5).map((h, i) => (
-                                    <li key={i} className="flex justify-between">
-                                      <span>{h.subjectName}</span>
-                                      <span className="font-mono font-semibold text-destructive">{h.count}</span>
-                                    </li>
-                                  ))}
-                                  {hits.length > 5 && (
-                                    <li className="text-muted-foreground">…و {hits.length - 5} أخرى</li>
-                                  )}
-                                </ul>
-                              </div>
-                            )
+                              );
+                            })()
                           )}
                         </div>
+
                         <div className="flex items-center gap-1">
                           <button onClick={() => toggleRule(r.id)}
                             title={r.enabled ? "تعطيل" : "تفعيل"}
