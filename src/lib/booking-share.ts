@@ -64,6 +64,36 @@ export function downloadIcs(b: ShareBooking) {
   URL.revokeObjectURL(url);
 }
 
+/** Build a Google Calendar "add event" URL for the given appointment. */
+export function googleCalendarUrl(b: ShareBooking, minutes = 30): string {
+  const [y, mo, d] = b.appointment_date.split("-").map(Number);
+  const [h, mi] = b.appointment_time.split(":").map(Number);
+  // Local Asia/Riyadh (UTC+3) → UTC.
+  const startUTC = new Date(Date.UTC(y, mo - 1, d, h - 3, mi));
+  const endUTC = new Date(startUTC.getTime() + minutes * 60000);
+  const fmt = (dt: Date) =>
+    `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`;
+  const summary = `${SITE.nameAr} — موعد${b.doctor ? " مع " + b.doctor : ""}`;
+  const details = [
+    `المريض: ${b.patient_name}`,
+    b.specialty ? `التخصص: ${b.specialty}` : "",
+    b.doctor ? `الطبيب: ${b.doctor}` : "",
+    `رقم الحجز: ${b.ref}`,
+    `هاتف المجمع: ${SITE.phoneDisplay}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: summary,
+    dates: `${fmt(startUTC)}/${fmt(endUTC)}`,
+    details,
+    location: SITE.addressAr,
+    ctz: "Asia/Riyadh",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 export function whatsappShareUrl(b: ShareBooking): string {
   const lines = [
     `تم حجز موعد في ${SITE.nameAr}`,
