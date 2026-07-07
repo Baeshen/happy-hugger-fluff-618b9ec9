@@ -274,6 +274,23 @@ function AdminDashboard() {
               تحليلات المرضى
             </Link>
           )}
+          {(roles.includes("admin") || roles.includes("reception") || roles.includes("doctor" as never)) && (
+            <Link
+              to="/ratings"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              تقييمات المرضى
+            </Link>
+          )}
+          {(roles.includes("admin") || roles.includes("reception")) && (
+            <Link
+              to="/qr-cards"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              بطاقات QR
+            </Link>
+          )}
+
           {roles.includes("admin") && (
             <Link
               to="/rbac"

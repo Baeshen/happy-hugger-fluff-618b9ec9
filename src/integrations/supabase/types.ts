@@ -1027,6 +1027,63 @@ export type Database = {
           },
         ]
       }
+      patient_ratings: {
+        Row: {
+          appointment_ref: string | null
+          branch_id: string | null
+          comment: string | null
+          created_at: string
+          created_by: string | null
+          doctor_id: string | null
+          id: string
+          patient_name: string | null
+          patient_phone: string | null
+          rating: number
+          source: string
+        }
+        Insert: {
+          appointment_ref?: string | null
+          branch_id?: string | null
+          comment?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          id?: string
+          patient_name?: string | null
+          patient_phone?: string | null
+          rating: number
+          source?: string
+        }
+        Update: {
+          appointment_ref?: string | null
+          branch_id?: string | null
+          comment?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          id?: string
+          patient_name?: string | null
+          patient_phone?: string | null
+          rating?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_ratings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_ratings_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_surgeries: {
         Row: {
           complications: string | null
@@ -1599,6 +1656,21 @@ export type Database = {
         }[]
       }
       generate_mrn: { Args: { _branch_id: string }; Returns: string }
+      get_ratings_summary: {
+        Args: { _branch_id?: string; _days?: number; _doctor_id?: string }
+        Returns: {
+          avg_rating: number
+          entity_id: string
+          entity_name: string
+          ratings_count: number
+          scope: string
+          stars_1: number
+          stars_2: number
+          stars_3: number
+          stars_4: number
+          stars_5: number
+        }[]
+      }
       has_branch_access: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
@@ -1627,6 +1699,24 @@ export type Database = {
           id: string
           reason: string
           start_date: string
+        }[]
+      }
+      list_public_branches_for_rating: {
+        Args: never
+        Returns: {
+          id: string
+          name_ar: string
+          name_en: string
+        }[]
+      }
+      list_public_doctors_for_rating: {
+        Args: { _branch_id?: string }
+        Returns: {
+          branch_id: string
+          id: string
+          name_ar: string
+          name_en: string
+          specialty_name_ar: string
         }[]
       }
       list_reminder_preferences_by_ref: {
@@ -1778,6 +1868,18 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      submit_public_rating: {
+        Args: {
+          _appointment_ref?: string
+          _branch_id: string
+          _comment?: string
+          _doctor_id: string
+          _patient_name?: string
+          _patient_phone?: string
+          _rating: number
+        }
+        Returns: string
       }
       update_appointment_notes: {
         Args: { _id: string; _notes: string; _reason?: string }

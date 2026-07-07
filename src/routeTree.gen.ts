@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RateRouteImport } from './routes/rate'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
 import { Route as LookupRouteImport } from './routes/lookup'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -32,6 +33,8 @@ import { Route as AuthenticatedTransitionAlertsRouteImport } from './routes/_aut
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
+import { Route as AuthenticatedRatingsRouteImport } from './routes/_authenticated/ratings'
+import { Route as AuthenticatedQrCardsRouteImport } from './routes/_authenticated/qr-cards'
 import { Route as AuthenticatedPatientsManagementRouteImport } from './routes/_authenticated/patients-management'
 import { Route as AuthenticatedPatientsAnalyticsRouteImport } from './routes/_authenticated/patients-analytics'
 import { Route as AuthenticatedNotificationsQueueRouteImport } from './routes/_authenticated/notifications-queue'
@@ -49,6 +52,11 @@ import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/boo
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RateRoute = RateRouteImport.update({
+  id: '/rate',
+  path: '/rate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PharmacyRoute = PharmacyRouteImport.update({
@@ -162,6 +170,16 @@ const AuthenticatedRbacRoute = AuthenticatedRbacRouteImport.update({
   path: '/rbac',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRatingsRoute = AuthenticatedRatingsRouteImport.update({
+  id: '/ratings',
+  path: '/ratings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedQrCardsRoute = AuthenticatedQrCardsRouteImport.update({
+  id: '/qr-cards',
+  path: '/qr-cards',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPatientsManagementRoute =
   AuthenticatedPatientsManagementRouteImport.update({
     id: '/patients-management',
@@ -245,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
@@ -256,6 +275,8 @@ export interface FileRoutesByFullPath {
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
+  '/qr-cards': typeof AuthenticatedQrCardsRoute
+  '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -282,6 +303,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
@@ -293,6 +315,8 @@ export interface FileRoutesByTo {
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
+  '/qr-cards': typeof AuthenticatedQrCardsRoute
+  '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -321,6 +345,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
@@ -332,6 +357,8 @@ export interface FileRoutesById {
   '/_authenticated/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/_authenticated/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/_authenticated/patients-management': typeof AuthenticatedPatientsManagementRoute
+  '/_authenticated/qr-cards': typeof AuthenticatedQrCardsRoute
+  '/_authenticated/ratings': typeof AuthenticatedRatingsRoute
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -360,6 +387,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/rate'
     | '/sitemap.xml'
     | '/admin'
     | '/audit-log'
@@ -371,6 +399,8 @@ export interface FileRouteTypes {
     | '/notifications-queue'
     | '/patients-analytics'
     | '/patients-management'
+    | '/qr-cards'
+    | '/ratings'
     | '/rbac'
     | '/reports'
     | '/settings'
@@ -397,6 +427,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/rate'
     | '/sitemap.xml'
     | '/admin'
     | '/audit-log'
@@ -408,6 +439,8 @@ export interface FileRouteTypes {
     | '/notifications-queue'
     | '/patients-analytics'
     | '/patients-management'
+    | '/qr-cards'
+    | '/ratings'
     | '/rbac'
     | '/reports'
     | '/settings'
@@ -435,6 +468,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/rate'
     | '/sitemap.xml'
     | '/_authenticated/admin'
     | '/_authenticated/audit-log'
@@ -446,6 +480,8 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications-queue'
     | '/_authenticated/patients-analytics'
     | '/_authenticated/patients-management'
+    | '/_authenticated/qr-cards'
+    | '/_authenticated/ratings'
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
@@ -474,6 +510,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   LookupRoute: typeof LookupRoute
   PharmacyRoute: typeof PharmacyRoute
+  RateRoute: typeof RateRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DoctorsSlugRoute: typeof DoctorsSlugRoute
   HealthSlugRoute: typeof HealthSlugRoute
@@ -492,6 +529,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rate': {
+      id: '/rate'
+      path: '/rate'
+      fullPath: '/rate'
+      preLoaderRoute: typeof RateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pharmacy': {
@@ -648,6 +692,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRbacRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ratings': {
+      id: '/_authenticated/ratings'
+      path: '/ratings'
+      fullPath: '/ratings'
+      preLoaderRoute: typeof AuthenticatedRatingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/qr-cards': {
+      id: '/_authenticated/qr-cards'
+      path: '/qr-cards'
+      fullPath: '/qr-cards'
+      preLoaderRoute: typeof AuthenticatedQrCardsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/patients-management': {
       id: '/_authenticated/patients-management'
       path: '/patients-management'
@@ -753,6 +811,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationsQueueRoute: typeof AuthenticatedNotificationsQueueRoute
   AuthenticatedPatientsAnalyticsRoute: typeof AuthenticatedPatientsAnalyticsRoute
   AuthenticatedPatientsManagementRoute: typeof AuthenticatedPatientsManagementRoute
+  AuthenticatedQrCardsRoute: typeof AuthenticatedQrCardsRoute
+  AuthenticatedRatingsRoute: typeof AuthenticatedRatingsRoute
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -773,6 +833,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationsQueueRoute: AuthenticatedNotificationsQueueRoute,
   AuthenticatedPatientsAnalyticsRoute: AuthenticatedPatientsAnalyticsRoute,
   AuthenticatedPatientsManagementRoute: AuthenticatedPatientsManagementRoute,
+  AuthenticatedQrCardsRoute: AuthenticatedQrCardsRoute,
+  AuthenticatedRatingsRoute: AuthenticatedRatingsRoute,
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
@@ -796,6 +858,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   LookupRoute: LookupRoute,
   PharmacyRoute: PharmacyRoute,
+  RateRoute: RateRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DoctorsSlugRoute: DoctorsSlugRoute,
   HealthSlugRoute: HealthSlugRoute,
