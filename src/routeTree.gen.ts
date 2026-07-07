@@ -28,6 +28,7 @@ import { Route as HealthSearchRouteImport } from './routes/health.search'
 import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as AuthenticatedTransitionsStatsRouteImport } from './routes/_authenticated/transitions-stats'
+import { Route as AuthenticatedTransitionAlertsRouteImport } from './routes/_authenticated/transition-alerts'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
@@ -138,6 +139,12 @@ const AuthenticatedTransitionsStatsRoute =
   AuthenticatedTransitionsStatsRouteImport.update({
     id: '/transitions-stats',
     path: '/transitions-stats',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTransitionAlertsRoute =
+  AuthenticatedTransitionAlertsRouteImport.update({
+    id: '/transition-alerts',
+    path: '/transition-alerts',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -252,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
@@ -288,6 +296,7 @@ export interface FileRoutesByTo {
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
@@ -326,6 +335,7 @@ export interface FileRoutesById {
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/_authenticated/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
@@ -364,6 +374,7 @@ export interface FileRouteTypes {
     | '/rbac'
     | '/reports'
     | '/settings'
+    | '/transition-alerts'
     | '/transitions-stats'
     | '/doctors/$slug'
     | '/health/$slug'
@@ -400,6 +411,7 @@ export interface FileRouteTypes {
     | '/rbac'
     | '/reports'
     | '/settings'
+    | '/transition-alerts'
     | '/transitions-stats'
     | '/doctors/$slug'
     | '/health/$slug'
@@ -437,6 +449,7 @@ export interface FileRouteTypes {
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
+    | '/_authenticated/transition-alerts'
     | '/_authenticated/transitions-stats'
     | '/doctors/$slug'
     | '/health/$slug'
@@ -607,6 +620,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTransitionsStatsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/transition-alerts': {
+      id: '/_authenticated/transition-alerts'
+      path: '/transition-alerts'
+      fullPath: '/transition-alerts'
+      preLoaderRoute: typeof AuthenticatedTransitionAlertsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -736,6 +756,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTransitionAlertsRoute: typeof AuthenticatedTransitionAlertsRoute
   AuthenticatedTransitionsStatsRoute: typeof AuthenticatedTransitionsStatsRoute
   AuthenticatedPatientsPatientIdRoute: typeof AuthenticatedPatientsPatientIdRoute
   AuthenticatedPatientsIndexRoute: typeof AuthenticatedPatientsIndexRoute
@@ -755,6 +776,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTransitionAlertsRoute: AuthenticatedTransitionAlertsRoute,
   AuthenticatedTransitionsStatsRoute: AuthenticatedTransitionsStatsRoute,
   AuthenticatedPatientsPatientIdRoute: AuthenticatedPatientsPatientIdRoute,
   AuthenticatedPatientsIndexRoute: AuthenticatedPatientsIndexRoute,
