@@ -69,32 +69,24 @@ export const Route = createFileRoute("/doctors/$slug")({
       url,
       knowsLanguage: d.languages ?? undefined,
       medicalSpecialty: d.specialties?.name_en ?? d.specialties?.name_ar ?? undefined,
-      worksFor: {
-        "@type": "MedicalOrganization",
-        name: SITE.nameAr,
-        url: SITE_URL,
-        telephone: SITE.phone,
-        address: {
-          "@type": "PostalAddress",
-          streetAddress: SITE.addressAr,
-          addressLocality: "صبيا",
-          addressRegion: "جازان",
-          postalCode: SITE.postalCode,
-          addressCountry: "SA",
-        },
-        geo: { "@type": "GeoCoordinates", latitude: SITE.lat, longitude: SITE.lng },
+      hospitalAffiliation: { "@id": CLINIC_ID },
+      worksFor: { "@id": CLINIC_ID },
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: SITE.addressAr,
+        addressLocality: "صبيا",
+        addressRegion: "جازان",
+        postalCode: SITE.postalCode,
+        addressCountry: "SA",
       },
     };
 
-    const breadcrumbs = {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "الرئيسية", item: SITE_URL },
-        { "@type": "ListItem", position: 2, name: "الأطباء", item: `${SITE_URL}/doctors` },
-        { "@type": "ListItem", position: 3, name: d.name_ar, item: url },
-      ],
-    };
+    const clinic = buildLocalBusinessSchema({ pageUrl: url });
+    const breadcrumbs = buildBreadcrumbs([
+      { name: "الرئيسية", path: "/" },
+      { name: "الأطباء", path: "/doctors" },
+      { name: d.name_ar, path: `/doctors/${params.slug}` },
+    ]);
 
     return {
       meta: [
@@ -112,6 +104,7 @@ export const Route = createFileRoute("/doctors/$slug")({
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: [
+        { type: "application/ld+json", children: JSON.stringify(clinic) },
         { type: "application/ld+json", children: JSON.stringify(physician) },
         { type: "application/ld+json", children: JSON.stringify(breadcrumbs) },
       ],
