@@ -229,7 +229,7 @@ function PatientsAnalyticsPage() {
   );
 
   return (
-    <div className="container-app py-8">
+    <div className="container-app py-10 space-y-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
