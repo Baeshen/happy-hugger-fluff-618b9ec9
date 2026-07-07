@@ -25,6 +25,8 @@ import {
   listBranchesForAnalytics,
   type TransitionsStats,
 } from "@/lib/patients-analytics.functions";
+import { TransitionAlerts } from "@/components/analytics/TransitionAlerts";
+
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function daysAgoISO(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
@@ -188,6 +190,10 @@ function TransitionsStatsPage() {
               <KpiCard label="عدد الفروع النشطة" value={stats.byBranch.length} icon={<Building2 className="h-5 w-5" />} tone="info" />
               <KpiCard label="عدد الموظفين النشطين" value={stats.byActor.length} icon={<UserCog className="h-5 w-5" />} tone="warning" />
             </section>
+
+            {/* Alerts */}
+            <TransitionAlerts stats={stats} />
+
 
             {/* Daily stacked area */}
             <section className="rounded-xl border border-border bg-card p-4">

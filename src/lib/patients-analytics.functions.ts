@@ -862,10 +862,13 @@ export type TransitionsStats = {
   perTransition: { from: string; to: string; count: number }[];
   byBranch: { branch_id: string; branch_name: string; count: number }[];
   byActor: { actor_id: string; actor_name: string; count: number }[];
+  byBranchStatus: { branch_id: string; branch_name: string; status: string; count: number }[];
+  byActorStatus: { actor_id: string; actor_name: string; status: string; count: number }[];
   daily: { day: string; total: number; active: number; inactive: number; archived: number; deceased: number }[];
   hourly: { hour: number; count: number }[];
   weekday: { weekday: number; label: string; count: number }[];
 };
+
 
 export const getTransitionsStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -898,9 +901,12 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
     const perTransition = new Map<string, number>();
     const byBranch = new Map<string, number>();
     const byActor = new Map<string, number>();
+    const byBranchStatus = new Map<string, number>(); // key: `${branchId}||${to}`
+    const byActorStatus = new Map<string, number>();  // key: `${actorId}||${to}`
     const dailyMap = new Map<string, { total: number; active: number; inactive: number; archived: number; deceased: number }>();
     const hourly = new Array<number>(24).fill(0);
     const weekday = new Array<number>(7).fill(0);
+
     let total = 0;
 
     const bumpDaily = (day: string, to: string, n: number) => {
@@ -932,7 +938,11 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
         perTarget[to] = (perTarget[to] ?? 0) + 1;
         perTransition.set(`${from}→${to}`, (perTransition.get(`${from}→${to}`) ?? 0) + 1);
         byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
-        if (row.actor) byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + 1);
+        byBranchStatus.set(`${branchId}||${to}`, (byBranchStatus.get(`${branchId}||${to}`) ?? 0) + 1);
+        if (row.actor) {
+          byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + 1);
+          byActorStatus.set(`${row.actor}||${to}`, (byActorStatus.get(`${row.actor}||${to}`) ?? 0) + 1);
+        }
         bumpDaily(day, to, 1);
         hourly[hour]++;
         weekday[wd]++;
@@ -947,13 +957,18 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
         for (const pid of rel) {
           const branchId = patientToBranch.get(pid) ?? "unknown";
           byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
+          byBranchStatus.set(`${branchId}||${to}`, (byBranchStatus.get(`${branchId}||${to}`) ?? 0) + 1);
         }
-        if (row.actor) byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + n);
+        if (row.actor) {
+          byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + n);
+          byActorStatus.set(`${row.actor}||${to}`, (byActorStatus.get(`${row.actor}||${to}`) ?? 0) + n);
+        }
         bumpDaily(day, to, n);
         hourly[hour] += n;
         weekday[wd] += n;
         total += n;
       }
+
     }
 
     // Enrich branch names
@@ -1000,6 +1015,19 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
       byActor: [...byActor.entries()]
         .map(([id, count]) => ({ actor_id: id, actor_name: actorNameMap.get(id) ?? "غير معروف", count }))
         .sort((a, b) => b.count - a.count),
+      byBranchStatus: [...byBranchStatus.entries()]
+        .map(([k, count]) => {
+          const [id, status] = k.split("||");
+          return { branch_id: id, branch_name: branchNameMap.get(id) ?? "غير محدد", status, count };
+        })
+        .sort((a, b) => b.count - a.count),
+      byActorStatus: [...byActorStatus.entries()]
+        .map(([k, count]) => {
+          const [id, status] = k.split("||");
+          return { actor_id: id, actor_name: actorNameMap.get(id) ?? "غير معروف", status, count };
+        })
+        .sort((a, b) => b.count - a.count),
+
       daily,
       hourly: hourly.map((count, hour) => ({ hour, count })),
       weekday: weekday.map((count, i) => ({ weekday: i, label: weekdayLabels[i], count })),
