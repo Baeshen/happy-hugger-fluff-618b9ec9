@@ -37,6 +37,7 @@ import {
   type RecentStatusEvent,
 } from "@/lib/patients-analytics.functions";
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
+import { listPatientsForKpi, type KpiPatientRow } from "@/lib/patients-analytics.functions";
 import { exportXlsx, exportPdf, type Column } from "@/lib/export-utils";
 
 function todayISO() {
