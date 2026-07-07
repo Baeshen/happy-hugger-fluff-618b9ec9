@@ -938,7 +938,11 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
         perTarget[to] = (perTarget[to] ?? 0) + 1;
         perTransition.set(`${from}→${to}`, (perTransition.get(`${from}→${to}`) ?? 0) + 1);
         byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
-        if (row.actor) byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + 1);
+        byBranchStatus.set(`${branchId}||${to}`, (byBranchStatus.get(`${branchId}||${to}`) ?? 0) + 1);
+        if (row.actor) {
+          byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + 1);
+          byActorStatus.set(`${row.actor}||${to}`, (byActorStatus.get(`${row.actor}||${to}`) ?? 0) + 1);
+        }
         bumpDaily(day, to, 1);
         hourly[hour]++;
         weekday[wd]++;
@@ -953,13 +957,18 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
         for (const pid of rel) {
           const branchId = patientToBranch.get(pid) ?? "unknown";
           byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
+          byBranchStatus.set(`${branchId}||${to}`, (byBranchStatus.get(`${branchId}||${to}`) ?? 0) + 1);
         }
-        if (row.actor) byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + n);
+        if (row.actor) {
+          byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + n);
+          byActorStatus.set(`${row.actor}||${to}`, (byActorStatus.get(`${row.actor}||${to}`) ?? 0) + n);
+        }
         bumpDaily(day, to, n);
         hourly[hour] += n;
         weekday[wd] += n;
         total += n;
       }
+
     }
 
     // Enrich branch names
