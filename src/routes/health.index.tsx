@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { Calendar, Clock, ArrowLeft, BookOpen } from "lucide-react";
+import { Calendar, Clock, ArrowLeft, BookOpen, Search } from "lucide-react";
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 
