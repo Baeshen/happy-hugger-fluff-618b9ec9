@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Bell, Plus, Trash2, Save, Pencil, X, Check, AlertTriangle, CheckCircle2, Power, Share2, Lock, Filter } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getTransitionsStats, listBranchesForAnalytics } from "@/lib/patients-analytics.functions";
 
 import {
