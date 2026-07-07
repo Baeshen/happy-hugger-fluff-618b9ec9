@@ -402,6 +402,16 @@ function PatientsAnalyticsPage() {
           {/* Transitions section */}
           <TransitionsSection data={transitions} loading={transitionsQ.isLoading} error={transitionsQ.error as Error | null} />
 
+          <PatientTransitionsTable
+            branchId={branchId}
+            doctorId={doctorId}
+            gender={gender}
+            minAge={minAge}
+            maxAge={maxAge}
+            from={from}
+            to={to}
+          />
+
           {/* AI Summary */}
           <AiSummarySection branchId={branchId} doctorId={doctorId} />
 
