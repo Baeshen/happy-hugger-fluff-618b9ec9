@@ -112,7 +112,11 @@ function PatientsAnalyticsPage() {
   });
 
   const data = q.data;
+  const transitions = transitionsQ.data;
   const branches = branchesQ.data ?? [];
+  const doctors = (doctorsQ.data ?? []).filter(
+    (d) => !branchId || !d.branch_id || d.branch_id === branchId,
+  );
 
   const statusChart = useMemo(
     () =>
