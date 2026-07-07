@@ -90,7 +90,7 @@ function TransitionsStatsPage() {
   const stats = statsQ.data;
 
   const setSearch = (patch: Partial<z.infer<typeof searchSchema>>) => {
-    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+    navigate({ search: (prev: z.infer<typeof searchSchema>) => ({ ...prev, ...patch }), replace: true });
   };
 
   const quickRange = (n: number) => setSearch({ from: daysAgoISO(n), to: todayISO() });
