@@ -211,6 +211,7 @@ function AdminDashboard() {
       {tab === "specialties" && isAdmin && <SpecialtiesTab />}
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
+      {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
     </div>
   );
 }
