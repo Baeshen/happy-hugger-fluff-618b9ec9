@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Bell, History, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import type { TransitionsStats } from "@/lib/patients-analytics.functions";
 import {
-  loadRules,
   evaluateRules,
   buildAlertTimeline,
   STATUS_LABEL,
@@ -11,21 +12,18 @@ import {
   SEVERITY_LABEL,
   SEVERITY_STYLES,
   TIMELINE_KIND_LABEL,
-  type AlertRule,
 } from "@/lib/transition-alerts";
+import { listAlertRules } from "@/lib/transition-alerts.functions";
 
 
 export function TransitionAlerts({ stats }: { stats: TransitionsStats }) {
-  const [rules, setRules] = useState<AlertRule[]>([]);
-
-  useEffect(() => {
-    setRules(loadRules());
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "transition-alerts-rules-v1") setRules(loadRules());
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  const listFn = useServerFn(listAlertRules);
+  const rulesQ = useQuery({
+    queryKey: ["transition-alert-rules"],
+    queryFn: () => listFn(),
+    staleTime: 30_000,
+  });
+  const rules = useMemo(() => rulesQ.data ?? [], [rulesQ.data]);
 
   const triggered = useMemo(() => evaluateRules(rules, stats), [rules, stats]);
   const timeline = useMemo(() => buildAlertTimeline(rules, stats), [rules, stats]);
