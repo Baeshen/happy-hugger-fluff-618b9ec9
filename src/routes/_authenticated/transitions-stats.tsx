@@ -191,6 +191,10 @@ function TransitionsStatsPage() {
               <KpiCard label="عدد الموظفين النشطين" value={stats.byActor.length} icon={<UserCog className="h-5 w-5" />} tone="warning" />
             </section>
 
+            {/* Alerts */}
+            <TransitionAlerts stats={stats} />
+
+
             {/* Daily stacked area */}
             <section className="rounded-xl border border-border bg-card p-4">
               <SectionHeader icon={<CalendarDays className="h-4 w-4" />} title="التوزيع اليومي حسب الحالة" subtitle={`الفترة: ${stats.period.from} → ${stats.period.to} (${stats.period.days} يوم)`} />
