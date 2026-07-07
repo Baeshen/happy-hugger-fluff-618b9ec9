@@ -7,11 +7,13 @@ import {
   buildBreadcrumbs,
   SITE_URL,
 } from "@/lib/localBusinessSchema";
+import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
 
 const CONTACT_URL = `${SITE_URL}/contact`;
 
 export const Route = createFileRoute("/contact")({
-  head: () => ({
+  loader: ({ context }) => context.queryClient.ensureQueryData(clinicSettingsQuery()),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "تواصل معنا | مجمع باعشن الطبي — صبيا، جازان" },
       {
@@ -32,7 +34,12 @@ export const Route = createFileRoute("/contact")({
     scripts: [
       {
         type: "application/ld+json",
-        children: JSON.stringify(buildLocalBusinessSchema({ pageUrl: CONTACT_URL })),
+        children: JSON.stringify(
+          buildLocalBusinessSchema({
+            pageUrl: CONTACT_URL,
+            settings: loaderData as ClinicSettings | undefined,
+          }),
+        ),
       },
       {
         type: "application/ld+json",
