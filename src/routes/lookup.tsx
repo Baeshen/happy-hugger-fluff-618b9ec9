@@ -580,31 +580,44 @@ function LookupPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
                       </p>
-                      {appt.reminder_24h === null && appt.reminder_2h === null ? (
-                        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                            <div>
-                              <span className="font-semibold">تنبيه:</span> لا توجد تفضيلات تذكير محفوظة لهذا الحجز. سيتم تفعيل التذكيرات الافتراضية{" "}
-                              <span className="font-semibold">(24 ساعة وساعتين)</span> على الموعد الجديد بعد تأكيد إعادة الجدولة.
-                            </div>
+                      <div className="mt-3 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <div>
+                            <span className="font-semibold">تنبيه:</span> اختر تفضيلات التذكير للموعد الجديد قبل تأكيد إعادة الجدولة. ستُطبّق هذه الإعدادات على الحجز المُعاد جدولته.
                           </div>
                         </div>
-                      ) : (
-                        <div className="mt-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                            <div>
-                              <span className="font-semibold">تنبيه:</span> تفضيلات التذكير الحالية{" "}
-                              <span className="font-semibold">
-                                ({appt.reminder_24h ? "24 ساعة" : "—"} و{" "}
-                                {appt.reminder_2h ? "ساعتين" : "—"})
-                              </span>{" "}
-                              ستنتقل تلقائياً إلى الموعد الجديد قبل تأكيد الحجز.
-                            </div>
-                          </div>
+                      </div>
+                      <div className="mt-3">
+                        <div className="mb-2 text-xs font-medium text-muted-foreground">تذكيرات الموعد الجديد</div>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { key: "24h" as const, label: "قبل 24 ساعة", value: rescheduleReminder24h, setter: setRescheduleReminder24h },
+                            { key: "2h" as const, label: "قبل ساعتين", value: rescheduleReminder2h, setter: setRescheduleReminder2h },
+                          ].map((r) => (
+                            <button
+                              key={r.key}
+                              onClick={() => r.setter(!r.value)}
+                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                r.value
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-2 w-2 rounded-full ${
+                                  r.value ? "bg-primary-foreground" : "bg-muted-foreground/40"
+                                }`}
+                                aria-hidden
+                              />
+                              {r.label}
+                              <span className="text-[10px] opacity-80">
+                                {r.value ? "مفعّل" : "معطّل"}
+                              </span>
+                            </button>
+                          ))}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
