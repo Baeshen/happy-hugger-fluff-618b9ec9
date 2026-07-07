@@ -2,9 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { listAuditLog, listAuditActions } from "@/lib/rbac.functions";
 import { getMyRoles } from "@/lib/admin.functions";
-import { ShieldAlert, ArrowRight, RefreshCw, Download, X } from "lucide-react";
+import { ShieldAlert, ArrowRight, RefreshCw, Download, X, Copy, ChevronDown, ChevronLeft } from "lucide-react";
 
 // Fields we never expose in exports even if a legacy row still has them.
 const SENSITIVE_KEYS = new Set([
