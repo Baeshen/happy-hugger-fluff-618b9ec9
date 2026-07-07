@@ -177,17 +177,19 @@ Note: `SUPABASE_SERVICE_ROLE_KEY` is not available on Lovable Cloud. For full te
 
 ## اختبار الأسرار و RLS محليًا قبل تشغيل CI
 
-تجنّب انتظار CI لمعرفة ما إذا كانت الأسرار أو اختبارات RLS تعمل؛ شغّل الاختبارات محليًا أولًا.
+تجنّب انتظار CI لمعرفة ما إذا كانت الأسرار أو اختبارات RLS تعمل؛ شغّل الاختبارات محليًا أولًا. اتّبع الخطوات التالية بالترتيب.
 
-### 1. تأكّد من توفّر الأسرار
+### 1. تحقّق من الأسرار
 
-أيّ من الأوامر التالية يكشف ما إذا كانت الأسرار الثلاثة مضبوطة في البيئة الحالية:
+نفّذ هذا الأمر لرؤية الأسماء فقط (القيم تبقى مخفيّة):
 
 ```bash
-# طريقة 1: اعرض الأسماء فقط (القيم تبقى مخفيّة)
-env | grep -E '^(SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY)=' || echo "One or more secrets are missing"
+env | grep -E '^(SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY)='
+```
 
-# طريقة 2: تحقق سريع من أنها ليست فارغة
+إذا لم يُطبع شيء، الأسرار غير مضبوطة. نفّذ هذا التحقق المفصّل:
+
+```bash
 bash -c '
   missing=()
   [ -z "$SUPABASE_URL" ]              && missing+=("SUPABASE_URL")
@@ -201,17 +203,28 @@ bash -c '
 '
 ```
 
-### 2. ضع الأسرار في ملف `.env` محلي (اختياري)
+### 2. اضبط الأسرار في الجلسة (أو في `.env.local`)
 
-إذا أردت عدم كتابتها في كل أمر، أنشئ ملفًا باسم `.env.local` (لا ترفعه إلى Git) يحتوي على:
+**الخيار أ — يدويًا في الجلسة:**
 
-```dotenv
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```bash
+export SUPABASE_URL="https://your-project.supabase.co"
+export SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
+export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 ```
 
-ثم شغّل الاختبارات مع تحميلها:
+**الخيار ب — ملف `.env.local` (لا ترفعه إلى Git):**
+
+```bash
+# أنشئ الملف
+printf 'SUPABASE_URL=%s\nSUPABASE_PUBLISHABLE_KEY=%s\nSUPABASE_SERVICE_ROLE_KEY=%s\n' \
+  "https://your-project.supabase.co" \
+  "your-publishable-key" \
+  "your-service-role-key" \
+  > .env.local
+```
+
+ثم حمّله قبل كل تشغيل:
 
 ```bash
 set -a; source .env.local; set +a
@@ -220,13 +233,24 @@ set -a; source .env.local; set +a
 ### 3. شغّل اختبار RLS واحدًا
 
 ```bash
-SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... \
-  bun tests/rls/appointments.rls.test.ts
+bun tests/rls/appointments.rls.test.ts
 ```
 
-استبدل `appointments.rls.test.ts` بأي ملف آخر تحت `tests/rls/`.
+استبدل `appointments.rls.test.ts` بأي ملف آخر تحت `tests/rls/`. أمثلة:
 
-### 4. شغّل كامل مجموعة RLS كما يفعل CI
+```bash
+bun tests/rls/book-api-friendly-errors.test.ts
+bun tests/rls/pharmacy-friendly-errors.test.ts
+bun tests/rls/appt-reason-too-long.test.ts
+```
+
+> **ملاحظة:** إذا لم تستخدم `export` أو `.env.local`، اكتب الأسرار قبل كل أمر:
+> ```bash
+> SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... \
+>   bun tests/rls/appointments.rls.test.ts
+> ```
+
+### 4. شغّل مجموعة RLS كاملة كما يفعل CI
 
 ```bash
 set -e
@@ -235,6 +259,18 @@ for f in tests/rls/*.test.ts; do
   bun "$f"
 done
 ```
+
+أو استخدم السكربت الجاهز:
+
+```bash
+bun run check:rls
+```
+
+### 5. تحقّق من النتيجة
+
+- إذا ظهر `✅ جميع اختبارات RLS نجحت`، يمكنك المتابعة.
+- إذا ظهر `❌ Missing: ...`، أعد الخطوة 2.
+- إذا ظهرت أخطاء في الاختبارات، راجع `tests/rls/` ثم حلّ المشكلة قبل الـ push.
 
 ### 5. أمثلة على أخطاء محليّة شائعة
 
