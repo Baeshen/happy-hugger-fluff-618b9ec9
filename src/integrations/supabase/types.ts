@@ -305,6 +305,116 @@ export type Database = {
         }
         Relationships: []
       }
+      health_articles: {
+        Row: {
+          author_name: string | null
+          category_id: string | null
+          content_ar: string
+          content_en: string | null
+          cover_image_url: string | null
+          created_at: string
+          excerpt_ar: string
+          excerpt_en: string | null
+          id: string
+          is_published: boolean
+          keywords: string[]
+          published_at: string | null
+          reading_minutes: number
+          season: string | null
+          slug: string
+          title_ar: string
+          title_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string | null
+          category_id?: string | null
+          content_ar: string
+          content_en?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt_ar: string
+          excerpt_en?: string | null
+          id?: string
+          is_published?: boolean
+          keywords?: string[]
+          published_at?: string | null
+          reading_minutes?: number
+          season?: string | null
+          slug: string
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string | null
+          category_id?: string | null
+          content_ar?: string
+          content_en?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt_ar?: string
+          excerpt_en?: string | null
+          id?: string
+          is_published?: boolean
+          keywords?: string[]
+          published_at?: string | null
+          reading_minutes?: number
+          season?: string | null
+          slug?: string
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "health_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_categories: {
+        Row: {
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          name_en: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       medicine_orders: {
         Row: {
           address: string | null

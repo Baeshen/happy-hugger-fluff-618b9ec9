@@ -28,6 +28,7 @@ export function Header() {
     { to: "/pharmacy", label: t("nav_pharmacy") },
     { to: "/lookup", label: t("nav_lookup") },
     { to: "/about", label: t("nav_about") },
+    { to: "/health", label: t("nav_health") },
     { to: "/contact", label: t("nav_contact") },
   ] as const;
 

@@ -26,6 +26,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/about", changefreq: "monthly", priority: "0.7" },
           { path: "/faq", changefreq: "monthly", priority: "0.7" },
           { path: "/contact", changefreq: "monthly", priority: "0.7" },
+          { path: "/health", changefreq: "weekly", priority: "0.8" },
         ];
 
         const entries: SitemapEntry[] = [...staticEntries];
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 
           if (url && key) {
             const headers = { apikey: key };
-            const [sr, dr] = await Promise.all([
+            const [sr, dr, hr] = await Promise.all([
               fetch(
                 `${url}/rest/v1/specialties?select=slug,created_at&is_active=eq.true&order=sort_order`,
                 { headers },
@@ -52,9 +53,14 @@ export const Route = createFileRoute("/sitemap.xml")({
                 `${url}/rest/v1/doctors?select=slug,created_at&is_active=eq.true&slug=not.is.null&order=sort_order`,
                 { headers },
               ),
+              fetch(
+                `${url}/rest/v1/health_articles?select=slug,updated_at,published_at&is_published=eq.true&order=published_at.desc`,
+                { headers },
+              ),
             ]);
             const specialtiesRes = sr.ok ? await sr.json() : [];
             const doctorsRes = dr.ok ? await dr.json() : [];
+            const articlesRes = hr.ok ? await hr.json() : [];
 
             for (const s of (specialtiesRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
@@ -68,6 +74,14 @@ export const Route = createFileRoute("/sitemap.xml")({
               entries.push({
                 path: `/doctors/${encodeURIComponent(d.slug)}`,
                 lastmod: d.created_at?.slice(0, 10),
+                changefreq: "monthly",
+                priority: "0.7",
+              });
+            }
+            for (const a of (articlesRes as Array<{ slug: string; updated_at: string; published_at: string | null }>) ?? []) {
+              entries.push({
+                path: `/health/${encodeURIComponent(a.slug)}`,
+                lastmod: (a.updated_at || a.published_at || "").slice(0, 10) || undefined,
                 changefreq: "monthly",
                 priority: "0.7",
               });
