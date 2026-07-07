@@ -1,0 +1,18 @@
+# نفس بيئة CI: Bun على Debian slim.
+# استخدام: docker build -f Dockerfile.test -t app-tests .
+FROM oven/bun:1-debian
+
+WORKDIR /app
+
+# ثبّت التبعيات أولًا (طبقة قابلة للتخزين المؤقّت)
+COPY package.json bun.lockb* bun.lock* ./
+RUN bun install --frozen-lockfile || bun install
+
+# انسخ باقي المشروع
+COPY . .
+
+# الأسرار تُمرَّر وقت التشغيل عبر --env-file أو -e
+ENV CI=true
+
+# الأمر الافتراضي: مجموعة الاختبارات الكاملة كما في CI
+CMD ["bash", "-lc", "bun run format:check && bun run lint && bun run typecheck && bun test && bun run check:rls"]

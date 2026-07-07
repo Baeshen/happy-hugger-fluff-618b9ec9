@@ -1,0 +1,17 @@
+# تشغيل الاختبارات بنفس بيئة CI محليًا.
+# الاستخدام:
+#   cp .env.example .env.local && vim .env.local
+#   docker compose -f docker-compose.test.yml run --rm tests
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    env_file:
+      - .env.local
+    environment:
+      CI: "true"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
