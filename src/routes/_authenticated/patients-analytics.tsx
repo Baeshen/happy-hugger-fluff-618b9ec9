@@ -1285,3 +1285,231 @@ function ExportMenu({
   );
 }
 
+
+// ============ KPI Drill-down modal ============
+
+function DrilldownModal({
+  state,
+  onClose,
+  filters,
+}: {
+  state: DrilldownState | null;
+  onClose: () => void;
+  filters: {
+    branchId: string | null;
+    doctorId: string | null;
+    gender: "male" | "female" | "other" | null;
+    minAge: string;
+    maxAge: string;
+    from: string;
+    to: string;
+  };
+}) {
+  const open = state !== null;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>{state?.title ?? ""}</DialogTitle>
+          <DialogDescription>
+            {state?.kind === "events"
+              ? "قائمة تفصيلية بأحداث تغيير الحالة خلال الفترة والفلاتر الحالية."
+              : "قائمة المرضى الذين تكوّنت منهم هذه النتيجة وفق الفلاتر الحالية."}
+          </DialogDescription>
+        </DialogHeader>
+        {state?.kind === "patients" && (
+          <PatientsDrilldown status={state.status} filters={filters} />
+        )}
+        {state?.kind === "events" && <EventsDrilldown filters={filters} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PatientsDrilldown({
+  status,
+  filters,
+}: {
+  status: "active" | "inactive" | "archived" | "deceased" | null;
+  filters: {
+    branchId: string | null;
+    gender: "male" | "female" | "other" | null;
+    minAge: string;
+    maxAge: string;
+  };
+}) {
+  const fn = useServerFn(listPatientsForKpi);
+  const q = useQuery({
+    queryKey: [
+      "kpi-patients",
+      { status, branchId: filters.branchId, gender: filters.gender, minAge: filters.minAge, maxAge: filters.maxAge },
+    ],
+    queryFn: () =>
+      fn({
+        data: {
+          status,
+          branchId: filters.branchId,
+          gender: filters.gender,
+          minAge: filters.minAge ? Number(filters.minAge) : null,
+          maxAge: filters.maxAge ? Number(filters.maxAge) : null,
+          limit: 200,
+        },
+      }),
+    staleTime: 60_000,
+  });
+
+  const rows = (q.data as KpiPatientRow[] | undefined) ?? [];
+
+  return (
+    <div className="max-h-[65vh] overflow-auto">
+      {q.isLoading && (
+        <div className="space-y-2 p-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded bg-muted/60" />
+          ))}
+        </div>
+      )}
+      {q.error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {(q.error as Error).message}
+        </div>
+      )}
+      {!q.isLoading && rows.length === 0 && (
+        <p className="rounded-md bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          لا توجد بيانات مطابقة.
+        </p>
+      )}
+      {rows.length > 0 && (
+        <>
+          <p className="mb-2 text-xs text-muted-foreground">
+            عرض {rows.length.toLocaleString("ar-SA")} مريضًا (بحد أقصى 200 صف).
+          </p>
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-card">
+              <tr className="border-b border-border text-xs text-muted-foreground">
+                <th className="p-2 text-start">الاسم</th>
+                <th className="p-2 text-start">MRN</th>
+                <th className="p-2 text-start">الحالة</th>
+                <th className="p-2 text-start">الفرع</th>
+                <th className="p-2 text-start">التسجيل</th>
+                <th className="p-2 text-start"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="p-2 font-medium">{r.full_name_ar ?? "-"}</td>
+                  <td className="p-2 font-mono text-xs" dir="ltr">
+                    {r.mrn ?? "-"}
+                  </td>
+                  <td className="p-2">
+                    <StatusChip s={r.status} />
+                  </td>
+                  <td className="p-2 text-muted-foreground">{r.branch_name ?? "-"}</td>
+                  <td className="p-2 text-xs text-muted-foreground" dir="ltr">
+                    {new Date(r.created_at).toLocaleDateString("ar-SA")}
+                  </td>
+                  <td className="p-2">
+                    <Link
+                      to="/patients/$patientId"
+                      params={{ patientId: r.id }}
+                      className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] hover:bg-muted"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      فتح
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EventsDrilldown({
+  filters,
+}: {
+  filters: { branchId: string | null; doctorId: string | null; from: string; to: string };
+}) {
+  const fn = useServerFn(listRecentStatusChanges);
+  const q = useQuery({
+    queryKey: ["kpi-events", filters],
+    queryFn: () => fn({ data: { ...filters, limit: 50 } }),
+    staleTime: 60_000,
+  });
+  const events = (q.data as RecentStatusEvent[] | undefined) ?? [];
+
+  return (
+    <div className="max-h-[65vh] overflow-auto">
+      {q.isLoading && (
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded bg-muted/60" />
+          ))}
+        </div>
+      )}
+      {q.error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {(q.error as Error).message}
+        </div>
+      )}
+      {!q.isLoading && events.length === 0 && (
+        <p className="rounded-md bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          لا توجد أحداث تغيير حالة خلال هذه الفترة.
+        </p>
+      )}
+      {events.length > 0 && (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {events.map((e) => (
+            <li key={e.audit_id} className="p-3 hover:bg-muted/30">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {e.from && (
+                  <>
+                    <StatusChip s={e.from} muted />
+                    <span className="text-muted-foreground">→</span>
+                  </>
+                )}
+                <StatusChip s={e.to} />
+                {e.count > 1 && (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                    جماعي · {e.count}
+                  </span>
+                )}
+                <span className="text-muted-foreground" dir="ltr">
+                  {new Date(e.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
+                </span>
+              </div>
+              <div className="mt-1 text-xs">
+                {e.patient_name ? (
+                  <span className="font-medium">
+                    {e.patient_name}
+                    {e.patient_mrn && (
+                      <span className="ms-1 font-mono text-[10px] text-muted-foreground" dir="ltr">
+                        #{e.patient_mrn}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {e.count > 1 ? "عملية جماعية" : "مريض غير محدد"}
+                  </span>
+                )}
+                {e.branch_name && <span className="ms-2 text-muted-foreground">· {e.branch_name}</span>}
+                {e.actor_name && <span className="ms-2 text-muted-foreground">· {e.actor_name}</span>}
+              </div>
+              {e.reason && (
+                <p className="mt-1 rounded-md bg-muted/40 p-2 text-xs text-foreground/90">
+                  <span className="font-semibold text-muted-foreground">السبب: </span>
+                  {e.reason}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
