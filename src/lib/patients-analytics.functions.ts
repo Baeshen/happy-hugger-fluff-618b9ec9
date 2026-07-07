@@ -901,9 +901,12 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
     const perTransition = new Map<string, number>();
     const byBranch = new Map<string, number>();
     const byActor = new Map<string, number>();
+    const byBranchStatus = new Map<string, number>(); // key: `${branchId}||${to}`
+    const byActorStatus = new Map<string, number>();  // key: `${actorId}||${to}`
     const dailyMap = new Map<string, { total: number; active: number; inactive: number; archived: number; deceased: number }>();
     const hourly = new Array<number>(24).fill(0);
     const weekday = new Array<number>(7).fill(0);
+
     let total = 0;
 
     const bumpDaily = (day: string, to: string, n: number) => {
