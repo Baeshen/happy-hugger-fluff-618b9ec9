@@ -418,6 +418,60 @@ export type Database = {
           },
         ]
       }
+      doctor_leaves: {
+        Row: {
+          all_day: boolean
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          doctor_id: string
+          end_date: string
+          id: string
+          reason: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          all_day?: boolean
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id: string
+          end_date: string
+          id?: string
+          reason?: string | null
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          all_day?: boolean
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string
+          end_date?: string
+          id?: string
+          reason?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_leaves_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_leaves_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           bio_ar: string | null
@@ -1422,6 +1476,22 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
         }[]
       }
+      doctor_occupancy: {
+        Args: { _branch_id?: string; _days?: number }
+        Returns: {
+          booked: number
+          branch_id: string
+          capacity: number
+          doctor_id: string
+          is_active: boolean
+          leave_days: number
+          name_ar: string
+          name_en: string
+          occupancy_pct: number
+          specialty_id: string
+          specialty_name_ar: string
+        }[]
+      }
       generate_mrn: { Args: { _branch_id: string }; Returns: string }
       has_branch_access: {
         Args: { _branch_id: string; _user_id: string }
@@ -1433,6 +1503,25 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      list_doctor_leaves: {
+        Args: {
+          _branch_id?: string
+          _doctor_id?: string
+          _from: string
+          _to: string
+        }
+        Returns: {
+          all_day: boolean
+          branch_id: string
+          created_at: string
+          doctor_id: string
+          doctor_name_ar: string
+          end_date: string
+          id: string
+          reason: string
+          start_date: string
+        }[]
       }
       list_reminder_preferences_by_ref: {
         Args: { _phone: string; _ref: string }
