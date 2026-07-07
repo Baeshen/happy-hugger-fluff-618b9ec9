@@ -30,7 +30,7 @@ async function fetchSpecialties(): Promise<Specialty[]> {
   return (data ?? []) as Specialty[];
 }
 
-export const Route = createFileRoute("/specialties")({
+export const Route = createFileRoute("/specialties/")({
   loader: async ({ context }) =>
     context.queryClient.ensureQueryData({
       queryKey: ["specialties"],

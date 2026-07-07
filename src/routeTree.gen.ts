@@ -9,12 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SpecialtiesRouteImport } from './routes/specialties'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
 import { Route as LookupRouteImport } from './routes/lookup'
 import { Route as FaqRouteImport } from './routes/faq'
-import { Route as DoctorsRouteImport } from './routes/doctors'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ComplexRouteImport } from './routes/complex'
 import { Route as BookRouteImport } from './routes/book'
@@ -22,6 +20,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SpecialtiesIndexRouteImport } from './routes/specialties.index'
+import { Route as DoctorsIndexRouteImport } from './routes/doctors.index'
 import { Route as SpecialtiesSlugRouteImport } from './routes/specialties.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -29,11 +29,6 @@ import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 
-const SpecialtiesRoute = SpecialtiesRouteImport.update({
-  id: '/specialties',
-  path: '/specialties',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -52,11 +47,6 @@ const LookupRoute = LookupRouteImport.update({
 const FaqRoute = FaqRouteImport.update({
   id: '/faq',
   path: '/faq',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DoctorsRoute = DoctorsRouteImport.update({
-  id: '/doctors',
-  path: '/doctors',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -93,15 +83,25 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SpecialtiesIndexRoute = SpecialtiesIndexRouteImport.update({
+  id: '/specialties/',
+  path: '/specialties/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DoctorsIndexRoute = DoctorsIndexRouteImport.update({
+  id: '/doctors/',
+  path: '/doctors/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SpecialtiesSlugRoute = SpecialtiesSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => SpecialtiesRoute,
+  id: '/specialties/$slug',
+  path: '/specialties/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DoctorsSlugRoute = DoctorsSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => DoctorsRoute,
+  id: '/doctors/$slug',
+  path: '/doctors/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -131,17 +131,17 @@ export interface FileRoutesByFullPath {
   '/book': typeof BookRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
-  '/doctors': typeof DoctorsRouteWithChildren
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/specialties': typeof SpecialtiesRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
+  '/doctors/': typeof DoctorsIndexRoute
+  '/specialties/': typeof SpecialtiesIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesByTo {
@@ -151,17 +151,17 @@ export interface FileRoutesByTo {
   '/book': typeof BookRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
-  '/doctors': typeof DoctorsRouteWithChildren
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/specialties': typeof SpecialtiesRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
+  '/doctors': typeof DoctorsIndexRoute
+  '/specialties': typeof SpecialtiesIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRoutesById {
@@ -173,17 +173,17 @@ export interface FileRoutesById {
   '/book': typeof BookRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
-  '/doctors': typeof DoctorsRouteWithChildren
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/specialties': typeof SpecialtiesRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
+  '/doctors/': typeof DoctorsIndexRoute
+  '/specialties/': typeof SpecialtiesIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
 }
 export interface FileRouteTypes {
@@ -195,17 +195,17 @@ export interface FileRouteTypes {
     | '/book'
     | '/complex'
     | '/contact'
-    | '/doctors'
     | '/faq'
     | '/lookup'
     | '/pharmacy'
     | '/sitemap.xml'
-    | '/specialties'
     | '/admin'
     | '/my'
     | '/settings'
     | '/doctors/$slug'
     | '/specialties/$slug'
+    | '/doctors/'
+    | '/specialties/'
     | '/api/public/book/create'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -215,17 +215,17 @@ export interface FileRouteTypes {
     | '/book'
     | '/complex'
     | '/contact'
-    | '/doctors'
     | '/faq'
     | '/lookup'
     | '/pharmacy'
     | '/sitemap.xml'
-    | '/specialties'
     | '/admin'
     | '/my'
     | '/settings'
     | '/doctors/$slug'
     | '/specialties/$slug'
+    | '/doctors'
+    | '/specialties'
     | '/api/public/book/create'
   id:
     | '__root__'
@@ -236,17 +236,17 @@ export interface FileRouteTypes {
     | '/book'
     | '/complex'
     | '/contact'
-    | '/doctors'
     | '/faq'
     | '/lookup'
     | '/pharmacy'
     | '/sitemap.xml'
-    | '/specialties'
     | '/_authenticated/admin'
     | '/_authenticated/my'
     | '/_authenticated/settings'
     | '/doctors/$slug'
     | '/specialties/$slug'
+    | '/doctors/'
+    | '/specialties/'
     | '/api/public/book/create'
   fileRoutesById: FileRoutesById
 }
@@ -258,24 +258,19 @@ export interface RootRouteChildren {
   BookRoute: typeof BookRoute
   ComplexRoute: typeof ComplexRoute
   ContactRoute: typeof ContactRoute
-  DoctorsRoute: typeof DoctorsRouteWithChildren
   FaqRoute: typeof FaqRoute
   LookupRoute: typeof LookupRoute
   PharmacyRoute: typeof PharmacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  SpecialtiesRoute: typeof SpecialtiesRouteWithChildren
+  DoctorsSlugRoute: typeof DoctorsSlugRoute
+  SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
+  DoctorsIndexRoute: typeof DoctorsIndexRoute
+  SpecialtiesIndexRoute: typeof SpecialtiesIndexRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/specialties': {
-      id: '/specialties'
-      path: '/specialties'
-      fullPath: '/specialties'
-      preLoaderRoute: typeof SpecialtiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -302,13 +297,6 @@ declare module '@tanstack/react-router' {
       path: '/faq'
       fullPath: '/faq'
       preLoaderRoute: typeof FaqRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/doctors': {
-      id: '/doctors'
-      path: '/doctors'
-      fullPath: '/doctors'
-      preLoaderRoute: typeof DoctorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -360,19 +348,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/specialties/': {
+      id: '/specialties/'
+      path: '/specialties'
+      fullPath: '/specialties/'
+      preLoaderRoute: typeof SpecialtiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/doctors/': {
+      id: '/doctors/'
+      path: '/doctors'
+      fullPath: '/doctors/'
+      preLoaderRoute: typeof DoctorsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/specialties/$slug': {
       id: '/specialties/$slug'
-      path: '/$slug'
+      path: '/specialties/$slug'
       fullPath: '/specialties/$slug'
       preLoaderRoute: typeof SpecialtiesSlugRouteImport
-      parentRoute: typeof SpecialtiesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/doctors/$slug': {
       id: '/doctors/$slug'
-      path: '/$slug'
+      path: '/doctors/$slug'
       fullPath: '/doctors/$slug'
       preLoaderRoute: typeof DoctorsSlugRouteImport
-      parentRoute: typeof DoctorsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -420,29 +422,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface DoctorsRouteChildren {
-  DoctorsSlugRoute: typeof DoctorsSlugRoute
-}
-
-const DoctorsRouteChildren: DoctorsRouteChildren = {
-  DoctorsSlugRoute: DoctorsSlugRoute,
-}
-
-const DoctorsRouteWithChildren =
-  DoctorsRoute._addFileChildren(DoctorsRouteChildren)
-
-interface SpecialtiesRouteChildren {
-  SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
-}
-
-const SpecialtiesRouteChildren: SpecialtiesRouteChildren = {
-  SpecialtiesSlugRoute: SpecialtiesSlugRoute,
-}
-
-const SpecialtiesRouteWithChildren = SpecialtiesRoute._addFileChildren(
-  SpecialtiesRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -451,12 +430,14 @@ const rootRouteChildren: RootRouteChildren = {
   BookRoute: BookRoute,
   ComplexRoute: ComplexRoute,
   ContactRoute: ContactRoute,
-  DoctorsRoute: DoctorsRouteWithChildren,
   FaqRoute: FaqRoute,
   LookupRoute: LookupRoute,
   PharmacyRoute: PharmacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  SpecialtiesRoute: SpecialtiesRouteWithChildren,
+  DoctorsSlugRoute: DoctorsSlugRoute,
+  SpecialtiesSlugRoute: SpecialtiesSlugRoute,
+  DoctorsIndexRoute: DoctorsIndexRoute,
+  SpecialtiesIndexRoute: SpecialtiesIndexRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
 }
 export const routeTree = rootRouteImport

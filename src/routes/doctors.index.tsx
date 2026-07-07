@@ -8,7 +8,7 @@ import { z } from "zod";
 
 const search = z.object({ specialty: z.string().optional() });
 
-export const Route = createFileRoute("/doctors")({
+export const Route = createFileRoute("/doctors/")({
   validateSearch: search,
   head: () => ({
     meta: [
