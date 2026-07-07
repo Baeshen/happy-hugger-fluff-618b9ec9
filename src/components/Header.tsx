@@ -80,13 +80,22 @@ export function Header() {
             {t("cta_book")}
           </Link>
           {signedIn ? (
-            <Link
-              to="/admin"
-              className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-              title="لوحة التحكم"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" /> لوحة
-            </Link>
+            <>
+              <Link
+                to="/my"
+                className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                title={t("nav_my")}
+              >
+                <User className="h-3.5 w-3.5" /> {t("nav_my")}
+              </Link>
+              <Link
+                to="/admin"
+                className="hidden xl:inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                title="لوحة التحكم"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" /> لوحة
+              </Link>
+            </>
           ) : (
             <Link
               to="/auth"
