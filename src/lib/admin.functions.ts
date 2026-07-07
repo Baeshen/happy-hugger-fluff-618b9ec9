@@ -839,23 +839,25 @@ export const listSecurityAuditLog = createServerFn({ method: "POST" })
         .from("appointments")
         .select("id, patient_name, patient_phone")
         .limit(2000);
-      if (data.ref) {
-        const cleanRef = data.ref.replace(/[^a-fA-F0-9-]/g, "").toLowerCase();
-        if (cleanRef.length > 0) {
-          apQ = apQ.ilike("id::text", `${cleanRef}%`);
-        }
-      }
       if (data.phone) {
         const digits = data.phone.replace(/\D/g, "");
         if (digits.length > 0) apQ = apQ.ilike("patient_phone", `%${digits}%`);
       }
       const { data: appts, error: apErr } = await apQ;
       if (apErr) throw new Error(humanizeSupabaseError(apErr));
-      appointmentIdFilter = (appts ?? []).map((a: any) => a.id);
+      let ids = (appts ?? []).map((a: any) => a.id as string);
+      if (data.ref) {
+        const cleanRef = data.ref.replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+        if (cleanRef.length > 0) {
+          ids = ids.filter((id) => id.replace(/-/g, "").toLowerCase().startsWith(cleanRef));
+        }
+      }
+      appointmentIdFilter = ids;
       if (appointmentIdFilter.length === 0) {
         return { items: [], count: 0 };
       }
     }
+
 
     let q = supabase
       .from("security_audit_log")
