@@ -229,6 +229,76 @@ function PatientsList() {
   );
 }
 
+function QuickStats({
+  patients,
+  branches,
+}: {
+  patients: Patient[];
+  branches: Array<{ id: string; name_ar: string }>;
+}) {
+  const total = patients.length;
+  const male = patients.filter((p) => p.gender === "male").length;
+  const female = patients.filter((p) => p.gender === "female").length;
+  const byBranch = branches.map((b) => ({
+    id: b.id,
+    name: b.name_ar,
+    count: patients.filter((p) => p.branch_id === b.id).length,
+  }));
+
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="text-xs text-muted-foreground">إجمالي المرضى (الحالي)</div>
+        <div className="mt-2 text-3xl font-bold">{total}</div>
+        <Link
+          to="/patients-analytics"
+          className="mt-3 inline-flex text-xs text-primary hover:underline"
+        >
+          التحليلات الكاملة ←
+        </Link>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="text-xs text-muted-foreground">حسب الجنس</div>
+        <div className="mt-3 space-y-2 text-sm">
+          <StatRow label="ذكر" value={male} total={total} />
+          <StatRow label="أنثى" value={female} total={total} />
+          <StatRow label="غير محدد" value={total - male - female} total={total} />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="text-xs text-muted-foreground">حسب الفرع</div>
+        <div className="mt-3 space-y-2 text-sm">
+          {byBranch.length === 0 ? (
+            <p className="text-xs text-muted-foreground">لا توجد فروع</p>
+          ) : (
+            byBranch.map((b) => <StatRow key={b.id} label={b.name} value={b.count} total={total} />)
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatRow({ label, value, total }: { label: string; value: number; total: number }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-medium">
+          {value} <span className="text-xs text-muted-foreground">({pct}%)</span>
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+
 function CreatePatientDialog({
   branches,
   onClose,
