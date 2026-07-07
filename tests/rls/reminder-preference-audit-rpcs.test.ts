@@ -230,6 +230,37 @@ async function main() {
       const rows = (data ?? []) as unknown[];
       assert(rows.length === 0, `leaked ${rows.length} rows for random id`);
     });
+
+    await test("my_audit: malformed uuid → error, no leak", async () => {
+      const { data, error } = await ownerC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: "not-a-uuid",
+      } as never);
+      const rows = (data ?? []) as unknown[];
+      assert(error !== null || rows.length === 0, `malformed uuid leaked ${rows.length} rows`);
+    });
+
+    await test("my_audit: null appointment id → error or 0 rows", async () => {
+      const { data, error } = await ownerC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: null,
+      } as never);
+      const rows = (data ?? []) as unknown[];
+      assert(error !== null || rows.length === 0, `null id leaked ${rows.length} rows`);
+    });
+
+    await test("my_audit: authenticated user with NO profile phone → 0 rows", async () => {
+      const noPhoneU = await createUserWithPhone(`rpa-nophone-${stamp}@test.local`, ownerPhone);
+      createdUsers.push(noPhoneU.userId);
+      // Clear the profile phone AFTER creation to simulate a user without phone linkage.
+      await admin.from("profiles").update({ phone: null }).eq("id", noPhoneU.userId);
+      const noPhoneC = await signIn(noPhoneU.email, noPhoneU.password);
+      const { data, error } = await noPhoneC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: ownerAppt,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length === 0, `user without profile phone leaked ${rows.length} rows`);
+    });
+
   } finally {
     if (createdAppts.length) {
       await admin.from("appointments").delete().in("id", createdAppts);
