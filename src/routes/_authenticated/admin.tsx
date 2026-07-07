@@ -28,6 +28,7 @@ import {
   createAvailability,
   deleteAvailability,
   listReminderPreferenceAudit,
+  getReminderPreferenceStats,
 } from "@/lib/admin.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
