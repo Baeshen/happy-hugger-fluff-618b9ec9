@@ -12,6 +12,7 @@ const STRINGS = {
   ar: {
     nav_home: "الرئيسية",
     nav_specialties: "التخصصات",
+    nav_complex: "المجمع",
     nav_doctors: "الأطباء",
     nav_book: "احجز موعدًا",
     nav_pharmacy: "اطلب دواء",
