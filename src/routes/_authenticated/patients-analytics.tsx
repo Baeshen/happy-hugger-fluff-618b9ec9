@@ -1523,3 +1523,223 @@ function EventsDrilldown({
     </div>
   );
 }
+
+// ============ Patient transitions table (searchable + sortable) ============
+
+type TxSortKey = "created_at" | "patient_name" | "patient_mrn" | "branch_name" | "from" | "to" | "actor_name";
+
+function PatientTransitionsTable({
+  branchId,
+  doctorId,
+  gender,
+  minAge,
+  maxAge,
+  from,
+  to,
+}: {
+  branchId: string | null;
+  doctorId: string | null;
+  gender: "male" | "female" | "other" | null;
+  minAge: string;
+  maxAge: string;
+  from: string;
+  to: string;
+}) {
+  const fn = useServerFn(listPatientTransitionRows);
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<TxSortKey>("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive" | "archived" | "deceased">("");
+
+  const q = useQuery({
+    queryKey: [
+      "patient-transition-rows",
+      { branchId, doctorId, gender, minAge, maxAge, from, to },
+    ],
+    queryFn: () =>
+      fn({
+        data: {
+          branchId,
+          doctorId,
+          gender,
+          minAge: minAge ? Number(minAge) : null,
+          maxAge: maxAge ? Number(maxAge) : null,
+          from,
+          to,
+          limit: 500,
+        },
+      }),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+  const rows = (q.data as PatientTransitionRow[] | undefined) ?? [];
+
+  const filtered = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (statusFilter && r.to !== statusFilter) return false;
+      if (!s) return true;
+      return (
+        (r.patient_name ?? "").toLowerCase().includes(s) ||
+        (r.patient_mrn ?? "").toLowerCase().includes(s) ||
+        (r.branch_name ?? "").toLowerCase().includes(s) ||
+        (r.actor_name ?? "").toLowerCase().includes(s) ||
+        (r.reason ?? "").toLowerCase().includes(s)
+      );
+    });
+  }, [rows, search, statusFilter]);
+
+  const sorted = useMemo(() => {
+    const copy = [...filtered];
+    copy.sort((a, b) => {
+      const av = (a[sortKey] ?? "") as string;
+      const bv = (b[sortKey] ?? "") as string;
+      const cmp = av.localeCompare(bv, "ar");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return copy;
+  }, [filtered, sortKey, sortDir]);
+
+  const toggleSort = (k: TxSortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(k);
+      setSortDir("asc");
+    }
+  };
+
+  const SortHeader = ({ k, label }: { k: TxSortKey; label: string }) => {
+    const active = sortKey === k;
+    const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(k)}
+        className={`inline-flex items-center gap-1 ${active ? "text-foreground" : "text-muted-foreground"} hover:text-foreground`}
+      >
+        {label}
+        <Icon className="h-3 w-3" />
+      </button>
+    );
+  };
+
+  return (
+    <div className="mt-6 rounded-xl border border-border bg-card p-4 md:p-6">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <Activity className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold">جدول انتقالات المرضى</h2>
+            <p className="text-xs text-muted-foreground">
+              كل انتقال حالة (من → إلى) ضمن الفلاتر الحالية، مع البحث والفرز.
+            </p>
+          </div>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {sorted.length.toLocaleString("ar-SA")} من {rows.length.toLocaleString("ar-SA")}
+          {q.isFetching && <span className="ms-2 text-primary">جارٍ التحديث…</span>}
+        </span>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="pointer-events-none absolute end-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="بحث: الاسم، MRN، الفرع، الموظّف، السبب…"
+            className="w-full rounded-md border border-input bg-background px-2 py-1.5 pe-8 text-sm"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+        >
+          <option value="">كل الحالات المستهدفة</option>
+          <option value="active">نشط</option>
+          <option value="inactive">غير نشط</option>
+          <option value="archived">مؤرشف</option>
+          <option value="deceased">متوفى</option>
+        </select>
+      </div>
+
+      {q.isLoading && (
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded bg-muted/60" />
+          ))}
+        </div>
+      )}
+      {q.error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {(q.error as Error).message}
+        </div>
+      )}
+      {!q.isLoading && sorted.length === 0 && (
+        <p className="rounded-md bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          لا توجد انتقالات مطابقة.
+        </p>
+      )}
+
+      {sorted.length > 0 && (
+        <div className="max-h-[520px] overflow-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-card">
+              <tr className="border-b border-border text-xs">
+                <th className="p-2 text-start"><SortHeader k="created_at" label="التاريخ" /></th>
+                <th className="p-2 text-start"><SortHeader k="patient_name" label="المريض" /></th>
+                <th className="p-2 text-start"><SortHeader k="patient_mrn" label="MRN" /></th>
+                <th className="p-2 text-start"><SortHeader k="branch_name" label="الفرع" /></th>
+                <th className="p-2 text-start"><SortHeader k="from" label="من" /></th>
+                <th className="p-2 text-start"><SortHeader k="to" label="إلى" /></th>
+                <th className="p-2 text-start">السبب</th>
+                <th className="p-2 text-start"><SortHeader k="actor_name" label="الموظف" /></th>
+                <th className="p-2 text-start"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r, i) => (
+                <tr key={`${r.audit_id}-${r.patient_id}-${i}`} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="p-2 text-xs text-muted-foreground" dir="ltr">
+                    {new Date(r.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
+                  </td>
+                  <td className="p-2 font-medium">
+                    {r.patient_name ?? "-"}
+                    {r.bulk && (
+                      <span className="ms-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                        جماعي
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2 font-mono text-xs" dir="ltr">{r.patient_mrn ?? "-"}</td>
+                  <td className="p-2 text-muted-foreground">{r.branch_name ?? "-"}</td>
+                  <td className="p-2">{r.from ? <StatusChip s={r.from} muted /> : <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2"><StatusChip s={r.to} /></td>
+                  <td className="p-2 text-xs text-muted-foreground max-w-[220px] truncate" title={r.reason ?? ""}>
+                    {r.reason ?? "-"}
+                  </td>
+                  <td className="p-2 text-xs text-muted-foreground">{r.actor_name ?? "-"}</td>
+                  <td className="p-2">
+                    <Link
+                      to="/patients/$patientId"
+                      params={{ patientId: r.patient_id }}
+                      className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] hover:bg-muted"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      فتح
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
