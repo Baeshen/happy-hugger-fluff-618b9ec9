@@ -1563,6 +1563,7 @@ export type Database = {
           branch_id: string | null
           created_at: string
           id: string
+          is_global: boolean
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -1570,6 +1571,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           id?: string
+          is_global?: boolean
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -1577,6 +1579,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           id?: string
+          is_global?: boolean
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }

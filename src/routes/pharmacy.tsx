@@ -46,32 +46,44 @@ function PharmacyPage() {
       return;
     }
     setSubmitting(true);
-    let prescription_url: string | null = null;
+    // Insert the order first so the storage policy can validate the upload path
+    // against a real pending order.
+    const { data: inserted, error } = await supabase
+      .from("medicine_orders")
+      .insert({
+        patient_name: form.name,
+        patient_phone: form.phone,
+        address: form.address || null,
+        district: form.district || null,
+        items_text: form.items_text || null,
+        notes: form.notes || null,
+        delivery_type: form.delivery_type,
+        prescription_image_url: null,
+      })
+      .select("id")
+      .single();
+    if (error || !inserted) {
+      setSubmitting(false);
+      toast.error(friendlyInsertError(error ?? new Error("insert failed")));
+      return;
+    }
     if (file) {
-      const path = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("prescriptions").upload(path, file);
+      const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "";
+      const path = `orders/${inserted.id}/prescription${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("prescriptions")
+        .upload(path, file);
       if (upErr) {
         setSubmitting(false);
         toast.error(friendlyInsertError(upErr));
         return;
       }
-      prescription_url = path;
+      await supabase
+        .from("medicine_orders")
+        .update({ prescription_image_url: path })
+        .eq("id", inserted.id);
     }
-    const { error } = await supabase.from("medicine_orders").insert({
-      patient_name: form.name,
-      patient_phone: form.phone,
-      address: form.address || null,
-      district: form.district || null,
-      items_text: form.items_text || null,
-      notes: form.notes || null,
-      delivery_type: form.delivery_type,
-      prescription_image_url: prescription_url,
-    });
     setSubmitting(false);
-    if (error) {
-      toast.error(friendlyInsertError(error));
-      return;
-    }
     setDone(true);
   };
 
