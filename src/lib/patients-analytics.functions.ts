@@ -649,6 +649,10 @@ const TransitionRowsInput = z.object({
   pageSize: z.number().int().min(1).max(200).optional(),
   search: z.string().max(200).nullable().optional(),
   statusTo: z.enum(["active", "inactive", "archived", "deceased"]).nullable().optional(),
+  statusFrom: z.enum(["active", "inactive", "archived", "deceased", "__none__"]).nullable().optional(),
+  txFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  txTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  bulkOnly: z.boolean().nullable().optional(),
   sortKey: z.enum(["created_at", "patient_name", "patient_mrn", "branch_name", "from", "to", "actor_name"]).optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
 });
