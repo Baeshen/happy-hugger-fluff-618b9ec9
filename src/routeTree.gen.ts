@@ -24,6 +24,7 @@ import { Route as SpecialtiesIndexRouteImport } from './routes/specialties.index
 import { Route as HealthIndexRouteImport } from './routes/health.index'
 import { Route as DoctorsIndexRouteImport } from './routes/doctors.index'
 import { Route as SpecialtiesSlugRouteImport } from './routes/specialties.$slug'
+import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
@@ -104,6 +105,11 @@ const SpecialtiesSlugRoute = SpecialtiesSlugRouteImport.update({
   path: '/specialties/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HealthSlugRoute = HealthSlugRouteImport.update({
+  id: '/health/$slug',
+  path: '/health/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DoctorsSlugRoute = DoctorsSlugRouteImport.update({
   id: '/doctors/$slug',
   path: '/doctors/$slug',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
+  '/health/$slug': typeof HealthSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
+  '/health/$slug': typeof HealthSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors': typeof DoctorsIndexRoute
   '/health': typeof HealthIndexRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
+  '/health/$slug': typeof HealthSlugRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/my'
     | '/settings'
     | '/doctors/$slug'
+    | '/health/$slug'
     | '/specialties/$slug'
     | '/doctors/'
     | '/health/'
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/my'
     | '/settings'
     | '/doctors/$slug'
+    | '/health/$slug'
     | '/specialties/$slug'
     | '/doctors'
     | '/health'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/_authenticated/my'
     | '/_authenticated/settings'
     | '/doctors/$slug'
+    | '/health/$slug'
     | '/specialties/$slug'
     | '/doctors/'
     | '/health/'
@@ -275,6 +287,7 @@ export interface RootRouteChildren {
   PharmacyRoute: typeof PharmacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DoctorsSlugRoute: typeof DoctorsSlugRoute
+  HealthSlugRoute: typeof HealthSlugRoute
   SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
   HealthIndexRoute: typeof HealthIndexRoute
@@ -389,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SpecialtiesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/health/$slug': {
+      id: '/health/$slug'
+      path: '/health/$slug'
+      fullPath: '/health/$slug'
+      preLoaderRoute: typeof HealthSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/doctors/$slug': {
       id: '/doctors/$slug'
       path: '/doctors/$slug'
@@ -455,6 +475,7 @@ const rootRouteChildren: RootRouteChildren = {
   PharmacyRoute: PharmacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DoctorsSlugRoute: DoctorsSlugRoute,
+  HealthSlugRoute: HealthSlugRoute,
   SpecialtiesSlugRoute: SpecialtiesSlugRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
   HealthIndexRoute: HealthIndexRoute,
