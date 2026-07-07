@@ -189,7 +189,18 @@ function TransitionAlertsPage() {
       </div>
 
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
-        <Accordion type="multiple" defaultValue={[]} className="space-y-3">
+        <Tabs defaultValue="rules">
+          <TabsList className="grid grid-cols-2 sm:inline-flex h-auto">
+            <TabsTrigger value="rules">
+              <Bell className="h-4 w-4 ml-1" /> القواعد
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Filter className="h-4 w-4 ml-1" /> الإعدادات وإضافة قاعدة
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="settings" className="mt-4">
+        <Accordion type="multiple" defaultValue={["window", "new"]} className="space-y-3">
           {/* Evaluation window (collapsed by default) */}
           <AccordionItem value="window" className="rounded-xl border border-border bg-card px-4">
             <AccordionTrigger className="text-sm font-bold hover:no-underline">
