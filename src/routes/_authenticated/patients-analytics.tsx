@@ -2013,9 +2013,9 @@ function TransitionDetailModal({
                         </td>
                         <td className="p-2">{r.from ? <StatusChip s={r.from} muted /> : <span className="text-muted-foreground">—</span>}</td>
                         <td className="p-2"><StatusChip s={r.to} /></td>
-                        <td className="p-2 text-xs">{r.actor_name ?? "-"}</td>
+                        <td className="p-2 text-xs"><HighlightText text={r.actor_name} query={searchTerm} /></td>
                         <td className="p-2 text-xs text-muted-foreground max-w-[200px] truncate" title={r.reason ?? ""}>
-                          {r.reason ?? "-"}
+                          <HighlightText text={r.reason} query={searchTerm} />
                         </td>
                       </tr>
                     ))}
