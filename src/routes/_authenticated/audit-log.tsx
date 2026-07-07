@@ -193,6 +193,18 @@ function AuditLogPage() {
         >
           <RefreshCw className="h-4 w-4" /> تحديث
         </button>
+        <button
+          onClick={() => {
+            const rows = log.data ?? [];
+            if (rows.length === 0) return;
+            const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+            downloadCsv(rows as any, `audit-log-${stamp}.csv`);
+          }}
+          disabled={!log.data || log.data.length === 0}
+          className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" /> تصدير CSV
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
