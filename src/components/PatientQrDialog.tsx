@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { QrCode, Printer, Download, X } from "lucide-react";
+import { QrCode, Printer, Download, X, User, Star } from "lucide-react";
 
 const CLINIC_NAME = "مجمع باعشن الطبي";
 
