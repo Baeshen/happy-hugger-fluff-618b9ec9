@@ -101,6 +101,7 @@ export type Database = {
         Row: {
           appointment_date: string
           appointment_time: string
+          branch_id: string | null
           created_at: string
           doctor_id: string | null
           gender: string | null
@@ -120,6 +121,7 @@ export type Database = {
         Insert: {
           appointment_date: string
           appointment_time: string
+          branch_id?: string | null
           created_at?: string
           doctor_id?: string | null
           gender?: string | null
@@ -139,6 +141,7 @@ export type Database = {
         Update: {
           appointment_date?: string
           appointment_time?: string
+          branch_id?: string | null
           created_at?: string
           doctor_id?: string | null
           gender?: string | null
@@ -157,6 +160,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "appointments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "appointments_doctor_id_fkey"
             columns: ["doctor_id"]
             isOneToOne: false
@@ -174,6 +184,7 @@ export type Database = {
       }
       availability: {
         Row: {
+          branch_id: string | null
           created_at: string
           doctor_id: string
           end_time: string
@@ -183,6 +194,7 @@ export type Database = {
           weekday: number
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           doctor_id: string
           end_time: string
@@ -192,6 +204,7 @@ export type Database = {
           weekday: number
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           doctor_id?: string
           end_time?: string
@@ -202,6 +215,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "availability_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "availability_doctor_id_fkey"
             columns: ["doctor_id"]
             isOneToOne: false
@@ -210,6 +230,60 @@ export type Database = {
           },
         ]
       }
+      branches: {
+        Row: {
+          address_ar: string | null
+          address_en: string | null
+          city_ar: string | null
+          city_en: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          lat: number | null
+          lng: number | null
+          name_ar: string
+          name_en: string
+          phone: string | null
+          settings: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          address_ar?: string | null
+          address_en?: string | null
+          city_ar?: string | null
+          city_en?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lat?: number | null
+          lng?: number | null
+          name_ar: string
+          name_en: string
+          phone?: string | null
+          settings?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          address_ar?: string | null
+          address_en?: string | null
+          city_ar?: string | null
+          city_en?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lat?: number | null
+          lng?: number | null
+          name_ar?: string
+          name_en?: string
+          phone?: string | null
+          settings?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clinic_settings: {
         Row: {
           address_ar: string
@@ -217,6 +291,7 @@ export type Database = {
           address_en: string
           address_locality: string
           address_region: string
+          branch_id: string | null
           created_at: string
           currencies_accepted: string | null
           email: string | null
@@ -246,6 +321,7 @@ export type Database = {
           address_en: string
           address_locality: string
           address_region: string
+          branch_id?: string | null
           created_at?: string
           currencies_accepted?: string | null
           email?: string | null
@@ -275,6 +351,7 @@ export type Database = {
           address_en?: string
           address_locality?: string
           address_region?: string
+          branch_id?: string | null
           created_at?: string
           currencies_accepted?: string | null
           email?: string | null
@@ -298,12 +375,21 @@ export type Database = {
           updated_at?: string
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clinic_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       doctors: {
         Row: {
           bio_ar: string | null
           bio_en: string | null
+          branch_id: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -320,6 +406,7 @@ export type Database = {
         Insert: {
           bio_ar?: string | null
           bio_en?: string | null
+          branch_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -336,6 +423,7 @@ export type Database = {
         Update: {
           bio_ar?: string | null
           bio_en?: string | null
+          branch_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -350,6 +438,13 @@ export type Database = {
           title_en?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "doctors_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "doctors_specialty_id_fkey"
             columns: ["specialty_id"]
@@ -508,6 +603,7 @@ export type Database = {
       medicine_orders: {
         Row: {
           address: string | null
+          branch_id: string | null
           created_at: string
           delivery_type: Database["public"]["Enums"]["delivery_type"]
           district: string | null
@@ -522,6 +618,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          branch_id?: string | null
           created_at?: string
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           district?: string | null
@@ -536,6 +633,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          branch_id?: string | null
           created_at?: string
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           district?: string | null
@@ -548,13 +646,22 @@ export type Database = {
           status?: Database["public"]["Enums"]["medicine_order_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "medicine_orders_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
           appointment_id: string | null
           audience: string
           body: string | null
+          branch_id: string | null
           created_at: string
           id: string
           kind: string
@@ -567,6 +674,7 @@ export type Database = {
           appointment_id?: string | null
           audience: string
           body?: string | null
+          branch_id?: string | null
           created_at?: string
           id?: string
           kind: string
@@ -579,6 +687,7 @@ export type Database = {
           appointment_id?: string | null
           audience?: string
           body?: string | null
+          branch_id?: string | null
           created_at?: string
           id?: string
           kind?: string
@@ -587,7 +696,15 @@ export type Database = {
           title?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -734,32 +851,107 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          branch_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      _assert_staff: { Args: never; Returns: undefined }
       cancel_appointment_by_ref: {
         Args: { _phone: string; _reason?: string; _ref: string }
+        Returns: boolean
+      }
+      dashboard_appointments_daily: {
+        Args: { _branch_id?: string; _days?: number }
+        Returns: {
+          cancelled: number
+          confirmed: number
+          day: string
+          no_show: number
+          total: number
+        }[]
+      }
+      dashboard_by_specialty: {
+        Args: { _branch_id?: string; _days?: number }
+        Returns: {
+          count: number
+          name_ar: string
+          name_en: string
+          specialty_id: string
+        }[]
+      }
+      dashboard_kpis: { Args: { _branch_id?: string }; Returns: Json }
+      dashboard_peak_hours: {
+        Args: { _branch_id?: string; _days?: number }
+        Returns: {
+          count: number
+          hour: number
+        }[]
+      }
+      dashboard_recent_activity: {
+        Args: { _branch_id?: string; _limit?: number }
+        Returns: {
+          appointment_id: string
+          changed_at: string
+          id: string
+          new_status: Database["public"]["Enums"]["appointment_status"]
+          old_status: Database["public"]["Enums"]["appointment_status"]
+          patient_name: string
+          reason: string
+        }[]
+      }
+      dashboard_status_breakdown: {
+        Args: { _branch_id?: string; _days?: number }
+        Returns: {
+          count: number
+          status: string
+        }[]
+      }
+      dashboard_upcoming: {
+        Args: { _branch_id?: string; _limit?: number }
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          doctor_name_ar: string
+          id: string
+          patient_name: string
+          patient_phone: string
+          specialty_name_ar: string
+          status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
+      has_branch_access: {
+        Args: { _branch_id: string; _user_id: string }
         Returns: boolean
       }
       has_role: {
@@ -898,7 +1090,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "reception" | "pharmacy"
+      app_role: "admin" | "reception" | "pharmacy" | "super_admin"
       appointment_status:
         | "new"
         | "confirmed"
@@ -1040,7 +1232,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "reception", "pharmacy"],
+      app_role: ["admin", "reception", "pharmacy", "super_admin"],
       appointment_status: [
         "new",
         "confirmed",
