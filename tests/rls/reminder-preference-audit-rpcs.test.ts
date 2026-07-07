@@ -261,7 +261,65 @@ async function main() {
       assert(rows.length === 0, `user without profile phone leaked ${rows.length} rows`);
     });
 
-    // ── Cross-user isolation with multiple appointments ─────────────
+    await test("my_audit: authenticated user with NO profile row at all → 0 rows", async () => {
+      const noRowU = await createUserWithPhone(`rpa-norow-${stamp}@test.local`, ownerPhone);
+      createdUsers.push(noRowU.userId);
+      // Delete the profile row entirely (not just clear phone).
+      const del = await admin.from("profiles").delete().eq("id", noRowU.userId);
+      assert(!del.error, `profile delete failed: ${del.error?.message}`);
+      const { data: check } = await admin
+        .from("profiles").select("id").eq("id", noRowU.userId).maybeSingle();
+      assert(check === null, "profile row still present after delete — precondition failed");
+
+      const noRowC = await signIn(noRowU.email, noRowU.password);
+      const { data, error } = await noRowC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: ownerAppt,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length === 0, `user without profile row leaked ${rows.length} rows`);
+    });
+
+    await test("my_audit: no-profile user tried against ALL known appts → 0 rows across the board", async () => {
+      // Belt-and-suspenders: even iterating every appt in the test set, a user
+      // with no profile row must never see a single audit row.
+      const noRow2 = await createUserWithPhone(`rpa-norow2-${stamp}@test.local`, otherPhone);
+      createdUsers.push(noRow2.userId);
+      await admin.from("profiles").delete().eq("id", noRow2.userId);
+      const noRow2C = await signIn(noRow2.email, noRow2.password);
+      for (const id of [ownerAppt, otherAppt]) {
+        const { data, error } = await noRow2C.rpc("my_reminder_preference_audit" as never, {
+          _appointment_id: id,
+        } as never);
+        assert(!error, `err on ${id}: ${error?.message}`);
+        const rows = (data ?? []) as unknown[];
+        assert(rows.length === 0, `no-profile user leaked ${rows.length} rows for appt ${id}`);
+      }
+    });
+
+    await test("my_audit: deleting profile mid-session revokes access on next call", async () => {
+      // Sign in with a valid profile → prove access → delete profile → prove revocation.
+      const midU = await createUserWithPhone(`rpa-middel-${stamp}@test.local`, ownerPhone);
+      createdUsers.push(midU.userId);
+      const midC = await signIn(midU.email, midU.password);
+
+      const before = await midC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: ownerAppt,
+      } as never);
+      assert(!before.error, `pre-del err: ${before.error?.message}`);
+      assert(((before.data ?? []) as unknown[]).length >= 1, "expected access before profile delete");
+
+      await admin.from("profiles").delete().eq("id", midU.userId);
+
+      const after = await midC.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: ownerAppt,
+      } as never);
+      assert(!after.error, `post-del err: ${after.error?.message}`);
+      const rows = (after.data ?? []) as unknown[];
+      assert(rows.length === 0, `access not revoked after profile delete, still saw ${rows.length}`);
+    });
+
+
     const ownerAppt2 = await seedAppt(ownerPhone);
     const otherAppt2 = await seedAppt(otherPhone);
 
