@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
-import { Search, Calendar, Clock, User, Phone, Stethoscope, X, CheckCircle2, AlertCircle, XCircle, Clock3, CalendarClock } from "lucide-react";
+import { Search, Calendar, Clock, User, Phone, Stethoscope, X, CheckCircle2, AlertCircle, XCircle, Clock3, CalendarClock, CalendarPlus } from "lucide-react";
 import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 
@@ -27,12 +27,15 @@ type AppointmentRow = {
   status: string;
   reason: string | null;
   notes: string | null;
+  specialty_id: string | null;
+  doctor_id: string | null;
   specialty_name_ar: string | null;
   specialty_name_en: string | null;
   doctor_name_ar: string | null;
   doctor_name_en: string | null;
   created_at: string;
 };
+
 
 function statusKey(s: string) {
   return `status_${s}` as
