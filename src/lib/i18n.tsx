@@ -123,6 +123,7 @@ const STRINGS = {
     nav_about: "About",
     nav_contact: "Contact",
     nav_faq: "FAQ",
+    nav_health: "Health Blog",
     cta_book: "Book an Appointment",
     cta_medicine: "Order Medicine",
     hero_title: "Your Care Starts Here",
