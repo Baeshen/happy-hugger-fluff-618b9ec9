@@ -995,6 +995,9 @@ function RecentStatusEventsSection({
   const q = useQuery({
     queryKey: ["recent-status-events", { branchId, doctorId, from, to }],
     queryFn: () => fn({ data: { branchId, doctorId, from, to, limit: 20 } }),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
   });
   const events = (q.data as RecentStatusEvent[] | undefined) ?? [];
 
