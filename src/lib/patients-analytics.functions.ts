@@ -828,3 +828,163 @@ export const listPatientTransitionRows = createServerFn({ method: "POST" })
     const start = (page - 1) * pageSize;
     return { rows: filtered.slice(start, start + pageSize), total, page, pageSize };
   });
+
+
+// ============ Transitions stats dashboard (branch × staff × time) ============
+
+const TransitionsStatsInput = z.object({
+  branchId: z.string().uuid().nullable().optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export type TransitionsStats = {
+  period: { from: string; to: string; days: number };
+  total: number;
+  perTarget: { status: string; count: number }[];
+  perTransition: { from: string; to: string; count: number }[];
+  byBranch: { branch_id: string; branch_name: string; count: number }[];
+  byActor: { actor_id: string; actor_name: string; count: number }[];
+  daily: { day: string; total: number; active: number; inactive: number; archived: number; deceased: number }[];
+  hourly: { hour: number; count: number }[];
+  weekday: { weekday: number; label: string; count: number }[];
+};
+
+export const getTransitionsStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => TransitionsStatsInput.parse(d))
+  .handler(async ({ data, context }): Promise<TransitionsStats> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb: any = context.supabase;
+    const roles = await getRoles(sb, context.userId);
+    ensureStaff(roles);
+
+    // Patient pool (respect branch filter)
+    let pq = sb.from("patients").select("id, branch_id");
+    if (data.branchId) pq = pq.eq("branch_id", data.branchId);
+    const { data: pRows } = await pq.limit(20000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patientToBranch = new Map<string, string | null>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const p of ((pRows ?? []) as any[])) patientToBranch.set(p.id, p.branch_id ?? null);
+
+    // Load transition events
+    const { data: rows } = await sb
+      .from("security_audit_log")
+      .select("id, created_at, action, actor, metadata")
+      .in("action", ["patient.status_changed", "patient.bulk_status_changed"])
+      .gte("created_at", `${data.from}T00:00:00`)
+      .lte("created_at", `${data.to}T23:59:59`)
+      .limit(20000);
+
+    const perTarget: Record<string, number> = { active: 0, inactive: 0, archived: 0, deceased: 0 };
+    const perTransition = new Map<string, number>();
+    const byBranch = new Map<string, number>();
+    const byActor = new Map<string, number>();
+    const dailyMap = new Map<string, { total: number; active: number; inactive: number; archived: number; deceased: number }>();
+    const hourly = new Array<number>(24).fill(0);
+    const weekday = new Array<number>(7).fill(0);
+    let total = 0;
+
+    const bumpDaily = (day: string, to: string, n: number) => {
+      let cur = dailyMap.get(day);
+      if (!cur) { cur = { total: 0, active: 0, inactive: 0, archived: 0, deceased: 0 }; dailyMap.set(day, cur); }
+      cur.total += n;
+      if (to === "active" || to === "inactive" || to === "archived" || to === "deceased") {
+        (cur as unknown as Record<string, number>)[to] += n;
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const row of ((rows ?? []) as any[])) {
+      const meta = row.metadata ?? {};
+      const created = row.created_at as string;
+      const day = created.slice(0, 10);
+      const dt = new Date(created);
+      const hour = dt.getHours();
+      const wd = dt.getDay();
+      const to = String(meta.to ?? "");
+      if (!["active", "inactive", "archived", "deceased"].includes(to)) continue;
+
+      if (row.action === "patient.status_changed") {
+        const pid = meta.patient_id as string | undefined;
+        if (!pid) continue;
+        if (data.branchId && !patientToBranch.has(pid)) continue;
+        const from = String(meta.from ?? "?");
+        const branchId = patientToBranch.get(pid) ?? "unknown";
+        perTarget[to] = (perTarget[to] ?? 0) + 1;
+        perTransition.set(`${from}→${to}`, (perTransition.get(`${from}→${to}`) ?? 0) + 1);
+        byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
+        if (row.actor) byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + 1);
+        bumpDaily(day, to, 1);
+        hourly[hour]++;
+        weekday[wd]++;
+        total++;
+      } else {
+        const ids: string[] = Array.isArray(meta.ids) ? meta.ids : [];
+        const rel = data.branchId ? ids.filter((id) => patientToBranch.has(id)) : ids;
+        if (!rel.length) continue;
+        const n = rel.length;
+        perTarget[to] = (perTarget[to] ?? 0) + n;
+        perTransition.set(`?→${to}`, (perTransition.get(`?→${to}`) ?? 0) + n);
+        for (const pid of rel) {
+          const branchId = patientToBranch.get(pid) ?? "unknown";
+          byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
+        }
+        if (row.actor) byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + n);
+        bumpDaily(day, to, n);
+        hourly[hour] += n;
+        weekday[wd] += n;
+        total += n;
+      }
+    }
+
+    // Enrich branch names
+    const branchIds = [...byBranch.keys()].filter((id) => id !== "unknown");
+    const branchNameMap = new Map<string, string>();
+    if (branchIds.length) {
+      const { data: bRows } = await sb.from("branches").select("id, name_ar").in("id", branchIds);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const b of ((bRows ?? []) as any[])) branchNameMap.set(b.id, b.name_ar ?? "—");
+    }
+
+    // Enrich actor names
+    const actorIds = [...byActor.keys()];
+    const actorNameMap = new Map<string, string>();
+    if (actorIds.length) {
+      const { data: aRows } = await sb.from("profiles").select("id, full_name").in("id", actorIds);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const p of ((aRows ?? []) as any[])) actorNameMap.set(p.id, p.full_name ?? "—");
+    }
+
+    // Fill daily series
+    const start = new Date(`${data.from}T00:00:00`);
+    const end = new Date(`${data.to}T23:59:59`);
+    const daily: TransitionsStats["daily"] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      const cur = dailyMap.get(iso) ?? { total: 0, active: 0, inactive: 0, archived: 0, deceased: 0 };
+      daily.push({ day: iso, ...cur });
+    }
+    const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+
+    const weekdayLabels = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+    return {
+      period: { from: data.from, to: data.to, days },
+      total,
+      perTarget: Object.entries(perTarget).map(([status, count]) => ({ status, count })),
+      perTransition: [...perTransition.entries()]
+        .map(([k, count]) => { const [f, t] = k.split("→"); return { from: f, to: t, count }; })
+        .sort((a, b) => b.count - a.count),
+      byBranch: [...byBranch.entries()]
+        .map(([id, count]) => ({ branch_id: id, branch_name: branchNameMap.get(id) ?? "غير محدد", count }))
+        .sort((a, b) => b.count - a.count),
+      byActor: [...byActor.entries()]
+        .map(([id, count]) => ({ actor_id: id, actor_name: actorNameMap.get(id) ?? "غير معروف", count }))
+        .sort((a, b) => b.count - a.count),
+      daily,
+      hourly: hourly.map((count, hour) => ({ hour, count })),
+      weekday: weekday.map((count, i) => ({ weekday: i, label: weekdayLabels[i], count })),
+    };
+  });
