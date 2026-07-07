@@ -931,3 +931,139 @@ export const listSecurityAuditActions = createServerFn({ method: "GET" })
     const actions = Array.from(new Set((data ?? []).map((r: any) => r.action))).sort();
     return { actions };
   });
+
+/* ---------------- FAQs ---------------- */
+
+const faqInput = z.object({
+  question_ar: z.string().trim().min(1, "السؤال بالعربية مطلوب").max(500),
+  answer_ar: z.string().trim().min(1, "الجواب بالعربية مطلوب").max(4000),
+  question_en: z.string().trim().max(500).nullable().optional(),
+  answer_en: z.string().trim().max(4000).nullable().optional(),
+  is_active: z.boolean().default(true),
+  sort_order: z.number().int().default(0),
+});
+
+export const listFaqsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { data, error } = await context.supabase
+      .from("faqs")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return data ?? [];
+  });
+
+export const createFaq = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => faqInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { data: row, error } = await context.supabase
+      .from("faqs")
+      .insert(data as any)
+      .select()
+      .single();
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return row;
+  });
+
+export const updateFaq = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).and(faqInput.partial()).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { id, ...rest } = data;
+    const { error } = await context.supabase.from("faqs").update(rest as any).eq("id", id);
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return { ok: true };
+  });
+
+export const deleteFaq = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { error } = await context.supabase.from("faqs").delete().eq("id", data.id);
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return { ok: true };
+  });
+
+/* ---------------- About Sections ---------------- */
+
+const aboutInput = z.object({
+  section_key: z
+    .string()
+    .trim()
+    .min(1, "المفتاح مطلوب")
+    .max(100)
+    .regex(/^[a-z0-9_-]+$/i, "المفتاح: أحرف/أرقام/شرطة سفلية فقط"),
+  title_ar: z.string().trim().max(300).nullable().optional(),
+  title_en: z.string().trim().max(300).nullable().optional(),
+  body_ar: z.string().trim().max(8000).nullable().optional(),
+  body_en: z.string().trim().max(8000).nullable().optional(),
+  is_active: z.boolean().default(true),
+  sort_order: z.number().int().default(0),
+});
+
+export const listAboutSectionsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { data, error } = await context.supabase
+      .from("about_sections")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return data ?? [];
+  });
+
+export const createAboutSection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => aboutInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { data: row, error } = await context.supabase
+      .from("about_sections")
+      .insert(data as any)
+      .select()
+      .single();
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return row;
+  });
+
+export const updateAboutSection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).and(aboutInput.partial()).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { id, ...rest } = data;
+    const { error } = await context.supabase
+      .from("about_sections")
+      .update(rest as any)
+      .eq("id", id);
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return { ok: true };
+  });
+
+export const deleteAboutSection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const { error } = await context.supabase
+      .from("about_sections")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return { ok: true };
+  });
