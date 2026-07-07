@@ -123,6 +123,13 @@ function downloadCsv(rows: Array<Record<string, unknown>>, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+type AuditSearch = {
+  action?: string;
+  from?: string;
+  to?: string;
+  id?: string;
+};
+
 export const Route = createFileRoute("/_authenticated/audit-log")({
   head: () => ({
     meta: [
@@ -130,10 +137,17 @@ export const Route = createFileRoute("/_authenticated/audit-log")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  validateSearch: (raw: Record<string, unknown>): AuditSearch => ({
+    action: typeof raw.action === "string" ? raw.action : undefined,
+    from: typeof raw.from === "string" ? raw.from : undefined,
+    to: typeof raw.to === "string" ? raw.to : undefined,
+    id: typeof raw.id === "string" ? raw.id : undefined,
+  }),
   component: AuditLogPage,
 });
 
 function AuditLogPage() {
+  const search = Route.useSearch();
   const myRolesFn = useServerFn(getMyRoles);
   const listFn = useServerFn(listAuditLog);
   const actionsFn = useServerFn(listAuditActions);
@@ -143,11 +157,12 @@ function AuditLogPage() {
     (myRoles.data?.roles ?? []).includes("admin" as any) ||
     (myRoles.data?.roles ?? []).includes("super_admin" as any);
 
-  const [action, setAction] = useState<string>("");
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
+  const [action, setAction] = useState<string>(search.action ?? "");
+  const [from, setFrom] = useState<string>(search.from ?? "");
+  const [to, setTo] = useState<string>(search.to ?? "");
   const [limit, setLimit] = useState<number>(100);
   const [selected, setSelected] = useState<any | null>(null);
+  const highlightId = search.id;
 
   const actions = useQuery({
     queryKey: ["audit-actions"],
