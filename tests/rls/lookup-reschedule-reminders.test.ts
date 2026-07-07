@@ -478,6 +478,135 @@ async function main() {
       },
     );
 
+    // ── Multi-step reschedule sequence ──────────────────────────────────
+    // Simulate a user rescheduling several times in a row via /lookup and
+    // adjusting reminder toggles each time. After every step, the row must
+    // reflect the LAST choice — no leaking from prior steps, no reset to
+    // the DB default.
+    await test(
+      "reminder preferences remain correct across 4 consecutive reschedules",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+
+        const steps: Array<{
+          offsetDays: number;
+          hour: string;
+          r24: boolean;
+          r2: boolean;
+        }> = [
+          { offsetDays: 3, hour: "09:00:00", r24: true, r2: false }, // turn 2h off
+          { offsetDays: 5, hour: "10:00:00", r24: false, r2: false }, // turn all off
+          { offsetDays: 7, hour: "11:00:00", r24: false, r2: true }, // enable only 2h
+          { offsetDays: 9, hour: "12:00:00", r24: true, r2: true }, // re-enable both
+        ];
+
+        for (let i = 0; i < steps.length; i++) {
+          const s = steps[i];
+          const newDate = futureDate(s.offsetDays);
+          const { data: rData, error: rErr } = await anon.rpc(
+            "reschedule_appointment_by_ref" as never,
+            {
+              _ref: ref,
+              _phone: phone,
+              _new_date: newDate,
+              _new_time: s.hour,
+              _reason: `r${i + 1}`,
+            } as never,
+          );
+          assert(!rErr, `step ${i + 1} reschedule err: ${rErr?.message}`);
+          assert(rData === true, `step ${i + 1} reschedule returned ${rData}`);
+
+          const { data: uData, error: uErr } = await anon.rpc(
+            "update_reminders_by_ref" as never,
+            {
+              _ref: ref,
+              _phone: phone,
+              _reminder_24h: s.r24,
+              _reminder_2h: s.r2,
+            } as never,
+          );
+          assert(!uErr, `step ${i + 1} reminders err: ${uErr?.message}`);
+          assert(uData === true, `step ${i + 1} reminders returned ${uData}`);
+
+          const row = await readAppt(id);
+          assert(
+            row.appointment_date === newDate,
+            `step ${i + 1}: date mismatch ${row.appointment_date} vs ${newDate}`,
+          );
+          assert(
+            String(row.appointment_time).startsWith(s.hour.slice(0, 5)),
+            `step ${i + 1}: time mismatch ${row.appointment_time} vs ${s.hour}`,
+          );
+          assert(
+            row.reminder_24h === s.r24,
+            `step ${i + 1}: reminder_24h expected ${s.r24}, got ${row.reminder_24h}`,
+          );
+          assert(
+            row.reminder_2h === s.r2,
+            `step ${i + 1}: reminder_2h expected ${s.r2}, got ${row.reminder_2h}`,
+          );
+          // Reschedule must reset status to 'new' every time — never stuck.
+          assert(
+            row.status === "new",
+            `step ${i + 1}: status expected new, got ${row.status}`,
+          );
+        }
+      },
+    );
+
+    await test(
+      "reschedule without calling update_reminders preserves the previous preferences",
+      async () => {
+        // User first reschedules and explicitly sets reminders to (false, true).
+        // On a second reschedule they change only the date/time and skip the
+        // reminder RPC entirely — the previous booleans must persist.
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+
+        await anon.rpc("reschedule_appointment_by_ref" as never, {
+          _ref: ref,
+          _phone: phone,
+          _new_date: futureDate(2),
+          _new_time: "08:00:00",
+          _reason: "r1",
+        } as never);
+        await anon.rpc("update_reminders_by_ref" as never, {
+          _ref: ref,
+          _phone: phone,
+          _reminder_24h: false,
+          _reminder_2h: true,
+        } as never);
+
+        // Second reschedule — no reminder update.
+        const newDate = futureDate(6);
+        const { error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: newDate,
+            _new_time: "16:00:00",
+            _reason: "r2",
+          } as never,
+        );
+        assert(!error, `rpc err: ${error?.message}`);
+
+        const row = await readAppt(id);
+        assert(row.appointment_date === newDate, "second date not applied");
+        assert(
+          row.reminder_24h === false && row.reminder_2h === true,
+          `reminders leaked: 24h=${row.reminder_24h}, 2h=${row.reminder_2h}`,
+        );
+      },
+    );
+
+
+
   } finally {
     if (created.length) {
       await admin.from("appointments").delete().in("id", created);
