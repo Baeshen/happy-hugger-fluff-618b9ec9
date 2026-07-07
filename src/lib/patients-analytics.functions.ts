@@ -646,6 +646,10 @@ const TransitionRowsInput = z.object({
   limit: z.number().int().min(1).max(2000).optional(),
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(200).optional(),
+  search: z.string().max(200).nullable().optional(),
+  statusTo: z.enum(["active", "inactive", "archived", "deceased"]).nullable().optional(),
+  sortKey: z.enum(["created_at", "patient_name", "patient_mrn", "branch_name", "from", "to", "actor_name"]).optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
 });
 
 export type PatientTransitionRow = {
