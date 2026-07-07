@@ -943,9 +943,11 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
         perTransition.set(`${from}→${to}`, (perTransition.get(`${from}→${to}`) ?? 0) + 1);
         byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
         byBranchStatus.set(`${branchId}||${to}`, (byBranchStatus.get(`${branchId}||${to}`) ?? 0) + 1);
+        dailyBranchStatus.set(`${day}||${branchId}||${to}`, (dailyBranchStatus.get(`${day}||${branchId}||${to}`) ?? 0) + 1);
         if (row.actor) {
           byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + 1);
           byActorStatus.set(`${row.actor}||${to}`, (byActorStatus.get(`${row.actor}||${to}`) ?? 0) + 1);
+          dailyActorStatus.set(`${day}||${row.actor}||${to}`, (dailyActorStatus.get(`${day}||${row.actor}||${to}`) ?? 0) + 1);
         }
         bumpDaily(day, to, 1);
         hourly[hour]++;
@@ -962,10 +964,12 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
           const branchId = patientToBranch.get(pid) ?? "unknown";
           byBranch.set(branchId, (byBranch.get(branchId) ?? 0) + 1);
           byBranchStatus.set(`${branchId}||${to}`, (byBranchStatus.get(`${branchId}||${to}`) ?? 0) + 1);
+          dailyBranchStatus.set(`${day}||${branchId}||${to}`, (dailyBranchStatus.get(`${day}||${branchId}||${to}`) ?? 0) + 1);
         }
         if (row.actor) {
           byActor.set(row.actor, (byActor.get(row.actor) ?? 0) + n);
           byActorStatus.set(`${row.actor}||${to}`, (byActorStatus.get(`${row.actor}||${to}`) ?? 0) + n);
+          dailyActorStatus.set(`${day}||${row.actor}||${to}`, (dailyActorStatus.get(`${day}||${row.actor}||${to}`) ?? 0) + n);
         }
         bumpDaily(day, to, n);
         hourly[hour] += n;
@@ -1031,6 +1035,19 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
           return { actor_id: id, actor_name: actorNameMap.get(id) ?? "غير معروف", status, count };
         })
         .sort((a, b) => b.count - a.count),
+
+      dailyByBranchStatus: [...dailyBranchStatus.entries()]
+        .map(([k, count]) => {
+          const [day, id, status] = k.split("||");
+          return { day, branch_id: id, branch_name: branchNameMap.get(id) ?? "غير محدد", status, count };
+        })
+        .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)),
+      dailyByActorStatus: [...dailyActorStatus.entries()]
+        .map(([k, count]) => {
+          const [day, id, status] = k.split("||");
+          return { day, actor_id: id, actor_name: actorNameMap.get(id) ?? "غير معروف", status, count };
+        })
+        .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)),
 
       daily,
       hourly: hourly.map((count, hour) => ({ hour, count })),
