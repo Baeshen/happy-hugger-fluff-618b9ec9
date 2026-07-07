@@ -480,6 +480,46 @@ grep -E "^\s+run:|bun |bash tests/" .github/workflows/ci.yml
 
 
 
+### إخراج تقرير مقارنة JSON (محلي ↔ CI)
+
+`scripts/compare-ci.sh` يشغّل الاختبارات محليًا، يقارن مخرجاتها بسجل CI بعد التطبيع (إزالة ANSI، طوابع GitHub Actions، بادئات job/step، `::group::`)، ويُخرج تقريرًا `ci-compare.json` بالبنية التالية:
+
+```json
+{
+  "meta": { "generated_at": "...", "method": "compose", "ci_source": "gh:12345", "normalization": "..." },
+  "local_run": { "exit_code": 0, "line_count": 342, "normalized_log": "/tmp/.../local.norm" },
+  "ci_run":    { "line_count": 340, "source": "gh:12345", "normalized_log": "/tmp/.../ci.norm" },
+  "summary":   { "local_error_count": 0, "ci_error_count": 0, "diff_hunks": 0, "match": true },
+  "errors":    { "local": [{ "line": 87, "text": "..." }], "ci": [] },
+  "differences": [
+    { "hunk": "@@ -120,3 +120,4 @@", "ci_only": ["..."], "local_only": ["...", "..."] }
+  ]
+}
+```
+
+الاستخدام:
+
+```bash
+# مع ملف سجل CI محفوظ محليًا
+bun run test:compare-ci -- --ci-log ci.log
+
+# سحب سجل CI مباشرة عبر gh CLI (يتطلّب مصادقة)
+bun run test:compare-ci -- --gh-run 12345678 --method=compose
+
+# بدون تشغيل محلي جديد (مقارنة سجلّين محفوظين)
+bun run test:compare-ci -- --no-run --local-log prev-local.log --ci-log ci.log --out diff.json
+```
+
+خيارات: `--ci-log <path>` أو `--gh-run <id>`، `--method=auto|bun|compose|docker`، `--out <file>` (افتراضي `ci-compare.json`)، `--no-run --local-log <path>`. المتطلبات: `jq` (و`gh` عند استخدام `--gh-run`).
+
+للتحقق السريع من التطابق:
+
+```bash
+jq '.summary.match' ci-compare.json          # true = مطابق
+jq '.differences | length' ci-compare.json   # عدد الاختلافات
+jq '.errors.local' ci-compare.json           # أخطاء محلية فقط
+```
+
 ### الخيار 1: Docker Compose (موصى به)
 
 المتطلبات: Docker Desktop أو Docker Engine + plugin `compose`.
