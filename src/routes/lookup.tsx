@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
-import { Search, Calendar, Clock, User, Phone, Stethoscope, X, CheckCircle2, AlertCircle, XCircle, Clock3, CalendarClock } from "lucide-react";
+import { Search, Calendar, Clock, User, Phone, Stethoscope, X, CheckCircle2, AlertCircle, XCircle, Clock3, CalendarClock, CalendarPlus } from "lucide-react";
 import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 
@@ -27,12 +27,15 @@ type AppointmentRow = {
   status: string;
   reason: string | null;
   notes: string | null;
+  specialty_id: string | null;
+  doctor_id: string | null;
   specialty_name_ar: string | null;
   specialty_name_en: string | null;
   doctor_name_ar: string | null;
   doctor_name_en: string | null;
   created_at: string;
 };
+
 
 function statusKey(s: string) {
   return `status_${s}` as
@@ -112,6 +115,103 @@ function LookupPage() {
   const [cancelling, setCancelling] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [newDate, setNewDate] = useState<string>("");
+  const [newTime, setNewTime] = useState<string>("");
+  const [availability, setAvailability] = useState<
+    { weekday: number; start_time: string; end_time: string; slot_minutes: number }[] | null
+  >(null);
+
+  useEffect(() => {
+    if (!showReschedule || !appt?.doctor_id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("availability")
+        .select("weekday,start_time,end_time,slot_minutes")
+        .eq("doctor_id", appt.doctor_id!);
+      if (cancelled) return;
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setAvailability(data ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showReschedule, appt?.doctor_id]);
+
+  const availableDates = useMemo(() => {
+    if (!availability) return [];
+    const days = new Set(availability.map((a) => a.weekday));
+    const out: { date: string; label: string; weekday: number }[] = [];
+    const now = new Date();
+    for (let i = 1; i < 30 && out.length < 14; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      if (days.has(d.getDay())) {
+        out.push({
+          date: d.toISOString().slice(0, 10),
+          label: `${d.getDate()}/${d.getMonth() + 1}`,
+          weekday: d.getDay(),
+        });
+      }
+    }
+    return out;
+  }, [availability]);
+
+  const availableTimes = useMemo(() => {
+    if (!newDate || !availability) return [];
+    const wd = new Date(newDate).getDay();
+    const slots = new Set<string>();
+    availability
+      .filter((a) => a.weekday === wd)
+      .forEach((a) => {
+        const [sh, sm] = a.start_time.split(":").map(Number);
+        const [eh, em] = a.end_time.split(":").map(Number);
+        let mins = sh * 60 + sm;
+        const end = eh * 60 + em;
+        while (mins + a.slot_minutes <= end) {
+          slots.add(
+            `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`,
+          );
+          mins += a.slot_minutes;
+        }
+      });
+    return Array.from(slots).sort();
+  }, [newDate, availability]);
+
+  const rescheduleBooking = async () => {
+    if (!appt || !newDate || !newTime) {
+      toast.error("يرجى اختيار التاريخ والوقت");
+      return;
+    }
+    setRescheduling(true);
+    const { data, error } = await supabase.rpc("reschedule_appointment_by_ref", {
+      _ref: ref.trim(),
+      _phone: phone.trim(),
+      _new_date: newDate,
+      _new_time: `${newTime}:00`,
+      _reason: "إعادة جدولة من المراجع",
+    });
+    setRescheduling(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (data) {
+      toast.success("تمت إعادة الجدولة");
+      setShowReschedule(false);
+      setNewDate("");
+      setNewTime("");
+      submit();
+    } else {
+      toast.error(t("lookup_not_found"));
+    }
+  };
+
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -322,7 +422,18 @@ function LookupPage() {
                 >
                   {t("share_whatsapp")}
                 </a>
-                {(appt.status === "new" || appt.status === "confirmed") && !showCancel && (
+                {(appt.status === "new" || appt.status === "confirmed") &&
+                  appt.doctor_id &&
+                  !showReschedule &&
+                  !showCancel && (
+                    <button
+                      onClick={() => setShowReschedule(true)}
+                      className="inline-flex items-center gap-2 rounded-md border border-primary/40 px-4 py-2 text-sm text-primary hover:bg-primary/5"
+                    >
+                      <CalendarPlus className="h-4 w-4" /> إعادة جدولة
+                    </button>
+                  )}
+                {(appt.status === "new" || appt.status === "confirmed") && !showCancel && !showReschedule && (
                   <button
                     onClick={() => setShowCancel(true)}
                     className="ms-auto inline-flex items-center gap-2 rounded-md border border-destructive/40 px-4 py-2 text-sm text-destructive hover:bg-destructive/5"
@@ -331,6 +442,101 @@ function LookupPage() {
                   </button>
                 )}
               </div>
+
+              {showReschedule && (
+                <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-sm font-semibold text-primary">اختيار موعد جديد</div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
+                      </p>
+                    </div>
+                  </div>
+
+                  {!availability ? (
+                    <div className="mt-4 text-center text-sm text-muted-foreground py-6">
+                      {t("loading")}
+                    </div>
+                  ) : availableDates.length === 0 ? (
+                    <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-800">
+                      لا تتوفر مواعيد متاحة لهذا الطبيب حالياً. يمكنك التواصل مع الاستقبال.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4">
+                        <div className="mb-2 text-xs font-medium text-muted-foreground">التاريخ</div>
+                        <div className="flex flex-wrap gap-2">
+                          {availableDates.map((d) => (
+                            <button
+                              key={d.date}
+                              onClick={() => {
+                                setNewDate(d.date);
+                                setNewTime("");
+                              }}
+                              className={`rounded-md border px-3 py-2 text-xs transition ${
+                                newDate === d.date
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background hover:border-primary/50"
+                              }`}
+                            >
+                              <div className="font-semibold">{WEEKDAYS_AR[d.weekday]}</div>
+                              <div className="opacity-80">{d.label}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {newDate && (
+                        <div className="mt-4">
+                          <div className="mb-2 text-xs font-medium text-muted-foreground">الوقت</div>
+                          {availableTimes.length === 0 ? (
+                            <div className="text-xs text-muted-foreground">لا توجد أوقات متاحة</div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {availableTimes.map((tm) => (
+                                <button
+                                  key={tm}
+                                  onClick={() => setNewTime(tm)}
+                                  className={`rounded-md border px-3 py-1.5 text-xs font-mono transition ${
+                                    newTime === tm
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-border bg-background hover:border-primary/50"
+                                  }`}
+                                >
+                                  {tm}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setShowReschedule(false);
+                        setNewDate("");
+                        setNewTime("");
+                      }}
+                      className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+                    >
+                      تراجع
+                    </button>
+                    <button
+                      onClick={rescheduleBooking}
+                      disabled={rescheduling || !newDate || !newTime}
+                      className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      {rescheduling ? t("loading") : "تأكيد إعادة الجدولة"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
 
               {showCancel && (
                 <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
