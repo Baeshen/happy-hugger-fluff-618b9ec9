@@ -271,6 +271,15 @@ function LookupPage() {
               </div>
             </div>
 
+            {/* Timeline */}
+            <StatusTimeline
+              status={appt.status}
+              createdAt={appt.created_at}
+              apptDate={appt.appointment_date}
+              apptTime={appt.appointment_time}
+            />
+
+
             {/* Details card */}
             <div className="rounded-2xl border border-border bg-card p-6">
               <div className="grid gap-3 text-sm">
