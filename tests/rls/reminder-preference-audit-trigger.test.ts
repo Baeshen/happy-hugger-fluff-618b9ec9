@@ -171,6 +171,49 @@ async function main() {
       assert(row.reason === null,
         `expected reason NULL (no GUC set), got ${JSON.stringify(row.reason)}`);
     });
+
+    // ── 4) self_service via anon RPC WITH reason ────────────────────
+    await test("self_service RPC with _reason: trigger reads app.change_reason", async () => {
+      const apptId = await newAppt();
+      const ref = apptId.replace(/-/g, "").slice(0, 8);
+      const reasonText = "أريد إيقاف تذكيرات 24 ساعة فقط";
+      const { data: ok, error } = await anon.rpc("update_reminders_by_ref", {
+        _ref: ref,
+        _phone: phone,
+        _reminder_24h: false,
+        _reminder_2h: null as unknown as boolean,
+        _reason: reasonText,
+      });
+      assert(!error, `rpc err: ${error?.message}`);
+      assert(ok === true, `rpc returned ${ok}`);
+      const row = await latestAuditRow(apptId, "reminder_24h");
+      assert(row, "no audit row created");
+      assert(row.reason === reasonText,
+        `expected reason=${JSON.stringify(reasonText)}, got ${JSON.stringify(row.reason)}`);
+      assert(row.source === "self_service",
+        `expected source=self_service, got ${row.source}`);
+      assert(row.changed_by === null,
+        `expected changed_by NULL, got ${row.changed_by}`);
+    });
+
+    // ── 5) self_service RPC with whitespace-only reason → NULL ─────
+    await test("self_service RPC with blank _reason: normalized to NULL", async () => {
+      const apptId = await newAppt();
+      const ref = apptId.replace(/-/g, "").slice(0, 8);
+      const { data: ok, error } = await anon.rpc("update_reminders_by_ref", {
+        _ref: ref,
+        _phone: phone,
+        _reminder_24h: false,
+        _reminder_2h: null as unknown as boolean,
+        _reason: "   \n\t  ",
+      });
+      assert(!error, `rpc err: ${error?.message}`);
+      assert(ok === true, `rpc returned ${ok}`);
+      const row = await latestAuditRow(apptId, "reminder_24h");
+      assert(row, "no audit row created");
+      assert(row.reason === null,
+        `expected reason NULL after normalize, got ${JSON.stringify(row.reason)}`);
+    });
   } finally {
     if (createdAppts.length) {
       await admin.from("appointments").delete().in("id", createdAppts);
