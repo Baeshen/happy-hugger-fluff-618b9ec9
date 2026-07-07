@@ -172,9 +172,9 @@ function ReportsPage() {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <div className="mx-auto max-w-7xl p-4 md:p-6">
+      <div className="mx-auto max-w-7xl p-6 md:p-10 space-y-6">
         {/* Header */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-primary/10 p-2 text-primary">
               <BarChart3 className="h-5 w-5" />
@@ -201,7 +201,7 @@ function ReportsPage() {
         </div>
 
         {/* Report type tabs */}
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-6 flex flex-wrap gap-2">
           {(
             [
               { v: "appointments", ar: "الحجوزات" },
@@ -223,7 +223,7 @@ function ReportsPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-4 rounded-lg border bg-card p-4">
+        <div className="mb-6 rounded-xl border bg-card p-5">
           <div className="grid gap-3 md:grid-cols-4">
             {type !== "occupancy" && (
               <>

@@ -20,12 +20,15 @@ import {
   Legend,
 } from "recharts";
 import { ArrowLeft, Activity, Filter, RefreshCw, TrendingUp, Users, Building2, UserCog, Clock, CalendarDays } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   getTransitionsStats,
   listBranchesForAnalytics,
   type TransitionsStats,
 } from "@/lib/patients-analytics.functions";
 import { TransitionAlerts } from "@/components/analytics/TransitionAlerts";
+
 
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -127,47 +130,56 @@ function TransitionsStatsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
-        {/* Filters */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            الفلاتر
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">الفرع</label>
-              <select
-                value={search.branchId ?? ""}
-                onChange={(e) => setSearch({ branchId: e.target.value || null })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">كل الفروع</option>
-                {(branchesQ.data ?? []).map((b) => (
-                  <option key={b.id} value={b.id}>{b.name_ar}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">من تاريخ</label>
-              <input type="date" value={search.from} onChange={(e) => setSearch({ from: e.target.value })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">إلى تاريخ</label>
-              <input type="date" value={search.to} onChange={(e) => setSearch({ to: e.target.value })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </div>
-            <div className="flex items-end gap-2 flex-wrap">
-              {[7, 30, 90].map((n) => (
-                <button key={n} onClick={() => quickRange(n)}
-                  className="rounded-md border border-border bg-background px-3 py-2 text-xs hover:bg-muted">
-                  آخر {n} يوم
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
+      <main className="mx-auto max-w-7xl px-4 py-8 space-y-8">
+        {/* Filters — collapsed by default */}
+        <Accordion type="single" collapsible defaultValue="" className="space-y-3">
+          <AccordionItem value="filters" className="rounded-xl border border-border bg-card px-4">
+            <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-primary" />
+                الفلاتر
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({search.from} → {search.to}{search.branchId ? " · فرع محدد" : " · كل الفروع"})
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 pb-4">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">الفرع</label>
+                  <select
+                    value={search.branchId ?? ""}
+                    onChange={(e) => setSearch({ branchId: e.target.value || null })}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">كل الفروع</option>
+                    {(branchesQ.data ?? []).map((b) => (
+                      <option key={b.id} value={b.id}>{b.name_ar}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">من تاريخ</label>
+                  <input type="date" value={search.from} onChange={(e) => setSearch({ from: e.target.value })}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">إلى تاريخ</label>
+                  <input type="date" value={search.to} onChange={(e) => setSearch({ to: e.target.value })}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+                </div>
+                <div className="flex items-end gap-2 flex-wrap">
+                  {[7, 30, 90].map((n) => (
+                    <button key={n} onClick={() => quickRange(n)}
+                      className="rounded-md border border-border bg-background px-3 py-2 text-xs hover:bg-muted">
+                      آخر {n} يوم
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {statsQ.isLoading && (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
@@ -182,172 +194,175 @@ function TransitionsStatsPage() {
         )}
 
         {stats && (
-          <>
-            {/* KPI cards */}
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard label="إجمالي الانتقالات" value={stats.total} icon={<Activity className="h-5 w-5" />} tone="primary" />
-              <KpiCard label="متوسط يومي" value={avgPerDay} icon={<TrendingUp className="h-5 w-5" />} tone="success" />
-              <KpiCard label="عدد الفروع النشطة" value={stats.byBranch.length} icon={<Building2 className="h-5 w-5" />} tone="info" />
-              <KpiCard label="عدد الموظفين النشطين" value={stats.byActor.length} icon={<UserCog className="h-5 w-5" />} tone="warning" />
-            </section>
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
+              <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+              <TabsTrigger value="charts">الرسوم البيانية</TabsTrigger>
+              <TabsTrigger value="details">التفاصيل</TabsTrigger>
+            </TabsList>
 
-            {/* Alerts */}
-            <TransitionAlerts stats={stats} />
-
-
-            {/* Daily stacked area */}
-            <section className="rounded-xl border border-border bg-card p-4">
-              <SectionHeader icon={<CalendarDays className="h-4 w-4" />} title="التوزيع اليومي حسب الحالة" subtitle={`الفترة: ${stats.period.from} → ${stats.period.to} (${stats.period.days} يوم)`} />
-              <div className="h-72 mt-3">
-                {stats.total === 0 ? (
-                  <EmptyChart />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats.daily}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip contentStyle={{ direction: "rtl" }} />
-                      <Legend />
-                      <Area type="monotone" dataKey="active" stackId="1" name="نشط" stroke={STATUS_COLORS.active} fill={STATUS_COLORS.active} fillOpacity={0.6} />
-                      <Area type="monotone" dataKey="inactive" stackId="1" name="غير نشط" stroke={STATUS_COLORS.inactive} fill={STATUS_COLORS.inactive} fillOpacity={0.6} />
-                      <Area type="monotone" dataKey="archived" stackId="1" name="مؤرشف" stroke={STATUS_COLORS.archived} fill={STATUS_COLORS.archived} fillOpacity={0.6} />
-                      <Area type="monotone" dataKey="deceased" stackId="1" name="متوفى" stroke={STATUS_COLORS.deceased} fill={STATUS_COLORS.deceased} fillOpacity={0.6} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </section>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* By branch */}
-              <section className="rounded-xl border border-border bg-card p-4">
-                <SectionHeader icon={<Building2 className="h-4 w-4" />} title="الانتقالات حسب الفرع" subtitle="أعلى الفروع نشاطًا" />
-                <div className="h-72 mt-3">
-                  {stats.byBranch.length === 0 ? <EmptyChart /> : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={stats.byBranch.slice(0, 10)} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis type="number" tick={{ fontSize: 11 }} />
-                        <YAxis type="category" dataKey="branch_name" tick={{ fontSize: 11 }} width={110} />
-                        <Tooltip contentStyle={{ direction: "rtl" }} />
-                        <Bar dataKey="count" name="عدد الانتقالات" radius={[0, 6, 6, 0]}>
-                          {stats.byBranch.slice(0, 10).map((_, i) => (
-                            <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
+            <TabsContent value="overview" className="space-y-6">
+              <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <KpiCard label="إجمالي الانتقالات" value={stats.total} icon={<Activity className="h-5 w-5" />} tone="primary" />
+                <KpiCard label="متوسط يومي" value={avgPerDay} icon={<TrendingUp className="h-5 w-5" />} tone="success" />
+                <KpiCard label="عدد الفروع النشطة" value={stats.byBranch.length} icon={<Building2 className="h-5 w-5" />} tone="info" />
+                <KpiCard label="عدد الموظفين النشطين" value={stats.byActor.length} icon={<UserCog className="h-5 w-5" />} tone="warning" />
               </section>
 
-              {/* By staff */}
-              <section className="rounded-xl border border-border bg-card p-4">
-                <SectionHeader icon={<UserCog className="h-4 w-4" />} title="الانتقالات حسب الموظف" subtitle="أعلى المستخدمين نشاطًا" />
-                <div className="h-72 mt-3">
-                  {stats.byActor.length === 0 ? <EmptyChart /> : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={stats.byActor.slice(0, 10)} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis type="number" tick={{ fontSize: 11 }} />
-                        <YAxis type="category" dataKey="actor_name" tick={{ fontSize: 11 }} width={110} />
-                        <Tooltip contentStyle={{ direction: "rtl" }} />
-                        <Bar dataKey="count" name="عدد الانتقالات" radius={[0, 6, 6, 0]}>
-                          {stats.byActor.slice(0, 10).map((_, i) => (
-                            <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </section>
+              <TransitionAlerts stats={stats} />
+            </TabsContent>
 
-              {/* Per target pie */}
-              <section className="rounded-xl border border-border bg-card p-4">
-                <SectionHeader icon={<Users className="h-4 w-4" />} title="توزيع الحالة النهائية" subtitle="إلى أي حالة انتقل المرضى" />
+            <TabsContent value="charts" className="space-y-6">
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionHeader icon={<CalendarDays className="h-4 w-4" />} title="التوزيع اليومي حسب الحالة" subtitle={`الفترة: ${stats.period.from} → ${stats.period.to} (${stats.period.days} يوم)`} />
                 <div className="h-72 mt-3">
-                  {stats.total === 0 ? <EmptyChart /> : (
+                  {stats.total === 0 ? (
+                    <EmptyChart />
+                  ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={stats.perTarget.filter((t) => t.count > 0)}
-                          dataKey="count"
-                          nameKey="status"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={90}
-                          label={(e) => `${STATUS_LABEL[e.status] ?? e.status}: ${e.count}`}
-                        >
-                          {stats.perTarget.map((t) => (
-                            <Cell key={t.status} fill={STATUS_COLORS[t.status] ?? "hsl(var(--primary))"} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ direction: "rtl" }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </section>
-
-              {/* Weekday distribution */}
-              <section className="rounded-xl border border-border bg-card p-4">
-                <SectionHeader icon={<CalendarDays className="h-4 w-4" />} title="التوزيع حسب أيام الأسبوع" subtitle="لتحديد الأيام الأكثر ازدحامًا" />
-                <div className="h-72 mt-3">
-                  {stats.total === 0 ? <EmptyChart /> : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={stats.weekday}>
+                      <AreaChart data={stats.daily}>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip contentStyle={{ direction: "rtl" }} />
-                        <Bar dataKey="count" name="عدد الانتقالات" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                        <Legend />
+                        <Area type="monotone" dataKey="active" stackId="1" name="نشط" stroke={STATUS_COLORS.active} fill={STATUS_COLORS.active} fillOpacity={0.6} />
+                        <Area type="monotone" dataKey="inactive" stackId="1" name="غير نشط" stroke={STATUS_COLORS.inactive} fill={STATUS_COLORS.inactive} fillOpacity={0.6} />
+                        <Area type="monotone" dataKey="archived" stackId="1" name="مؤرشف" stroke={STATUS_COLORS.archived} fill={STATUS_COLORS.archived} fillOpacity={0.6} />
+                        <Area type="monotone" dataKey="deceased" stackId="1" name="متوفى" stroke={STATUS_COLORS.deceased} fill={STATUS_COLORS.deceased} fillOpacity={0.6} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <section className="rounded-xl border border-border bg-card p-5">
+                  <SectionHeader icon={<Building2 className="h-4 w-4" />} title="الانتقالات حسب الفرع" subtitle="أعلى الفروع نشاطًا" />
+                  <div className="h-72 mt-3">
+                    {stats.byBranch.length === 0 ? <EmptyChart /> : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.byBranch.slice(0, 10)} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          <XAxis type="number" tick={{ fontSize: 11 }} />
+                          <YAxis type="category" dataKey="branch_name" tick={{ fontSize: 11 }} width={110} />
+                          <Tooltip contentStyle={{ direction: "rtl" }} />
+                          <Bar dataKey="count" name="عدد الانتقالات" radius={[0, 6, 6, 0]}>
+                            {stats.byBranch.slice(0, 10).map((_, i) => (
+                              <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-border bg-card p-5">
+                  <SectionHeader icon={<UserCog className="h-4 w-4" />} title="الانتقالات حسب الموظف" subtitle="أعلى المستخدمين نشاطًا" />
+                  <div className="h-72 mt-3">
+                    {stats.byActor.length === 0 ? <EmptyChart /> : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.byActor.slice(0, 10)} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          <XAxis type="number" tick={{ fontSize: 11 }} />
+                          <YAxis type="category" dataKey="actor_name" tick={{ fontSize: 11 }} width={110} />
+                          <Tooltip contentStyle={{ direction: "rtl" }} />
+                          <Bar dataKey="count" name="عدد الانتقالات" radius={[0, 6, 6, 0]}>
+                            {stats.byActor.slice(0, 10).map((_, i) => (
+                              <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-border bg-card p-5">
+                  <SectionHeader icon={<Users className="h-4 w-4" />} title="توزيع الحالة النهائية" subtitle="إلى أي حالة انتقل المرضى" />
+                  <div className="h-72 mt-3">
+                    {stats.total === 0 ? <EmptyChart /> : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={stats.perTarget.filter((t) => t.count > 0)}
+                            dataKey="count"
+                            nameKey="status"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={90}
+                            label={(e) => `${STATUS_LABEL[e.status] ?? e.status}: ${e.count}`}
+                          >
+                            {stats.perTarget.map((t) => (
+                              <Cell key={t.status} fill={STATUS_COLORS[t.status] ?? "hsl(var(--primary))"} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ direction: "rtl" }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-border bg-card p-5">
+                  <SectionHeader icon={<CalendarDays className="h-4 w-4" />} title="التوزيع حسب أيام الأسبوع" subtitle="لتحديد الأيام الأكثر ازدحامًا" />
+                  <div className="h-72 mt-3">
+                    {stats.total === 0 ? <EmptyChart /> : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.weekday}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip contentStyle={{ direction: "rtl" }} />
+                          <Bar dataKey="count" name="عدد الانتقالات" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionHeader icon={<Clock className="h-4 w-4" />} title="التوزيع حسب ساعات اليوم" subtitle="لتحديد ساعات الذروة" />
+                <div className="h-64 mt-3">
+                  {stats.total === 0 ? <EmptyChart /> : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stats.hourly}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="hour" tick={{ fontSize: 11 }} tickFormatter={(h) => `${h}:00`} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip contentStyle={{ direction: "rtl" }} labelFormatter={(h) => `الساعة ${h}:00`} />
+                        <Bar dataKey="count" name="عدد الانتقالات" fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
                 </div>
               </section>
-            </div>
+            </TabsContent>
 
-            {/* Hourly chart */}
-            <section className="rounded-xl border border-border bg-card p-4">
-              <SectionHeader icon={<Clock className="h-4 w-4" />} title="التوزيع حسب ساعات اليوم" subtitle="لتحديد ساعات الذروة" />
-              <div className="h-64 mt-3">
-                {stats.total === 0 ? <EmptyChart /> : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.hourly}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis dataKey="hour" tick={{ fontSize: 11 }} tickFormatter={(h) => `${h}:00`} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip contentStyle={{ direction: "rtl" }} labelFormatter={(h) => `الساعة ${h}:00`} />
-                      <Bar dataKey="count" name="عدد الانتقالات" fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+            <TabsContent value="details" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <DetailTable
+                  title="تفصيل الانتقالات (من → إلى)"
+                  headers={["من", "إلى", "العدد"]}
+                  rows={stats.perTransition.slice(0, 20).map((r) => [
+                    STATUS_LABEL[r.from] ?? r.from,
+                    STATUS_LABEL[r.to] ?? r.to,
+                    String(r.count),
+                  ])}
+                />
+                <DetailTable
+                  title="ترتيب الموظفين"
+                  headers={["الموظف", "عدد الانتقالات"]}
+                  rows={stats.byActor.slice(0, 20).map((r) => [r.actor_name, String(r.count)])}
+                />
               </div>
-            </section>
-
-            {/* Detail tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <DetailTable
-                title="تفصيل الانتقالات (من → إلى)"
-                headers={["من", "إلى", "العدد"]}
-                rows={stats.perTransition.slice(0, 20).map((r) => [
-                  STATUS_LABEL[r.from] ?? r.from,
-                  STATUS_LABEL[r.to] ?? r.to,
-                  String(r.count),
-                ])}
-              />
-              <DetailTable
-                title="ترتيب الموظفين"
-                headers={["الموظف", "عدد الانتقالات"]}
-                rows={stats.byActor.slice(0, 20).map((r) => [r.actor_name, String(r.count)])}
-              />
-            </div>
-          </>
+            </TabsContent>
+          </Tabs>
         )}
       </main>
+
     </div>
   );
 }

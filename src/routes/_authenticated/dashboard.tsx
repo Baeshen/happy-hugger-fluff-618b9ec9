@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
   Area,
   AreaChart,
@@ -188,13 +190,13 @@ function DashboardPage() {
   );
 
   return (
-    <div className="container-app py-8">
+    <div className="container-app py-10 space-y-8">
       {/* Header */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
+        <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Activity className="h-6 w-6 text-primary" />
-            لوحة الإحصائيات
+            <Activity className="h-6 w-6 shrink-0 text-primary" />
+            <span className="truncate">لوحة الإحصائيات</span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             نظرة حيّة على أداء المجمع اليوم — تُحدَّث تلقائيًا.
@@ -223,314 +225,198 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <KpiCard
-          icon={CalendarDays}
-          label="مواعيد اليوم"
-          value={kpis?.today_total ?? 0}
-          tone="primary"
-          loading={kpisQ.isLoading}
-        />
-        <KpiCard
-          icon={CalendarCheck2}
-          label="مؤكدة اليوم"
-          value={kpis?.today_confirmed ?? 0}
-          tone="success"
-          loading={kpisQ.isLoading}
-        />
-        <KpiCard
-          icon={Users}
-          label="مرضى فريدون"
-          value={kpis?.today_unique_patients ?? 0}
-          tone="info"
-          loading={kpisQ.isLoading}
-        />
-        <KpiCard
-          icon={Pill}
-          label="طلبات صيدلية"
-          value={kpis?.pharmacy_today_new ?? 0}
-          tone="warning"
-          loading={kpisQ.isLoading}
-        />
-        <KpiCard
-          icon={Stethoscope}
-          label="أطباء نشطون"
-          value={kpis?.active_doctors ?? 0}
-          tone="info"
-          loading={kpisQ.isLoading}
-        />
-        <KpiCard
-          icon={Bell}
-          label="إشعارات جديدة"
-          value={kpis?.notifications_unread ?? 0}
-          tone="danger"
-          loading={kpisQ.isLoading}
-        />
-      </div>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex">
+          <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+          <TabsTrigger value="charts">الرسوم البيانية</TabsTrigger>
+          <TabsTrigger value="upcoming">الحجوزات القادمة</TabsTrigger>
+          <TabsTrigger value="activity">آخر النشاط</TabsTrigger>
+        </TabsList>
 
-      {/* Occupancy strip */}
-      <div className="mt-4 rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            نسبة إشغال الأسبوع (محجوز مقابل السعة المتاحة)
+        {/* Overview: KPIs + Occupancy */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <KpiCard icon={CalendarDays} label="مواعيد اليوم" value={kpis?.today_total ?? 0} tone="primary" loading={kpisQ.isLoading} />
+            <KpiCard icon={CalendarCheck2} label="مؤكدة اليوم" value={kpis?.today_confirmed ?? 0} tone="success" loading={kpisQ.isLoading} />
+            <KpiCard icon={Users} label="مرضى فريدون" value={kpis?.today_unique_patients ?? 0} tone="info" loading={kpisQ.isLoading} />
+            <KpiCard icon={Pill} label="طلبات صيدلية" value={kpis?.pharmacy_today_new ?? 0} tone="warning" loading={kpisQ.isLoading} />
+            <KpiCard icon={Stethoscope} label="أطباء نشطون" value={kpis?.active_doctors ?? 0} tone="info" loading={kpisQ.isLoading} />
+            <KpiCard icon={Bell} label="إشعارات جديدة" value={kpis?.notifications_unread ?? 0} tone="danger" loading={kpisQ.isLoading} />
           </div>
-          <div className="text-2xl font-bold text-primary">
-            {kpis?.occupancy_pct != null ? `${kpis.occupancy_pct}%` : "—"}
+
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                نسبة إشغال الأسبوع (محجوز مقابل السعة المتاحة)
+              </div>
+              <div className="text-2xl font-bold text-primary">
+                {kpis?.occupancy_pct != null ? `${kpis.occupancy_pct}%` : "—"}
+              </div>
+            </div>
+            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, Number(kpis?.occupancy_pct ?? 0)))}%` }}
+              />
+            </div>
+            <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+              <span>محجوز: {kpis?.week_total ?? 0}</span>
+              <span>السعة: {kpis?.week_capacity ?? 0}</span>
+            </div>
           </div>
-        </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${Math.min(100, Math.max(0, Number(kpis?.occupancy_pct ?? 0)))}%` }}
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-          <span>محجوز: {kpis?.week_total ?? 0}</span>
-          <span>السعة: {kpis?.week_capacity ?? 0}</span>
-        </div>
-      </div>
+        </TabsContent>
 
-      {/* Charts row */}
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <ChartCard title="المواعيد آخر 30 يومًا" className="xl:col-span-2">
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={dailyChart} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="day"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="المجموع"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                fill="url(#fillTotal)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        {/* Charts */}
+        <TabsContent value="charts" className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <ChartCard title="المواعيد آخر 30 يومًا" className="xl:col-span-2">
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={dailyChart} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                  <Area type="monotone" dataKey="المجموع" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#fillTotal)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartCard>
 
-        <ChartCard title="توزيع الحالات (30 يومًا)">
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie
-                data={statusChart}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={55}
-                outerRadius={90}
-                paddingAngle={2}
-              >
-                {statusChart.map((entry) => (
-                  <Cell
-                    key={entry.key}
-                    fill={STATUS_COLOR[entry.key] ?? "hsl(var(--muted-foreground))"}
-                  />
+            <ChartCard title="توزيع الحالات (30 يومًا)">
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={statusChart} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                    {statusChart.map((entry) => (
+                      <Cell key={entry.key} fill={STATUS_COLOR[entry.key] ?? "hsl(var(--muted-foreground))"} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-1 flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
+                {statusChart.map((s) => (
+                  <span key={s.key} className="inline-flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[s.key] ?? "hsl(var(--muted-foreground))" }} />
+                    {s.name} ({s.value})
+                  </span>
                 ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="mt-1 flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
-            {statusChart.map((s) => (
-              <span key={s.key} className="inline-flex items-center gap-1.5">
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: STATUS_COLOR[s.key] ?? "hsl(var(--muted-foreground))" }}
-                />
-                {s.name} ({s.value})
-              </span>
-            ))}
+              </div>
+            </ChartCard>
           </div>
-        </ChartCard>
-      </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <ChartCard title="حسب التخصص (30 يومًا)">
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={specialtyChart} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="name"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                interval={0}
-                angle={-20}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-              <Bar dataKey="عدد" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <ChartCard title="حسب التخصص (30 يومًا)">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={specialtyChart} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={60} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="عدد" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
 
-        <ChartCard title="ساعات الذروة (0-23)">
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={peakChart} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="hour"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={10}
-                tickLine={false}
-                axisLine={false}
-                interval={1}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-              <Bar dataKey="عدد" fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
-      {/* Live lists */}
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <CalendarCheck2 className="h-4 w-4 text-primary" />
-              الحجوزات القادمة (اليوم + ٤٨ ساعة)
-            </h2>
-            <span className="text-xs text-muted-foreground">{upcoming.length}</span>
+            <ChartCard title="ساعات الذروة (0-23)">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={peakChart} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} interval={1} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="عدد" fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
           </div>
-          <div className="max-h-96 overflow-auto">
-            {upcoming.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">
-                لا حجوزات قادمة حاليًا.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {upcoming.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{a.patient_name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {a.doctor_name_ar ?? "—"}
-                        {a.specialty_name_ar ? ` • ${a.specialty_name_ar}` : ""}
+        </TabsContent>
+
+        {/* Upcoming bookings */}
+        <TabsContent value="upcoming">
+          <div className="rounded-xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <CalendarCheck2 className="h-4 w-4 text-primary" />
+                الحجوزات القادمة (اليوم + ٤٨ ساعة)
+              </h2>
+              <span className="text-xs text-muted-foreground">{upcoming.length}</span>
+            </div>
+            <div className="max-h-[600px] overflow-auto">
+              {upcoming.length === 0 ? (
+                <p className="p-8 text-center text-sm text-muted-foreground">لا حجوزات قادمة حاليًا.</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {upcoming.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{a.patient_name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {a.doctor_name_ar ?? "—"}
+                          {a.specialty_name_ar ? ` • ${a.specialty_name_ar}` : ""}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-left">
+                        <p className="text-xs font-semibold" dir="ltr">
+                          {a.appointment_date} · {a.appointment_time.slice(0, 5)}
+                        </p>
+                        <StatusChip status={a.status} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Recent activity */}
+        <TabsContent value="activity">
+          <div className="rounded-xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                آخر الأنشطة
+              </h2>
+              <span className="text-xs text-muted-foreground">{recent.length}</span>
+            </div>
+            <div className="max-h-[600px] overflow-auto">
+              {recent.length === 0 ? (
+                <p className="p-8 text-center text-sm text-muted-foreground">لا نشاط بعد.</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {recent.map((r) => (
+                    <li key={r.id} className="px-5 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-medium">{r.patient_name}</p>
+                        <span className="shrink-0 text-xs text-muted-foreground" dir="ltr">
+                          {new Date(r.changed_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {r.old_status ? STATUS_LABEL_AR[r.old_status] ?? r.old_status : "—"} →{" "}
+                        <span className="font-medium text-foreground">
+                          {r.new_status ? STATUS_LABEL_AR[r.new_status] ?? r.new_status : "—"}
+                        </span>
+                        {r.reason ? ` • ${r.reason}` : ""}
                       </p>
-                    </div>
-                    <div className="shrink-0 text-left">
-                      <p className="text-xs font-semibold" dir="ltr">
-                        {a.appointment_date} · {a.appointment_time.slice(0, 5)}
-                      </p>
-                      <StatusChip status={a.status} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <ClipboardList className="h-4 w-4 text-primary" />
-              آخر الأنشطة
-            </h2>
-            <span className="text-xs text-muted-foreground">{recent.length}</span>
-          </div>
-          <div className="max-h-96 overflow-auto">
-            {recent.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">لا نشاط بعد.</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {recent.map((r) => (
-                  <li key={r.id} className="px-4 py-2.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-medium">{r.patient_name}</p>
-                      <span
-                        className="shrink-0 text-xs text-muted-foreground"
-                        dir="ltr"
-                      >
-                        {new Date(r.changed_at).toLocaleString("ar-SA", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {r.old_status ? STATUS_LABEL_AR[r.old_status] ?? r.old_status : "—"} →{" "}
-                      <span className="font-medium text-foreground">
-                        {r.new_status ? STATUS_LABEL_AR[r.new_status] ?? r.new_status : "—"}
-                      </span>
-                      {r.reason ? ` • ${r.reason}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
 
 function KpiCard({
   icon: Icon,
