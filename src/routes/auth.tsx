@@ -47,7 +47,7 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data: signup, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -55,11 +55,19 @@ function AuthPage() {
             data: { full_name: fullName },
           },
         });
-        if (error) throw error;
+        if (error) {
+          safeLog({ action: "signup_failed", email, metadata: { error: error.message } });
+          throw error;
+        }
+        safeLog({ action: "signup_success", email, user_id: signup.user?.id ?? null });
         toast.success("تم إنشاء الحساب. تحقق من بريدك الإلكتروني إن لزم.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { data: signin, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          safeLog({ action: "login_failed", email, metadata: { error: error.message } });
+          throw error;
+        }
+        safeLog({ action: "login_success", email, user_id: signin.user?.id ?? null });
         toast.success("مرحبًا بعودتك");
       }
     } catch (err: any) {
