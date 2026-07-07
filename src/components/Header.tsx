@@ -92,6 +92,13 @@ export function Header() {
                 <User className="h-3.5 w-3.5" /> {t("nav_my")}
               </Link>
               <Link
+                to="/settings"
+                className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                title="الإعدادات"
+              >
+                <Settings className="h-3.5 w-3.5" /> إعدادات
+              </Link>
+              <Link
                 to="/admin"
                 className="hidden xl:inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
                 title="لوحة التحكم"
