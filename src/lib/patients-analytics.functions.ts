@@ -662,10 +662,17 @@ export type PatientTransitionRow = {
   bulk: boolean;
 };
 
+export type PatientTransitionsPage = {
+  rows: PatientTransitionRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export const listPatientTransitionRows = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => TransitionRowsInput.parse(d))
-  .handler(async ({ data, context }): Promise<PatientTransitionRow[]> => {
+  .handler(async ({ data, context }): Promise<PatientTransitionsPage> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb: any = context.supabase;
     const roles = await getRoles(sb, context.userId);
