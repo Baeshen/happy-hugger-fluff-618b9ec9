@@ -408,11 +408,21 @@ function LookupPage() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-2">
+                <a
+                  href={googleCalendarUrl(share)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+                  title="فتح في Google Calendar"
+                >
+                  <Calendar className="h-4 w-4" /> Google Calendar
+                </a>
                 <button
                   onClick={() => downloadIcs(share)}
                   className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+                  title="ملف ICS يعمل مع Apple / Outlook / أي تقويم"
                 >
-                  <Calendar className="h-4 w-4" /> {t("add_to_calendar")}
+                  <Calendar className="h-4 w-4" /> ملف ICS
                 </button>
                 <a
                   href={whatsappShareUrl(share)}
