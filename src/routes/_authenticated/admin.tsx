@@ -30,6 +30,8 @@ import {
   listReminderPreferenceAudit,
   getReminderPreferenceStats,
   exportReminderPreferenceAuditCsv,
+  listSecurityAuditLog,
+  listSecurityAuditActions,
 } from "@/lib/admin.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
@@ -51,6 +53,8 @@ import {
   Bell,
   BarChart3,
   Download,
+  ShieldAlert,
+  Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -60,7 +64,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit" | "reminders-stats";
+type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit" | "reminders-stats" | "security-audit";
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -154,6 +158,12 @@ function AdminDashboard() {
       icon: BarChart3,
       show: canSeeAppts,
     },
+    {
+      id: "security-audit" as Tab,
+      label: "سجل الأمان",
+      icon: ShieldAlert,
+      show: isAdmin,
+    },
   ].filter((t) => t.show);
 
   return (
@@ -214,6 +224,7 @@ function AdminDashboard() {
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
       {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
+      {tab === "security-audit" && isAdmin && <SecurityAuditTab />}
     </div>
   );
 }
@@ -2128,6 +2139,225 @@ function ExportRemindersCsvPanel() {
           <Download className="h-4 w-4" />
           {busy ? "جارٍ التصدير…" : "تصدير CSV"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function SecurityAuditTab() {
+  const listFn = useServerFn(listSecurityAuditLog);
+  const actionsFn = useServerFn(listSecurityAuditActions);
+
+  const [ref, setRef] = useState("");
+  const [phone, setPhone] = useState("");
+  const [action, setAction] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [limit, setLimit] = useState(100);
+  const [applied, setApplied] = useState({
+    ref: "",
+    phone: "",
+    action: "",
+    from: "",
+    to: "",
+    limit: 100,
+  });
+
+  const actionsQuery = useQuery({
+    queryKey: ["security-audit", "actions"],
+    queryFn: () => actionsFn(),
+  });
+
+  const listQuery = useQuery({
+    queryKey: ["security-audit", "list", applied],
+    queryFn: () =>
+      listFn({
+        data: {
+          ref: applied.ref || undefined,
+          phone: applied.phone || undefined,
+          action: applied.action || undefined,
+          from: applied.from ? new Date(applied.from).toISOString() : undefined,
+          to: applied.to ? new Date(applied.to + "T23:59:59").toISOString() : undefined,
+          limit: applied.limit,
+        },
+      }),
+  });
+
+  const items = listQuery.data?.items ?? [];
+
+  function apply() {
+    setApplied({ ref: ref.trim(), phone: phone.trim(), action, from, to, limit });
+  }
+
+  function reset() {
+    setRef("");
+    setPhone("");
+    setAction("");
+    setFrom("");
+    setTo("");
+    setLimit(100);
+    setApplied({ ref: "", phone: "", action: "", from: "", to: "", limit: 100 });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-primary" />
+          <div className="text-sm font-semibold">تصفية سجل الأمان</div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-6">
+          <input
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            placeholder="رقم مرجعي (جزء من UUID)"
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm md:col-span-2"
+          />
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="رقم الهاتف"
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm md:col-span-2"
+          />
+          <select
+            value={action}
+            onChange={(e) => setAction(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm md:col-span-2"
+          >
+            <option value="">كل الإجراءات</option>
+            {(actionsQuery.data?.actions ?? []).map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            من
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            إلى
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-xs text-muted-foreground flex flex-col gap-1">
+            الحد الأقصى
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {[50, 100, 200, 500].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="md:col-span-3 flex items-end gap-2">
+            <button
+              onClick={apply}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              <Search className="h-4 w-4" /> بحث
+            </button>
+            <button
+              onClick={reset}
+              className="rounded-md border border-input px-4 py-2 text-sm hover:bg-muted"
+            >
+              مسح الفلاتر
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <div className="text-sm font-semibold">
+            النتائج
+            {!listQuery.isLoading && (
+              <span className="ms-2 text-xs font-normal text-muted-foreground">
+                ({items.length})
+              </span>
+            )}
+          </div>
+        </div>
+        {listQuery.isLoading ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">جارٍ التحميل…</div>
+        ) : listQuery.error ? (
+          <div className="p-8 text-center text-sm text-red-600">
+            {(listQuery.error as Error).message}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            لا توجد نتائج مطابقة للفلاتر.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-start">التاريخ</th>
+                  <th className="px-3 py-2 text-start">الإجراء</th>
+                  <th className="px-3 py-2 text-start">المريض</th>
+                  <th className="px-3 py-2 text-start">الهاتف</th>
+                  <th className="px-3 py-2 text-start">الحالة</th>
+                  <th className="px-3 py-2 text-start">المُنفّذ</th>
+                  <th className="px-3 py-2 text-start">السبب</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {items.map((it: any) => (
+                  <tr key={it.id} className="hover:bg-muted/20">
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                      {new Date(it.created_at).toLocaleString("ar-EG")}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        {it.action}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{it.patient_name ?? "—"}</div>
+                      {it.appointment_id && (
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          {String(it.appointment_id).slice(0, 8)}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">{it.patient_phone ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs">
+                      {it.from_status || it.to_status ? (
+                        <span>
+                          {it.from_status ?? "—"}
+                          <span className="mx-1 text-muted-foreground">→</span>
+                          <span className="font-medium">{it.to_status ?? "—"}</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">{it.actor_name ?? (it.actor ? String(it.actor).slice(0, 8) : "—")}</td>
+                    <td className="px-3 py-2 text-xs max-w-[240px]">
+                      <div className="truncate" title={it.reason ?? ""}>
+                        {it.reason ?? "—"}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

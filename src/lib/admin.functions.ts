@@ -812,3 +812,122 @@ function buildCsvFilename(d: { ref?: string; phone?: string; from?: string; to?:
   if (d.to) parts.push(`to-${d.to.slice(0, 10)}`);
   return parts.join("_") + ".csv";
 }
+
+// ============ Security Audit Log ============
+
+const securityAuditFilterSchema = z.object({
+  ref: z.string().trim().max(64).optional(),
+  phone: z.string().trim().max(32).optional(),
+  action: z.string().trim().max(64).optional(),
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
+  limit: z.number().int().min(1).max(500).optional().default(100),
+});
+
+export const listSecurityAuditLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => securityAuditFilterSchema.parse(data ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const roles = await getRoles(supabase, userId);
+    ensureRole(roles, ["admin"]);
+
+    // Optional: resolve appointment IDs matching ref/phone first
+    let appointmentIdFilter: string[] | null = null;
+    if (data.ref || data.phone) {
+      let apQ = supabase
+        .from("appointments")
+        .select("id, patient_name, patient_phone")
+        .limit(2000);
+      if (data.phone) {
+        const digits = data.phone.replace(/\D/g, "");
+        if (digits.length > 0) apQ = apQ.ilike("patient_phone", `%${digits}%`);
+      }
+      const { data: appts, error: apErr } = await apQ;
+      if (apErr) throw new Error(humanizeSupabaseError(apErr));
+      let ids = (appts ?? []).map((a: any) => a.id as string);
+      if (data.ref) {
+        const cleanRef = data.ref.replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+        if (cleanRef.length > 0) {
+          ids = ids.filter((id) => id.replace(/-/g, "").toLowerCase().startsWith(cleanRef));
+        }
+      }
+      appointmentIdFilter = ids;
+      if (appointmentIdFilter.length === 0) {
+        return { items: [], count: 0 };
+      }
+    }
+
+
+    let q = supabase
+      .from("security_audit_log")
+      .select("id, action, actor, appointment_id, from_status, to_status, reason, metadata, created_at")
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+
+    if (appointmentIdFilter) q = q.in("appointment_id", appointmentIdFilter);
+    if (data.action) q = q.eq("action", data.action);
+    if (data.from) q = q.gte("created_at", data.from);
+    if (data.to) q = q.lte("created_at", data.to);
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(humanizeSupabaseError(error));
+
+    const appointmentIds = Array.from(
+      new Set((rows ?? []).map((r: any) => r.appointment_id).filter(Boolean))
+    );
+    const actorIds = Array.from(
+      new Set((rows ?? []).map((r: any) => r.actor).filter(Boolean))
+    );
+
+    const [apptsRes, profilesRes] = await Promise.all([
+      appointmentIds.length
+        ? supabase
+            .from("appointments")
+            .select("id, patient_name, patient_phone, appointment_date, appointment_time")
+            .in("id", appointmentIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      actorIds.length
+        ? supabase.from("profiles").select("id, full_name, phone").in("id", actorIds)
+        : Promise.resolve({ data: [], error: null } as any),
+    ]);
+
+    const apptMap = new Map<string, any>();
+    for (const a of (apptsRes.data ?? []) as any[]) apptMap.set(a.id, a);
+    const profileMap = new Map<string, any>();
+    for (const p of (profilesRes.data ?? []) as any[]) profileMap.set(p.id, p);
+
+    const items = (rows ?? []).map((r: any) => ({
+      id: r.id,
+      action: r.action,
+      actor: r.actor,
+      actor_name: r.actor ? profileMap.get(r.actor)?.full_name ?? null : null,
+      appointment_id: r.appointment_id,
+      patient_name: r.appointment_id ? apptMap.get(r.appointment_id)?.patient_name ?? null : null,
+      patient_phone: r.appointment_id ? apptMap.get(r.appointment_id)?.patient_phone ?? null : null,
+      appointment_date: r.appointment_id ? apptMap.get(r.appointment_id)?.appointment_date ?? null : null,
+      appointment_time: r.appointment_id ? apptMap.get(r.appointment_id)?.appointment_time ?? null : null,
+      from_status: r.from_status,
+      to_status: r.to_status,
+      reason: r.reason,
+      metadata: r.metadata,
+      created_at: r.created_at,
+    }));
+
+    return { items, count: items.length };
+  });
+
+export const listSecurityAuditActions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const roles = await getRoles(supabase, userId);
+    ensureRole(roles, ["admin"]);
+    const { data, error } = await supabase
+      .from("security_audit_log")
+      .select("action")
+      .limit(1000);
+    if (error) throw new Error(humanizeSupabaseError(error));
+    const actions = Array.from(new Set((data ?? []).map((r: any) => r.action))).sort();
+    return { actions };
+  });
