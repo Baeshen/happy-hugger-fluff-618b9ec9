@@ -15,6 +15,7 @@ import { Route as LookupRouteImport } from './routes/lookup'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DoctorsRouteImport } from './routes/doctors'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ComplexRouteImport } from './routes/complex'
 import { Route as BookRouteImport } from './routes/book'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
@@ -52,6 +53,11 @@ const DoctorsRoute = DoctorsRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComplexRoute = ComplexRouteImport.update({
+  id: '/complex',
+  path: '/complex',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookRoute = BookRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
   '/doctors': typeof DoctorsRoute
   '/faq': typeof FaqRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
   '/doctors': typeof DoctorsRoute
   '/faq': typeof FaqRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
   '/doctors': typeof DoctorsRoute
   '/faq': typeof FaqRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/book'
+    | '/complex'
     | '/contact'
     | '/doctors'
     | '/faq'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/book'
+    | '/complex'
     | '/contact'
     | '/doctors'
     | '/faq'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/book'
+    | '/complex'
     | '/contact'
     | '/doctors'
     | '/faq'
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
+  ComplexRoute: typeof ComplexRoute
   ContactRoute: typeof ContactRoute
   DoctorsRoute: typeof DoctorsRoute
   FaqRoute: typeof FaqRoute
@@ -247,6 +260,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/complex': {
+      id: '/complex'
+      path: '/complex'
+      fullPath: '/complex'
+      preLoaderRoute: typeof ComplexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/book': {
@@ -327,6 +347,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
+  ComplexRoute: ComplexRoute,
   ContactRoute: ContactRoute,
   DoctorsRoute: DoctorsRoute,
   FaqRoute: FaqRoute,

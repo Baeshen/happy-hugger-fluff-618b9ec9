@@ -20,6 +20,7 @@ export function Header() {
 
   const nav = [
     { to: "/", label: t("nav_home") },
+    { to: "/complex", label: t("nav_complex") },
     { to: "/specialties", label: t("nav_specialties") },
     { to: "/doctors", label: t("nav_doctors") },
     { to: "/book", label: t("nav_book") },

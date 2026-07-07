@@ -12,6 +12,7 @@ const STRINGS = {
   ar: {
     nav_home: "الرئيسية",
     nav_specialties: "التخصصات",
+    nav_complex: "المجمع",
     nav_doctors: "الأطباء",
     nav_book: "احجز موعدًا",
     nav_pharmacy: "اطلب دواء",
@@ -114,6 +115,7 @@ const STRINGS = {
   en: {
     nav_home: "Home",
     nav_specialties: "Specialties",
+    nav_complex: "Complex",
     nav_doctors: "Doctors",
     nav_book: "Book Appointment",
     nav_pharmacy: "Order Medicine",
