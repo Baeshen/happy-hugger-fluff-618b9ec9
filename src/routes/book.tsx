@@ -225,6 +225,8 @@ function BookPage() {
       appointment_date: date,
       appointment_time: time,
       reason: v.reason ? v.reason : null,
+      reminder_24h: form.reminder_24h,
+      reminder_2h: form.reminder_2h,
     });
     setSubmitting(false);
     if (error) {
