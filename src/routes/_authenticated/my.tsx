@@ -58,6 +58,7 @@ function MyPortal() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [phoneInput, setPhoneInput] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
+  const [reminderHistoryId, setReminderHistoryId] = useState<string | null>(null);
 
   const load = async () => {
     const { data: prof } = await supabase.auth.getUser();
