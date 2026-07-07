@@ -82,15 +82,15 @@ export const Route = createFileRoute("/doctors/$slug")({
       worksFor: { "@id": CLINIC_ID },
       address: {
         "@type": "PostalAddress",
-        streetAddress: SITE.addressAr,
-        addressLocality: "صبيا",
-        addressRegion: "جازان",
-        postalCode: SITE.postalCode,
-        addressCountry: "SA",
+        streetAddress: settings.street_address,
+        addressLocality: settings.address_locality,
+        addressRegion: settings.address_region,
+        postalCode: settings.postal_code ?? undefined,
+        addressCountry: settings.address_country,
       },
     };
 
-    const clinic = buildLocalBusinessSchema({ pageUrl: url });
+    const clinic = buildLocalBusinessSchema({ pageUrl: url, settings });
     const breadcrumbs = buildBreadcrumbs([
       { name: "الرئيسية", path: "/" },
       { name: "الأطباء", path: "/doctors" },
