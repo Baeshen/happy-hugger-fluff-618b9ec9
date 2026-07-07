@@ -13,7 +13,11 @@ import {
   Star,
   Search,
   Building2,
+  Users,
+  FileText,
+  X,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { listBranchesForRatings, listDoctorsForRatings } from "@/lib/ratings.functions";
 import { listPatientsAdvanced } from "@/lib/patients-mgmt.functions";
