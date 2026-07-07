@@ -29,6 +29,7 @@ import {
   IdCard,
   Calendar,
 } from "lucide-react";
+import { PatientQrDialog } from "@/components/PatientQrDialog";
 
 export const Route = createFileRoute("/_authenticated/patients/$patientId")({
   head: () => ({
@@ -168,14 +169,20 @@ function PatientDetail() {
               <InfoRow
                 icon={Calendar}
                 label="العمر / الجنس"
-                value={`${calcAge(p.date_of_birth) ?? "—"} / ${
-                  p.gender === "male" ? "ذكر" : p.gender === "female" ? "أنثى" : "—"
-                }`}
+                value={`${calcAge(p.date_of_birth) ?? "—"} / ${p.gender === "male" ? "ذكر" : p.gender === "female" ? "أنثى" : "—"}`}
               />
             </div>
           </div>
+          <PatientQrDialog
+            patientId={p.id}
+            mrn={p.mrn}
+            fullNameAr={p.full_name_ar}
+            variant="button"
+          />
         </div>
       </div>
+
+
 
       <Tabs defaultValue="overview">
         <TabsList className="flex-wrap h-auto justify-start">

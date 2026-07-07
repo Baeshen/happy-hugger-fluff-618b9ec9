@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PatientQrDialog } from "@/components/PatientQrDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { listBranches } from "@/lib/dashboard.functions";
 import { generateMrn } from "@/lib/patients.functions";
@@ -168,14 +169,22 @@ function PatientsList() {
                     {branchName(p.branch_id)}
                   </td>
                   <td className="px-4 py-3 text-left">
-                    <Link
-                      to="/patients/$patientId"
-                      params={{ patientId: p.id }}
-                      className="rounded-md border border-input px-3 py-1 text-xs hover:bg-muted"
-                    >
-                      فتح
-                    </Link>
+                    <div className="inline-flex items-center gap-1.5">
+                      <PatientQrDialog
+                        patientId={p.id}
+                        mrn={p.mrn}
+                        fullNameAr={p.full_name_ar}
+                      />
+                      <Link
+                        to="/patients/$patientId"
+                        params={{ patientId: p.id }}
+                        className="rounded-md border border-input px-3 py-1 text-xs hover:bg-muted"
+                      >
+                        فتح
+                      </Link>
+                    </div>
                   </td>
+
                 </tr>
               ))}
             </tbody>
