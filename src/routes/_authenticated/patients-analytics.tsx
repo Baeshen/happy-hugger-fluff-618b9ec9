@@ -1524,7 +1524,31 @@ function EventsDrilldown({
   );
 }
 
+// ============ Highlight matched search text ============
+
+function HighlightText({ text, query }: { text: string | null | undefined; query: string }) {
+  if (!query || !text) return <>{text ?? "-"}</>;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  const parts = text.split(regex);
+  const lowerQuery = query.toLowerCase();
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === lowerQuery ? (
+          <mark key={i} className="rounded bg-primary/20 px-0.5 font-semibold text-primary">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 // ============ Patient transitions table (searchable + sortable) ============
+
 
 type TxSortKey = "created_at" | "patient_name" | "patient_mrn" | "branch_name" | "from" | "to" | "actor_name";
 
