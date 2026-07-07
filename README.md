@@ -432,7 +432,12 @@ bun run test:all -- --method=docker    # فرض docker مباشر
 bun run test:all -- --method=bun       # bun محلي فقط
 bun run test:all -- --no-rls           # تخطّي اختبارات RLS
 bun run test:all -- -- bun test tests/rls/appointments.rls.test.ts  # أمر مخصّص
+bun run test:all -- --watch                          # وضع المراقبة (يعيد التشغيل عند التغيير)
+bun run test:all -- --watch --method=compose         # مراقبة + إعادة تشغيل داخل Docker Compose
+bun run test:all -- --watch --no-rls --watch-path=src  # مراقبة مجلد إضافي مع تخطّي RLS
 ```
+
+**وضع `--watch`:** يشغّل جولة أولى ثم يعيد التنفيذ عند أي تغيير في `src/`, `tests/`, `scripts/`, `package.json`, `Dockerfile.test`, `docker-compose.test.yml` (أضِف مجلدات بـ `--watch-path=<path>`). يختار المراقب المتاح تلقائيًا بالترتيب: `entr` → `inotifywait` (Linux) → `fswatch` (macOS) → استعلام دوري كل ثانيتين (fallback). يعمل مع كل طرق التنفيذ (`bun`/`compose`/`docker`) — في وضع `docker` تُعاد الحاوية بالكامل عند كل تغيير. أوقفه بـ `Ctrl+C`.
 
 يتحقّق السكربت من وجود `.env.local` عند الحاجة، ويحمّله تلقائيًا في وضع `bun`، ويبني الصورة قبل التشغيل في وضع `compose`/`docker`.
 
