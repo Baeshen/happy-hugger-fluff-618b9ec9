@@ -29,6 +29,7 @@ import {
   deleteAvailability,
   listReminderPreferenceAudit,
 } from "@/lib/admin.functions";
+import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
   LayoutDashboard,
   CalendarDays,
