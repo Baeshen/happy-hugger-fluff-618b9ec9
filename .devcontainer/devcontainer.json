@@ -1,0 +1,18 @@
+{
+  "name": "app-tests-devcontainer",
+  "image": "oven/bun:1-debian",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "runArgs": ["--env-file", ".env.local"],
+  "postCreateCommand": "bun install",
+  "remoteEnv": {
+    "CI": "true"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}

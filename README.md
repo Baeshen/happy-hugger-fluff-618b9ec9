@@ -417,6 +417,66 @@ git push --no-verify
 4. إذا كانت ناقصة، أضِفها بقيمها الصحيحة.
 5. أعد تشغيل الوظيفة (re-run) في GitHub Actions.
 
+## تشغيل الاختبارات في Docker أو Devcontainer (نفس بيئة CI)
+
+CI يستخدم `oven-sh/setup-bun@v2` بإصدار `latest` على Linux. لإعادة إنتاج نفس البيئة محليًا اختَر أحد المسارين التاليين.
+
+### الخيار 1: Docker Compose (موصى به)
+
+المتطلبات: Docker Desktop أو Docker Engine + plugin `compose`.
+
+1. جهّز الأسرار في `.env.local` (انظر قسم `.env.example` أعلاه):
+   ```bash
+   cp .env.example .env.local
+   # عدِّل .env.local وضَع القيم الحقيقية
+   ```
+2. ابنِ الصورة (مرة واحدة أو بعد تغيير `package.json`):
+   ```bash
+   docker compose -f docker-compose.test.yml build
+   ```
+3. شغّل مجموعة الاختبارات الكاملة كما في CI:
+   ```bash
+   docker compose -f docker-compose.test.yml run --rm tests
+   ```
+4. لتشغيل أمر واحد فقط داخل الحاوية (مثلاً اختبارات RLS):
+   ```bash
+   docker compose -f docker-compose.test.yml run --rm tests bash -lc "bun run check:rls"
+   ```
+5. للدخول تفاعليًا للتصحيح:
+   ```bash
+   docker compose -f docker-compose.test.yml run --rm tests bash
+   ```
+
+### الخيار 2: Dockerfile مباشرة (بدون Compose)
+
+```bash
+docker build -f Dockerfile.test -t app-tests .
+docker run --rm --env-file .env.local -v "$PWD":/app -w /app app-tests
+```
+
+### الخيار 3: Devcontainer (VS Code / Cursor / GitHub Codespaces)
+
+المتطلبات: إضافة **Dev Containers** في VS Code، أو فتح المستودع في Codespaces.
+
+1. جهّز `.env.local` كما في الخيار 1 (Devcontainer يقرأه عبر `runArgs`).
+2. افتح المشروع في VS Code ثم نفّذ من لوحة الأوامر:
+   `Dev Containers: Reopen in Container`.
+3. انتظر انتهاء `postCreateCommand` (يشغّل `bun install` تلقائيًا).
+4. من طرفية الحاوية شغّل نفس أوامر CI:
+   ```bash
+   bun run format:check
+   bun run lint
+   bun run typecheck
+   bun test
+   bun run check:rls
+   ```
+
+### ملاحظات
+
+- ملف `.env.local` مُستثنى من Git عبر `.gitignore` (`*.local`) ولن يُنسَخ إلى الصورة في `docker build`؛ يُمرَّر وقت التشغيل عبر `--env-file` أو `env_file` في Compose.
+- إذا فشل `bun install --frozen-lockfile` لأن lockfile قديم، Dockerfile يقع تلقائيًا على `bun install`.
+- على Apple Silicon: الصورة `oven/bun:1-debian` متعددة المعمارية ولا تحتاج `--platform`.
+
 ## حمايات مهمة
 
 - لا يُعرض للمستخدم أي نص خطأ إنجليزي قادم من PostgREST/PL/pgSQL — الرسائل العربية الثابتة فقط.
