@@ -2290,6 +2290,16 @@ function SecurityAuditTab() {
               </span>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => exportSecurityAuditCsv(items, applied)}
+            disabled={listQuery.isLoading || items.length === 0}
+            title={items.length === 0 ? "لا توجد نتائج للتصدير" : "تصدير النتائج الحالية إلى CSV"}
+            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            تصدير CSV
+          </button>
         </div>
         {listQuery.isLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">جارٍ التحميل…</div>
