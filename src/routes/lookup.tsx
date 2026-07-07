@@ -110,6 +110,8 @@ function LookupPage() {
   const [appt, setAppt] = useState<AppointmentRow | null>(null);
   const [searched, setSearched] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -130,17 +132,21 @@ function LookupPage() {
     }
     const row = Array.isArray(data) ? data[0] : data;
     setAppt(row ?? null);
+    setShowCancel(false);
+    setCancelReason("");
   };
 
   const cancelBooking = async () => {
     if (!appt) return;
-    if (!confirm(t("cancel_confirm"))) return;
-    const reason = window.prompt(t("cancel_reason_ph") ?? "") ?? undefined;
+    if (!cancelReason.trim()) {
+      toast.error("السبب مطلوب");
+      return;
+    }
     setCancelling(true);
     const { data, error } = await supabase.rpc("cancel_appointment_by_ref", {
       _ref: ref.trim(),
       _phone: phone.trim(),
-      _reason: reason,
+      _reason: cancelReason.trim(),
     });
     setCancelling(false);
     if (error) {
@@ -149,6 +155,8 @@ function LookupPage() {
     }
     if (data) {
       toast.success(t("cancelled_ok"));
+      setShowCancel(false);
+      setCancelReason("");
       submit();
     } else {
       toast.error(t("lookup_not_found"));
@@ -165,6 +173,7 @@ function LookupPage() {
       ? appt.specialty_name_ar
       : appt.specialty_name_en
     : null;
+
 
   const share: ShareBooking | null = appt
     ? {
