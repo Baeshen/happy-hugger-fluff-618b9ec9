@@ -1,47 +1,30 @@
+## الحالة الراهنة
 
-## الهدف
-دمج «التقييمات» و«بطاقة QR» في تجربة موحّدة مع إضافة الرد الإداري وتحسين التصميم.
+بعد فحص المشروع، الميزتان المطلوبتان **مطبّقتان بالكامل**:
 
-## المهام
+### 1) JSON-LD MedicalClinic
+- `src/lib/localBusinessSchema.ts` يبني كيانًا موحّدًا `MedicalClinic + LocalBusiness` بـ `@id` ثابت (`/#clinic`) يُعيد استخدامه Google كنفس المنشأة عبر كل الصفحات.
+- يتضمّن: الاسم عربي/إنجليزي، العنوان (PostalAddress)، الإحداثيات (GeoCoordinates)، ساعات العمل، وسائل الدفع، `medicalSpecialty`, `contactPoint`, `sameAs`, `areaServed`, `isAcceptingNewPatients`.
+- القيم تُقرأ من `clinic_settings` في قاعدة البيانات مع fallback إلى ثوابت `SITE`.
+- مُضمَّن في: `/` ، `/complex` ، `/specialties` ، `/doctors` ، وصفحات التفاصيل.
+- صفحات إضافية تُثري السكيمة:
+  - `/doctors/$slug` → `Physician` مرتبط بالعيادة عبر `worksFor: { @id: CLINIC_ID }`
+  - `/specialties/$slug` → `MedicalSpecialty` + قائمة أطباء `Physician`
+  - جميعها + `BreadcrumbList`
 
-### 1. زر «تقييم سريع» داخل بطاقة QR للمريض (`PatientQrDialog.tsx`)
-- إضافة زر ثانوي «QR للتقييم» بجانب زر «QR للملف».
-- عند التفعيل: يبني رابط `/rate?branch={branchId}&doctor={doctorId}` مع QR + معاينة قابلة للطباعة.
-- تبديل داخلي (Tabs صغيرة): «ملف المريض» ↔ «تقييم الزيارة».
+### 2) Sitemap ديناميكي
+`src/routes/sitemap[.]xml.ts` (server route) يُولّد `/sitemap.xml` في وقت الطلب ويشمل:
+- **صفحات ثابتة**: `/`, `/complex`, `/specialties`, `/doctors`, `/book`, `/pharmacy`, `/lookup`, `/about`, `/faq`, `/contact`, `/health` بأولويات وترددات مناسبة.
+- **أطباء ديناميكيًا**: يجلب كل `doctors` النشِطة (`is_active=true`) مع `slug` ويُنشئ `/doctors/{slug}` مع `lastmod`.
+- **تخصصات ديناميكيًا**: يجلب `specialties` النشِطة ويُنشئ `/specialties/{slug}`.
+- **مقالات صحية**: `/health/{slug}` للمقالات المنشورة.
+- يستخدم Supabase REST مباشرة مع cache header ساعة واحدة.
 
-### 2. مولّد بطاقة QR للتقييم — للطباعة في العيادة
-- بطاقة جديدة داخل `/qr-cards` أو صفحة فرعية: يختار المستخدم (فرع + طبيب اختياري) وينتج QR بحجم كبير مع نص «قيّم تجربتك».
-- تصميم قابل للطباعة (A6/A5) — بدون بيانات مريض، للتعليق في غرف الانتظار.
+## لا حاجة لأي تغييرات
 
-### 3. الرد الإداري على التقييمات
-**Migration** — إضافة أعمدة إلى `patient_ratings`:
-- `staff_reply text`
-- `staff_reply_at timestamptz`
-- `staff_reply_by uuid references auth.users(id)`
+الطلب مُنفَّذ بالكامل. إن رغبت بتحسينات إضافية، يمكن اقتراح مثلًا:
+- إضافة `<image:image>` لروابط الصور داخل sitemap.
+- تقسيم إلى sitemap-index (أطباء/تخصصات/مقالات منفصلة) إذا كبر العدد فوق ~1000.
+- إضافة JSON-LD `MedicalWebPage` أو `FAQPage` على صفحات محددة.
 
-**RLS** — سياسة `UPDATE` جديدة تسمح للطاقم (admin/super_admin/reception) بتحديث حقلي الرد فقط.
-
-**Server fn** — `replyToRating({ id, reply })` في `src/lib/ratings.functions.ts` مع تحقق دور staff.
-
-**واجهة** — في `/ratings`:
-- عرض الرد الحالي أسفل كل تقييم.
-- زر «رد» يفتح Dialog بحقل نصي + حفظ.
-- زر «تعديل/حذف الرد» للطاقم.
-
-### 4. تحسين تصميم `/rate` و `/ratings`
-- `/rate`: مسافات أفضل، أيقونات نجوم أكبر (animate on hover)، بطاقة نجاح محسّنة، إخفاء اختيار الطبيب إذا محدّد مسبقًا من QR.
-- `/ratings`: بطاقات KPI أعلى الصفحة (المتوسط العام، عدد التقييمات، معدل الرد)، Tabs (نظرة عامة / حسب الطبيب / حسب الفرع / التقييمات).
-- ألوان النجوم موحّدة (amber-500).
-
-## الملفات
-**تعديلات**:
-- `src/components/PatientQrDialog.tsx` — Tabs داخلية + QR للتقييم.
-- `src/routes/_authenticated/qr-cards.tsx` — قسم «بطاقات تقييم للطباعة».
-- `src/routes/_authenticated/ratings.tsx` — عرض الرد + Dialog + بطاقات KPI + Tabs.
-- `src/routes/rate.tsx` — تحسينات بصرية.
-- `src/lib/ratings.functions.ts` — `replyToRating` + توسيع `RatingRow`.
-
-**جديد**:
-- Migration واحدة: أعمدة `staff_reply*` + سياسة UPDATE.
-
-بدون تغييرات على تدفق التقديم العام أو مفاتيح البيانات.
+هل تريد أن أُطبّق أيًا من هذه التحسينات؟
