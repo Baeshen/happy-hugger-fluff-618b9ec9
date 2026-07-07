@@ -29,6 +29,7 @@ import {
   deleteAvailability,
   listReminderPreferenceAudit,
   getReminderPreferenceStats,
+  exportReminderPreferenceAuditCsv,
 } from "@/lib/admin.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
