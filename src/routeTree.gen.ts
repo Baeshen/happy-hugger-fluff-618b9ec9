@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SpecialtiesRouteImport } from './routes/specialties'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
 import { Route as LookupRouteImport } from './routes/lookup'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -29,6 +30,11 @@ import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/boo
 const SpecialtiesRoute = SpecialtiesRouteImport.update({
   id: '/specialties',
   path: '/specialties',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PharmacyRoute = PharmacyRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/specialties': typeof SpecialtiesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/my': typeof AuthenticatedMyRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/specialties': typeof SpecialtiesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/my': typeof AuthenticatedMyRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/lookup': typeof LookupRoute
   '/pharmacy': typeof PharmacyRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/specialties': typeof SpecialtiesRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/sitemap.xml'
     | '/specialties'
     | '/admin'
     | '/my'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/sitemap.xml'
     | '/specialties'
     | '/admin'
     | '/my'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/lookup'
     | '/pharmacy'
+    | '/sitemap.xml'
     | '/specialties'
     | '/_authenticated/admin'
     | '/_authenticated/my'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   LookupRoute: typeof LookupRoute
   PharmacyRoute: typeof PharmacyRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpecialtiesRoute: typeof SpecialtiesRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
 }
@@ -237,6 +250,13 @@ declare module '@tanstack/react-router' {
       path: '/specialties'
       fullPath: '/specialties'
       preLoaderRoute: typeof SpecialtiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pharmacy': {
@@ -374,6 +394,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   LookupRoute: LookupRoute,
   PharmacyRoute: PharmacyRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpecialtiesRoute: SpecialtiesRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
 }
