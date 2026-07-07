@@ -185,9 +185,91 @@ async function main() {
       assert(rows.length >= 1, `case-insensitive lookup failed, got ${rows.length}`);
     });
 
+    // ── Extended by_ref coverage (parity with my_audit) ─────────────
+    async function byRef(ref: unknown, phone: unknown) {
+      const { data, error } = await anon.rpc("list_reminder_preferences_by_ref" as never, {
+        _ref: ref, _phone: phone,
+      } as never);
+      return { data: (data ?? []) as Array<{ id: string }>, error };
+    }
 
+    await test("by_ref: phone with SPACES matches (normalized on both sides)", async () => {
+      const spaced = ownerPhone.replace(/(\d{3})(\d{3})/, "$1 $2 ");
+      const r = await byRef(ownerRef, spaced);
+      assert(!r.error, `err: ${r.error?.message}`);
+      assert(r.data.length >= 1, `spaced phone failed to match, got ${r.data.length}`);
+    });
+
+    await test("by_ref: phone with DASHES matches", async () => {
+      const dashed = ownerPhone.slice(0, 4) + "-" + ownerPhone.slice(4);
+      const r = await byRef(ownerRef, dashed);
+      assert(!r.error, `err: ${r.error?.message}`);
+      assert(r.data.length >= 1, `dashed phone failed to match, got ${r.data.length}`);
+    });
+
+    await test("by_ref: phone with LETTERS around correct digits matches (junk stripped)", async () => {
+      const r = await byRef(ownerRef, "call:" + ownerPhone + "!");
+      assert(!r.error, `err: ${r.error?.message}`);
+      assert(r.data.length >= 1, `letters-wrapped phone failed to match, got ${r.data.length}`);
+    });
+
+    await test("by_ref: phone with ARABIC-INDIC digits does NOT match ASCII-digit appt", async () => {
+      const ar = ownerPhone.replace(/\d/g, (d) => String.fromCharCode(0x0660 + Number(d)));
+      const r = await byRef(ownerRef, ar);
+      assert(!r.error, `err: ${r.error?.message}`);
+      assert(r.data.length === 0, `arabic-indic phone leaked ${r.data.length} rows`);
+    });
+
+    await test("by_ref: full uuid (32 hex chars) matches owner appt", async () => {
+      const fullRef = ownerAppt.replace(/-/g, "");
+      const r = await byRef(fullRef, ownerPhone);
+      assert(!r.error, `err: ${r.error?.message}`);
+      assert(r.data.length >= 1, `full uuid ref failed, got ${r.data.length}`);
+    });
+
+    await test("by_ref: ref longer than 32 hex chars → 0 rows (no partial prefix trick)", async () => {
+      const overlong = ownerAppt.replace(/-/g, "") + "abcdef";
+      const r = await byRef(overlong, ownerPhone);
+      assert(!r.error, `err: ${r.error?.message}`);
+      assert(r.data.length === 0, `overlong ref leaked ${r.data.length} rows`);
+    });
+
+    await test("by_ref: ref shared prefix between two appts returns only phone-matching rows", async () => {
+      // Seed extra appt for otherPhone; find longest common id-prefix; query
+      // that prefix + ownerPhone: other-phone rows must NOT leak in.
+      const extraOther = await seedAppt(otherPhone);
+      const a = ownerAppt.replace(/-/g, "");
+      const b = extraOther.replace(/-/g, "");
+      let prefix = "";
+      for (let i = 0; i < Math.min(a.length, b.length); i++) {
+        if (a[i] === b[i]) prefix += a[i]; else break;
+      }
+      if (prefix.length === 0) prefix = a[0];
+      const r = await byRef(prefix, ownerPhone);
+      assert(!r.error, `err: ${r.error?.message}`);
+      const { data: otherAuditRows } = await admin
+        .from("reminder_preference_audit").select("id").eq("appointment_id", extraOther);
+      const otherIds = new Set((otherAuditRows ?? []).map((row) => row.id));
+      const leaked = r.data.filter((row) => otherIds.has(row.id));
+      assert(leaked.length === 0, `shared-prefix ref leaked ${leaked.length} other-phone rows`);
+    });
+
+    await test("by_ref: concurrent calls with mismatched phones do not cross-leak", async () => {
+      const [r1, r2, r3, r4] = await Promise.all([
+        byRef(ownerRef, ownerPhone),
+        byRef(ownerRef, otherPhone),
+        byRef(otherRef, ownerPhone),
+        byRef(otherRef, otherPhone),
+      ]);
+      assert(!r1.error && !r2.error && !r3.error && !r4.error, "rpc err in concurrent by_ref");
+      assert(r1.data.length >= 1, `owner+owner concurrent missing: ${r1.data.length}`);
+      assert(r2.data.length === 0, `owner-ref + other-phone leaked: ${r2.data.length}`);
+      assert(r3.data.length === 0, `other-ref + owner-phone leaked: ${r3.data.length}`);
+      assert(r4.data.length >= 1, `other+other concurrent missing: ${r4.data.length}`);
+    });
 
     // ── my_reminder_preference_audit (authenticated) ────────────────
+
     const ownerU = await createUserWithPhone(`rpa-owner-${stamp}@test.local`, ownerPhone);
     const otherU = await createUserWithPhone(`rpa-other-${stamp}@test.local`, otherPhone);
     createdUsers.push(ownerU.userId, otherU.userId);
