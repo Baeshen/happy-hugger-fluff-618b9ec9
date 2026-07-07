@@ -221,29 +221,40 @@ function PatientsAnalyticsPage() {
             توزيع الحالات والوسوم وتغيّرات الحالة خلال الفترة المحددة.
           </p>
         </div>
-        <Link
-          to="/admin"
-          className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          لوحة التحكم
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportMenu data={data} transitions={transitions} filters={{ branchId, doctorId, gender, from, to }} branches={branches} doctors={doctors} />
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            لوحة التحكم
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 rounded-xl border border-border bg-card p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <Filter className="h-4 w-4" /> الفلاتر
+      <div className="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold text-muted-foreground">
+          <span className="inline-flex items-center gap-2">
+            <Filter className="h-4 w-4" /> الفلاتر
+            {q.isFetching && <span className="text-[10px] font-normal text-primary">جارٍ التحديث…</span>}
+          </span>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs font-normal hover:bg-muted"
+          >
+            <RotateCcw className="h-3 w-3" />
+            إعادة تعيين
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">الفرع</label>
             <select
               value={branchId ?? ""}
-              onChange={(e) => {
-                setBranchId(e.target.value || null);
-                setDoctorId(null);
-              }}
+              onChange={(e) => update({ branchId: e.target.value || null, doctorId: null })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
               <option value="">كل الفروع</option>
@@ -258,7 +269,7 @@ function PatientsAnalyticsPage() {
             <label className="mb-1 block text-xs text-muted-foreground">الطبيب</label>
             <select
               value={doctorId ?? ""}
-              onChange={(e) => setDoctorId(e.target.value || null)}
+              onChange={(e) => update({ doctorId: e.target.value || null })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
               <option value="">كل الأطباء</option>
@@ -274,7 +285,7 @@ function PatientsAnalyticsPage() {
             <select
               value={gender ?? ""}
               onChange={(e) =>
-                setGender((e.target.value || null) as "male" | "female" | "other" | null)
+                update({ gender: (e.target.value || null) as "male" | "female" | "other" | null })
               }
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
@@ -291,7 +302,7 @@ function PatientsAnalyticsPage() {
               min={0}
               max={150}
               value={minAge}
-              onChange={(e) => setMinAge(e.target.value)}
+              onChange={(e) => update({ minAge: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
@@ -302,7 +313,7 @@ function PatientsAnalyticsPage() {
               min={0}
               max={150}
               value={maxAge}
-              onChange={(e) => setMaxAge(e.target.value)}
+              onChange={(e) => update({ maxAge: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
@@ -311,7 +322,7 @@ function PatientsAnalyticsPage() {
             <input
               type="date"
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={(e) => update({ from: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
@@ -320,12 +331,13 @@ function PatientsAnalyticsPage() {
             <input
               type="date"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => update({ to: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             />
           </div>
         </div>
       </div>
+
 
       {q.isLoading && (
         <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
