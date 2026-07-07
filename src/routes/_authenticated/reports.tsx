@@ -202,26 +202,15 @@ function ReportsPage() {
         </div>
 
         {/* Report type tabs */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          {(
-            [
-              { v: "appointments", ar: "الحجوزات" },
-              { v: "occupancy", ar: "إشغال الأطباء" },
-              { v: "pharmacy", ar: "طلبات الصيدلية" },
-              { v: "patients", ar: "المرضى" },
-            ] as { v: ReportType; ar: string }[]
-          ).map((t) => (
-            <button
-              key={t.v}
-              onClick={() => setType(t.v)}
-              className={`rounded-md px-3 py-1.5 text-sm ${
-                type === t.v ? "bg-primary text-primary-foreground" : "border border-input hover:bg-muted"
-              }`}
-            >
-              {t.ar}
-            </button>
-          ))}
-        </div>
+        <Tabs value={type} onValueChange={(v) => setType(v as ReportType)} className="mb-6">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 h-auto">
+            <TabsTrigger value="appointments">الحجوزات</TabsTrigger>
+            <TabsTrigger value="occupancy">إشغال الأطباء</TabsTrigger>
+            <TabsTrigger value="pharmacy">طلبات الصيدلية</TabsTrigger>
+            <TabsTrigger value="patients">المرضى</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
 
         {/* Filters */}
         <div className="mb-6 rounded-xl border bg-card p-5">
