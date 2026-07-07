@@ -644,6 +644,8 @@ const TransitionRowsInput = z.object({
   minAge: z.number().int().min(0).max(150).nullable().optional(),
   maxAge: z.number().int().min(0).max(150).nullable().optional(),
   limit: z.number().int().min(1).max(2000).optional(),
+  page: z.number().int().min(1).optional(),
+  pageSize: z.number().int().min(1).max(200).optional(),
 });
 
 export type PatientTransitionRow = {
