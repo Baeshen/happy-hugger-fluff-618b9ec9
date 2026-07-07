@@ -28,16 +28,14 @@ function getClientMeta() {
   let ua: string | null = null;
   try {
     ua = getRequestHeader("user-agent") ?? null;
-    const fwd = getRequestHeader("x-forwarded-for");
-    const real = getRequestHeader("x-real-ip");
-    const cf = getRequestHeader("cf-connecting-ip");
-    ip =
-      (cf ?? real ?? (fwd ? fwd.split(",")[0]?.trim() : null)) ?? null;
+    try {
+      ip = getRequestIP({ xForwardedFor: true }) ?? null;
+    } catch {}
     if (!ip) {
-      try {
-        const req: any = getRequest();
-        ip = req?.ip ?? req?.socket?.remoteAddress ?? null;
-      } catch {}
+      const fwd = getRequestHeader("x-forwarded-for");
+      const real = getRequestHeader("x-real-ip");
+      const cf = getRequestHeader("cf-connecting-ip");
+      ip = (cf ?? real ?? (fwd ? fwd.split(",")[0]?.trim() : null)) ?? null;
     }
   } catch {}
   return { ip, ua };
