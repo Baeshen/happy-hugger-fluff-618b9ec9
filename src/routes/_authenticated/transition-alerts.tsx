@@ -326,11 +326,12 @@ function TransitionAlertsPage() {
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+        </TabsContent>
 
-
-
+        <TabsContent value="rules" className="mt-4 space-y-4">
         {/* Rules list */}
         <section className="rounded-xl border border-border bg-card overflow-hidden">
+
           <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-sm font-bold">قواعد التنبيهات ({filteredRules.length}/{rules.length})</h2>
             <div className="flex items-center gap-1 text-xs">
