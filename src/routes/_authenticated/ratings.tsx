@@ -216,47 +216,13 @@ function RatingsPage() {
           ) : (
             <div className="space-y-3">
               {(listQ.data ?? []).map((r) => (
-                <div key={r.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <Star key={n} className={`h-4 w-4 ${n <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
-                        ))}
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${r.source === "public" ? "bg-blue-500/10 text-blue-700 border-blue-500/30" : "bg-purple-500/10 text-purple-700 border-purple-500/30"}`}>
-                          {r.source === "public" ? "عام" : "داخلي"}
-                        </span>
-                      </div>
-                      {(r.doctor_name || r.branch_name) && (
-                        <p className="text-xs text-muted-foreground">
-                          {r.doctor_name && <>الطبيب: <span className="font-medium text-foreground">{r.doctor_name}</span></>}
-                          {r.doctor_name && r.branch_name && " · "}
-                          {r.branch_name && <>الفرع: <span className="font-medium text-foreground">{r.branch_name}</span></>}
-                        </p>
-                      )}
-                      {r.comment && (
-                        <p className="mt-2 text-sm leading-relaxed flex items-start gap-2">
-                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                          {r.comment}
-                        </p>
-                      )}
-                      <p className="mt-2 text-[11px] text-muted-foreground">
-                        {r.patient_name || "مجهول"}
-                        {r.patient_phone && <> · <span dir="ltr">{r.patient_phone}</span></>}
-                        {" · "}
-                        <span dir="ltr">{new Date(r.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}</span>
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => { if (confirm("حذف هذا التقييم؟")) deleteM.mutate(r.id); }}
-                      disabled={deleteM.isPending}
-                      title="حذف"
-                      className="rounded-md border border-border p-2 hover:bg-destructive/10 text-destructive disabled:opacity-40"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                <RatingCard
+                  key={r.id}
+                  r={r}
+                  onDelete={() => { if (confirm("حذف هذا التقييم؟")) deleteM.mutate(r.id); }}
+                  onReply={(reply) => replyM.mutate({ id: r.id, reply })}
+                  isReplying={replyM.isPending}
+                />
               ))}
               <button
                 onClick={() => exportRatingsCsv(listQ.data ?? [])}
