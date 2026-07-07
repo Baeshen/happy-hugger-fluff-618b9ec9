@@ -205,9 +205,6 @@ function AdminDashboard() {
     </div>
   );
 }
-    </div>
-  );
-}
 
 function StatCard({
   label,
