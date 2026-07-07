@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Search, Calendar, Clock, User, Phone, Stethoscope, X, CheckCircle2, AlertCircle, XCircle, Clock3, CalendarClock, CalendarPlus } from "lucide-react";
 import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, googleCalendarUrl, type ShareBooking } from "@/lib/booking-share";
+import { ReminderHistoryByRefModal } from "@/components/ReminderPreferenceHistory";
 
 export const Route = createFileRoute("/lookup")({
   head: () => ({
@@ -124,6 +125,7 @@ function LookupPage() {
   const [savingReminders, setSavingReminders] = useState(false);
   const [rescheduleReminder24h, setRescheduleReminder24h] = useState(true);
   const [rescheduleReminder2h, setRescheduleReminder2h] = useState(true);
+  const [showReminderHistory, setShowReminderHistory] = useState(false);
 
   const toggleReminder = async (which: "24h" | "2h", value: boolean) => {
     if (!appt) return;
@@ -521,6 +523,13 @@ function LookupPage() {
                       </button>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowReminderHistory(true)}
+                    className="mt-3 text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                  >
+                    عرض سجل تفضيلات التذكير
+                  </button>
                 </div>
               )}
 
@@ -743,6 +752,13 @@ function LookupPage() {
           </div>
         )}
       </div>
+      {showReminderHistory && appt && (
+        <ReminderHistoryByRefModal
+          refValue={ref.trim()}
+          phone={phone.trim()}
+          onClose={() => setShowReminderHistory(false)}
+        />
+      )}
     </div>
   );
 }

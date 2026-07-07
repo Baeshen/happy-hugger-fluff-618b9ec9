@@ -452,6 +452,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_reminder_preferences_by_ref: {
+        Args: { _phone: string; _ref: string }
+        Returns: {
+          changed_at: string
+          id: string
+          new_value: boolean
+          old_value: boolean
+          reason: string
+          reminder_kind: string
+          source: string
+        }[]
+      }
       log_security_event: {
         Args: {
           _action: string
@@ -503,6 +515,18 @@ export type Database = {
           specialty_name_ar: string
           specialty_name_en: string
           status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
+      my_reminder_preference_audit: {
+        Args: { _appointment_id: string }
+        Returns: {
+          changed_at: string
+          id: string
+          new_value: boolean
+          old_value: boolean
+          reason: string
+          reminder_kind: string
+          source: string
         }[]
       }
       normalize_reason: { Args: { _raw: string }; Returns: string }

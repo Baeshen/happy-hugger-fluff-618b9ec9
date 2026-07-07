@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { Calendar, Clock, User, Stethoscope, Plus, Search } from "lucide-react";
+import { Calendar, Clock, User, Stethoscope, Plus, Search, History } from "lucide-react";
 import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 import { toast } from "sonner";
+import { ReminderHistoryForMyAppointmentModal } from "@/components/ReminderPreferenceHistory";
 
 export const Route = createFileRoute("/_authenticated/my")({
   component: MyPortal,
@@ -57,6 +58,7 @@ function MyPortal() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [phoneInput, setPhoneInput] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
+  const [reminderHistoryId, setReminderHistoryId] = useState<string | null>(null);
 
   const load = async () => {
     const { data: prof } = await supabase.auth.getUser();
@@ -268,6 +270,12 @@ function MyPortal() {
                       >
                         {t("share_whatsapp")}
                       </a>
+                      <button
+                        onClick={() => setReminderHistoryId(r.id)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted"
+                      >
+                        <History className="h-3.5 w-3.5" /> سجل التذكيرات
+                      </button>
                     </div>
                   )}
                 </div>
@@ -276,6 +284,12 @@ function MyPortal() {
           </div>
         )}
       </div>
+      {reminderHistoryId && (
+        <ReminderHistoryForMyAppointmentModal
+          appointmentId={reminderHistoryId}
+          onClose={() => setReminderHistoryId(null)}
+        />
+      )}
     </div>
   );
 }

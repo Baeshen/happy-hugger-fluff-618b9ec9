@@ -29,6 +29,7 @@ import {
   deleteAvailability,
   listReminderPreferenceAudit,
 } from "@/lib/admin.functions";
+import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -550,11 +551,17 @@ function AuditModal({
   onClose: () => void;
 }) {
   const fn = useServerFn(listAppointmentAudit);
+  const remFn = useServerFn(listReminderPreferenceAudit);
   const q = useQuery({
     queryKey: ["appt-audit", appointmentId],
     queryFn: () => fn({ data: { appointmentId } }),
   });
+  const rq = useQuery({
+    queryKey: ["appt-reminder-audit", appointmentId],
+    queryFn: () => remFn({ data: { appointmentId, pageSize: 100 } }),
+  });
   const rows = (q.data ?? []) as any[];
+  const reminderRows = ((rq.data as any)?.rows ?? []) as any[];
   const statusLabel = (v: string | null) =>
     v ? (APPT_STATUS.find((s) => s.value === v)?.label ?? v) : "—";
 
@@ -621,6 +628,15 @@ function AuditModal({
             ))}
           </ol>
         )}
+
+        <div className="mt-6 border-t border-border pt-4">
+          <h4 className="mb-2 text-sm font-semibold">سجل تفضيلات التذكير</h4>
+          {rq.isLoading ? (
+            <div className="py-4 text-center text-sm text-muted-foreground">جارٍ التحميل…</div>
+          ) : (
+            <ReminderPreferenceHistoryList rows={reminderRows} showActor />
+          )}
+        </div>
       </div>
     </div>
   );
