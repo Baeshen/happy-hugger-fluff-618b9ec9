@@ -228,7 +228,17 @@ function LookupPage() {
       return;
     }
     if (data) {
-      toast.success("تمت إعادة الجدولة");
+      // Carry over the current reminder preferences explicitly so they survive
+      // any future changes to the reschedule RPC and reassure the patient.
+      const carry24 = appt.reminder_24h ?? true;
+      const carry2 = appt.reminder_2h ?? true;
+      await supabase.rpc("update_reminders_by_ref", {
+        _ref: ref.trim(),
+        _phone: phone.trim(),
+        _reminder_24h: carry24,
+        _reminder_2h: carry2,
+      });
+      toast.success("تمت إعادة الجدولة — تم نقل إعدادات التذكير");
       setShowReschedule(false);
       setNewDate("");
       setNewTime("");
