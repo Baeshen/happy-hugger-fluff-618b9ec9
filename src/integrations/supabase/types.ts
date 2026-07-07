@@ -552,15 +552,26 @@ export type Database = {
         }
         Returns: undefined
       }
-      update_reminders_by_ref: {
-        Args: {
-          _phone: string
-          _ref: string
-          _reminder_24h: boolean
-          _reminder_2h: boolean
-        }
-        Returns: boolean
-      }
+      update_reminders_by_ref:
+        | {
+            Args: {
+              _phone: string
+              _ref: string
+              _reminder_24h: boolean
+              _reminder_2h: boolean
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _phone: string
+              _reason?: string
+              _ref: string
+              _reminder_24h: boolean
+              _reminder_2h: boolean
+            }
+            Returns: boolean
+          }
     }
     Enums: {
       app_role: "admin" | "reception" | "pharmacy"
