@@ -236,7 +236,11 @@ function AuditLogPage() {
               </tr>
             )}
             {(log.data ?? []).map((r) => (
-              <tr key={r.id} className="border-t border-border align-top">
+              <tr
+                key={r.id}
+                onClick={() => setSelected(r)}
+                className="cursor-pointer border-t border-border align-top hover:bg-muted/40"
+              >
                 <td className="whitespace-nowrap px-3 py-2 text-xs">
                   {new Date(r.created_at).toLocaleString("ar-SA")}
                 </td>
@@ -272,6 +276,107 @@ function AuditLogPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {selected && <AuditDetailModal row={selected} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+function Field({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div>
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div
+        className={`mt-0.5 break-words text-sm ${mono ? "font-mono" : ""}`}
+        dir={mono ? "ltr" : undefined}
+      >
+        {value || <span className="text-muted-foreground">—</span>}
+      </div>
+    </div>
+  );
+}
+
+function AuditDetailModal({ row, onClose }: { row: any; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl border border-border bg-card p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold">تفاصيل العملية</h2>
+            <p className="mt-1 text-xs text-muted-foreground" dir="ltr">
+              ID: {row.id}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md border border-input p-1.5 hover:bg-muted"
+            aria-label="إغلاق"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="الوقت" value={new Date(row.created_at).toLocaleString("ar-SA")} />
+          <Field
+            label="العملية"
+            value={
+              <span className="inline-block rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                {row.action}
+              </span>
+            }
+          />
+          <Field label="المستخدم" value={row.actor_name} />
+          <Field label="جوال المستخدم" value={row.actor_phone} mono />
+          <Field label="معرّف المستخدم" value={row.actor} mono />
+          <Field label="معرّف الحجز" value={row.appointment_id} mono />
+          <Field label="من حالة" value={row.from_status} />
+          <Field label="إلى حالة" value={row.to_status} />
+          <Field label="عنوان IP" value={row.ip_address} mono />
+          <div className="sm:col-span-2">
+            <Field label="المتصفح (User Agent)" value={row.user_agent} mono />
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="السبب" value={row.reason} />
+          </div>
+          <div className="sm:col-span-2">
+            <div className="text-xs font-medium text-muted-foreground">التفاصيل (Metadata)</div>
+            {row.metadata ? (
+              <pre
+                dir="ltr"
+                className="mt-1 max-h-64 overflow-auto rounded-md bg-muted/50 p-3 text-xs leading-relaxed"
+              >
+                {JSON.stringify(row.metadata, null, 2)}
+              </pre>
+            ) : (
+              <div className="mt-0.5 text-sm text-muted-foreground">—</div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(JSON.stringify(row, null, 2));
+            }}
+            className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            نسخ JSON
+          </button>
+          <button
+            onClick={onClose}
+            className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
+          >
+            إغلاق
+          </button>
+        </div>
       </div>
     </div>
   );
