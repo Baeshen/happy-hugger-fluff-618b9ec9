@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { Stethoscope } from "lucide-react";
+import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
+
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 const PAGE_URL = `${SITE_URL}/specialties`;
