@@ -95,6 +95,10 @@ const COLORS = [
 
 
 
+type DrilldownState =
+  | { kind: "patients"; status: "active" | "inactive" | "archived" | "deceased" | null; title: string }
+  | { kind: "events"; title: string };
+
 function PatientsAnalyticsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/patients-analytics" });
