@@ -32,6 +32,9 @@ export type RatingRow = {
   comment: string | null;
   source: string;
   created_at: string;
+  staff_reply: string | null;
+  staff_reply_at: string | null;
+  staff_reply_by: string | null;
   branch_name?: string | null;
   doctor_name?: string | null;
 };
@@ -73,7 +76,7 @@ export const listRatings = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("patient_ratings" as never)
-      .select("id, branch_id, doctor_id, patient_name, patient_phone, rating, comment, source, created_at")
+      .select("id, branch_id, doctor_id, patient_name, patient_phone, rating, comment, source, created_at, staff_reply, staff_reply_at, staff_reply_by")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 100);
     if (data.branchId) q = q.eq("branch_id", data.branchId);
@@ -121,6 +124,20 @@ export const deleteRating = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const replyToRating = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string; reply: string | null }) =>
+    z.object({ id: z.string().uuid(), reply: z.string().max(1000).nullable() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const rpc = context.supabase.rpc as unknown as Rpc;
+    const { error } = await rpc("reply_to_rating", { _id: data.id, _reply: data.reply });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
 
 // For QR cards & staff pickers
 export const listBranchesForRatings = createServerFn({ method: "GET" })
