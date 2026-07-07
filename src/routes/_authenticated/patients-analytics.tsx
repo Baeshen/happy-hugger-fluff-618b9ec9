@@ -1745,21 +1745,21 @@ function PatientTransitionsTable({
                     {new Date(r.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
                   </td>
                   <td className="p-2 font-medium">
-                    {r.patient_name ?? "-"}
+                    <HighlightText text={r.patient_name} query={debouncedSearch} />
                     {r.bulk && (
                       <span className="ms-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
                         جماعي
                       </span>
                     )}
                   </td>
-                  <td className="p-2 font-mono text-xs" dir="ltr">{r.patient_mrn ?? "-"}</td>
-                  <td className="p-2 text-muted-foreground">{r.branch_name ?? "-"}</td>
+                  <td className="p-2 font-mono text-xs" dir="ltr"><HighlightText text={r.patient_mrn} query={debouncedSearch} /></td>
+                  <td className="p-2 text-muted-foreground"><HighlightText text={r.branch_name} query={debouncedSearch} /></td>
                   <td className="p-2">{r.from ? <StatusChip s={r.from} muted /> : <span className="text-muted-foreground">—</span>}</td>
                   <td className="p-2"><StatusChip s={r.to} /></td>
                   <td className="p-2 text-xs text-muted-foreground max-w-[220px] truncate" title={r.reason ?? ""}>
-                    {r.reason ?? "-"}
+                    <HighlightText text={r.reason} query={debouncedSearch} />
                   </td>
-                  <td className="p-2 text-xs text-muted-foreground">{r.actor_name ?? "-"}</td>
+                  <td className="p-2 text-xs text-muted-foreground"><HighlightText text={r.actor_name} query={debouncedSearch} /></td>
                   <td className="p-2">
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Link
