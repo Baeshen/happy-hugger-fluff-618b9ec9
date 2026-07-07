@@ -1,85 +1,97 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 
+const SITE_URL = "https://happy-hugger-fluff.lovable.app";
+const PAGE_URL = `${SITE_URL}/faq`;
+const PAGE_TITLE_AR = "الأسئلة الشائعة — مجمع باعشن الطبي";
+const PAGE_DESC_AR =
+  "إجابات موثوقة عن أكثر الأسئلة شيوعًا حول حجز المواعيد، الخدمات الطبية، الصيدلية، مناطق التوصيل وساعات العمل في مجمع باعشن الطبي بصبيا، جازان.";
+
+type Faq = {
+  id: string;
+  question_ar: string;
+  question_en: string | null;
+  answer_ar: string;
+  answer_en: string | null;
+  sort_order: number;
+};
+
+async function fetchFaqs(): Promise<Faq[]> {
+  const { data, error } = await supabase
+    .from("faqs")
+    .select("id, question_ar, question_en, answer_ar, answer_en, sort_order")
+    .eq("is_active", true)
+    .order("sort_order");
+  if (error) throw error;
+  return data ?? [];
+}
+
 export const Route = createFileRoute("/faq")({
-  head: () => ({
-    meta: [
-      { title: "الأسئلة الشائعة | مجمع باعشن الطبي" },
-      {
-        name: "description",
-        content: "إجابات عن أكثر الأسئلة شيوعًا حول حجز المواعيد، الخدمات، الصيدلية وطرق التواصل.",
-      },
-      { property: "og:title", content: "الأسئلة الشائعة — مجمع باعشن الطبي" },
-    ],
-  }),
+  loader: async ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ["faqs"],
+      queryFn: fetchFaqs,
+    }),
+  head: ({ loaderData }) => {
+    const faqs = (loaderData as Faq[] | undefined) ?? [];
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.question_ar,
+        acceptedAnswer: { "@type": "Answer", text: f.answer_ar },
+      })),
+    };
+    return {
+      meta: [
+        { title: PAGE_TITLE_AR },
+        { name: "description", content: PAGE_DESC_AR },
+        { property: "og:title", content: PAGE_TITLE_AR },
+        { property: "og:description", content: PAGE_DESC_AR },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: PAGE_URL },
+        { property: "og:locale", content: "ar_SA" },
+        { name: "twitter:card", content: "summary" },
+        { name: "twitter:title", content: PAGE_TITLE_AR },
+        { name: "twitter:description", content: PAGE_DESC_AR },
+      ],
+      links: [{ rel: "canonical", href: PAGE_URL }],
+      scripts:
+        faqs.length > 0
+          ? [{ type: "application/ld+json", children: JSON.stringify(jsonLd) }]
+          : [],
+    };
+  },
   component: FAQPage,
 });
 
-const FAQS = {
-  ar: [
-    {
-      q: "كيف أحجز موعدًا؟",
-      a: "من صفحة «احجز موعدًا»، اختر التخصص ثم الطبيب ثم التاريخ والوقت، وأكمل بياناتك. سيتواصل معك فريقنا للتأكيد.",
-    },
-    {
-      q: "هل الخدمة متاحة للجميع؟",
-      a: "نعم، يمكن لأي مريض حجز موعد أو طلب دواء دون الحاجة لإنشاء حساب.",
-    },
-    {
-      q: "هل يمكنني طلب دواء بدون وصفة؟",
-      a: "بعض الأدوية تحتاج وصفة نظامية. أرفق صورة الوصفة إن وُجدت، وسيتواصل معك الصيدلي للتأكيد.",
-    },
-    {
-      q: "ما هي مناطق التوصيل؟",
-      a: "نوصل الأدوية داخل مدينة صبيا. يرجى إدخال الحي والعنوان بدقة.",
-    },
-    {
-      q: "ما هي ساعات العمل؟",
-      a: "السبت – الأربعاء: 9 صباحًا – 9 مساءً | الخميس: 9 صباحًا – 1 ظهرًا. الطوارئ على مدار الساعة.",
-    },
-  ],
-  en: [
-    {
-      q: "How do I book an appointment?",
-      a: "Go to Book Appointment, choose the specialty, doctor, date and time, then submit your details. Our team will confirm.",
-    },
-    {
-      q: "Do I need an account?",
-      a: "No, any patient can book an appointment or request medicine without signing up.",
-    },
-    {
-      q: "Can I order medicine without a prescription?",
-      a: "Some medicines require a valid prescription. Upload a photo if available and the pharmacist will confirm.",
-    },
-    {
-      q: "What areas do you deliver to?",
-      a: "We deliver within Sabya city. Please provide the district and full address.",
-    },
-    {
-      q: "What are the working hours?",
-      a: "Sat – Wed: 9am – 9pm | Thu: 9am – 1pm. Emergency 24/7.",
-    },
-  ],
-};
-
 function FAQPage() {
   const { t, lang } = useI18n();
+  const { data: faqs } = useQuery({ queryKey: ["faqs"], queryFn: fetchFaqs });
+
   return (
     <div className="container-app py-12 max-w-3xl">
       <h1 className="text-4xl font-bold">{t("faq_title")}</h1>
       <div className="mt-8 space-y-3">
-        {FAQS[lang].map((f, i) => (
-          <details
-            key={i}
-            className="group rounded-xl border border-border bg-card p-5 open:shadow-sm"
-          >
-            <summary className="cursor-pointer font-semibold list-none flex items-center justify-between">
-              {f.q}
-              <span className="text-primary group-open:rotate-45 transition">+</span>
-            </summary>
-            <p className="mt-3 text-sm text-muted-foreground leading-7">{f.a}</p>
-          </details>
-        ))}
+        {(faqs ?? []).map((f) => {
+          const q = lang === "ar" ? f.question_ar : (f.question_en ?? f.question_ar);
+          const a = lang === "ar" ? f.answer_ar : (f.answer_en ?? f.answer_ar);
+          return (
+            <details
+              key={f.id}
+              className="group rounded-xl border border-border bg-card p-5 open:shadow-sm"
+            >
+              <summary className="cursor-pointer font-semibold list-none flex items-center justify-between">
+                {q}
+                <span className="text-primary group-open:rotate-45 transition">+</span>
+              </summary>
+              <p className="mt-3 text-sm text-muted-foreground leading-7">{a}</p>
+            </details>
+          );
+        })}
       </div>
     </div>
   );
