@@ -311,7 +311,7 @@ function BatchCardsTab() {
     return Promise.all(
       selectedList.map(async (p) => ({
         p,
-        dataUrl: await QRCode.toDataURL(`${origin}/patients/${p.id}`, {
+        dataUrl: await QRCode.toDataURL(`${origin}/patients/${p.id}?src=qr`, {
           width: 400,
           margin: 1,
           errorCorrectionLevel: "M",
