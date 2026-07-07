@@ -114,11 +114,63 @@ export function ReminderPreferenceHistoryList({
     });
   };
 
+  const selectCls =
+    "rounded-md border border-border bg-background px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40";
+
   return (
     <div className="space-y-4">
+      <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ابحث في السبب أو الاسم…"
+            className="w-full rounded-md border border-border bg-background py-1.5 pe-7 ps-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>النوع:</span>
+            <select
+              value={kindFilter}
+              onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)}
+              className={selectCls}
+            >
+              <option value="all">الكل</option>
+              <option value="reminder_24h">قبل 24 ساعة</option>
+              <option value="reminder_2h">قبل ساعتين</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>المصدر:</span>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
+              className={selectCls}
+            >
+              <option value="all">الكل</option>
+              <option value="self_service">تعديل ذاتي</option>
+              <option value="staff">موظف</option>
+              <option value="system">النظام</option>
+            </select>
+          </label>
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="ms-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+            >
+              <XIcon className="h-3 w-3" />
+              مسح
+            </button>
+          )}
+        </div>
+      </div>
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">
-          {rows.length} تعديل
+          {filteredRows.length} من {rows.length} تعديل
         </span>
         <button
           type="button"
@@ -139,6 +191,11 @@ export function ReminderPreferenceHistoryList({
           )}
         </button>
       </div>
+      {groups.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
+          لا توجد نتائج مطابقة للتصفية الحالية
+        </div>
+      )}
       {groups.map((g) => (
         <section key={g.key}>
           <h5 className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
