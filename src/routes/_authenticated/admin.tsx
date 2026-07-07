@@ -2011,3 +2011,124 @@ function RemindersStatsTab() {
     </div>
   );
 }
+
+/* ---------------- Export Reminder Preferences CSV ---------------- */
+
+function ExportRemindersCsvPanel() {
+  const exportFn = useServerFn(exportReminderPreferenceAuditCsv);
+  const [ref, setRef] = useState("");
+  const [phone, setPhone] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleExport() {
+    if (!ref.trim() && !phone.trim()) {
+      toast.error("الرجاء تحديد ref أو رقم الهاتف على الأقل.");
+      return;
+    }
+    if (fromDate && toDate && fromDate > toDate) {
+      toast.error("تاريخ البداية يجب أن يسبق تاريخ النهاية.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await exportFn({
+        data: {
+          ref: ref.trim() || undefined,
+          phone: phone.trim() || undefined,
+          from: fromDate ? new Date(fromDate + "T00:00:00").toISOString() : undefined,
+          to: toDate ? new Date(toDate + "T23:59:59.999").toISOString() : undefined,
+        },
+      });
+      const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if (res.count === 0) {
+        toast.info("تم التصدير لكن لا توجد سجلات مطابقة.");
+      } else {
+        toast.success(`تم تصدير ${res.count.toLocaleString("ar-EG")} سجل.`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "تعذّر التصدير.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Download className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold">تصدير CSV لتفضيلات التذكير</h3>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            ref (أوّل أحرف معرّف الموعد)
+          </label>
+          <input
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            placeholder="مثلاً a3f19c2b"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+            dir="ltr"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            رقم الهاتف
+          </label>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="05xxxxxxxx"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            dir="ltr"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            من تاريخ
+          </label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            إلى تاريخ
+          </label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          حدّد ref أو الهاتف (أو كليهما) وفترة زمنية اختيارية. الحد الأقصى 5000 سجل.
+        </p>
+        <button
+          onClick={handleExport}
+          disabled={busy}
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+        >
+          <Download className="h-4 w-4" />
+          {busy ? "جارٍ التصدير…" : "تصدير CSV"}
+        </button>
+      </div>
+    </div>
+  );
+}
