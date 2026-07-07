@@ -49,7 +49,7 @@ export const Route = createFileRoute("/sitemap.xml")({
                 { headers },
               ),
               fetch(
-                `${url}/rest/v1/doctors?select=id,created_at&is_active=eq.true&order=sort_order`,
+                `${url}/rest/v1/doctors?select=slug,created_at&is_active=eq.true&slug=not.is.null&order=sort_order`,
                 { headers },
               ),
             ]);
@@ -58,15 +58,15 @@ export const Route = createFileRoute("/sitemap.xml")({
 
             for (const s of (specialtiesRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
-                path: `/book?specialty=${encodeURIComponent(s.slug)}`,
+                path: `/specialties/${encodeURIComponent(s.slug)}`,
                 lastmod: s.created_at?.slice(0, 10),
                 changefreq: "monthly",
                 priority: "0.8",
               });
             }
-            for (const d of (doctorsRes as Array<{ id: string; created_at: string }>) ?? []) {
+            for (const d of (doctorsRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
-                path: `/book?doctor=${encodeURIComponent(d.id)}`,
+                path: `/doctors/${encodeURIComponent(d.slug)}`,
                 lastmod: d.created_at?.slice(0, 10),
                 changefreq: "monthly",
                 priority: "0.7",
