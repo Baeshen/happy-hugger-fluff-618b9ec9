@@ -328,6 +328,11 @@ function PatientsAnalyticsPage() {
           {/* Transitions section */}
           <TransitionsSection data={transitions} loading={transitionsQ.isLoading} error={transitionsQ.error as Error | null} />
 
+          {/* AI Summary */}
+          <AiSummarySection branchId={branchId} doctorId={doctorId} />
+
+
+
 
 
           <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
