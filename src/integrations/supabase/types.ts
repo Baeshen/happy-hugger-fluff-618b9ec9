@@ -71,6 +71,8 @@ export type Database = {
           patient_name: string
           patient_phone: string
           reason: string | null
+          reminder_24h: boolean
+          reminder_2h: boolean
           specialty_id: string | null
           status: Database["public"]["Enums"]["appointment_status"]
           updated_at: string
@@ -88,6 +90,8 @@ export type Database = {
           patient_name: string
           patient_phone: string
           reason?: string | null
+          reminder_24h?: boolean
+          reminder_2h?: boolean
           specialty_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
@@ -105,6 +109,8 @@ export type Database = {
           patient_name?: string
           patient_phone?: string
           reason?: string | null
+          reminder_24h?: boolean
+          reminder_2h?: boolean
           specialty_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
@@ -427,6 +433,8 @@ export type Database = {
           patient_name: string
           patient_phone: string
           reason: string
+          reminder_24h: boolean
+          reminder_2h: boolean
           specialty_id: string
           specialty_name_ar: string
           specialty_name_en: string
@@ -473,6 +481,15 @@ export type Database = {
           _status: Database["public"]["Enums"]["appointment_status"]
         }
         Returns: undefined
+      }
+      update_reminders_by_ref: {
+        Args: {
+          _phone: string
+          _ref: string
+          _reminder_24h: boolean
+          _reminder_2h: boolean
+        }
+        Returns: boolean
       }
     }
     Enums: {
