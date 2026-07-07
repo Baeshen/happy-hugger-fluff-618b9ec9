@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
-import { Search, Calendar, Clock, User, Phone, Stethoscope, X } from "lucide-react";
+import { Search, Calendar, Clock, User, Phone, Stethoscope, X, CheckCircle2, AlertCircle, XCircle, Clock3, CalendarClock } from "lucide-react";
 import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 
@@ -58,6 +58,50 @@ function statusColor(s: string) {
   }
 }
 
+function statusIcon(s: string) {
+  switch (s) {
+    case "confirmed":
+      return <CheckCircle2 className="h-6 w-6" />;
+    case "completed":
+      return <CheckCircle2 className="h-6 w-6" />;
+    case "cancelled":
+      return <XCircle className="h-6 w-6" />;
+    case "no_show":
+      return <AlertCircle className="h-6 w-6" />;
+    default:
+      return <Clock3 className="h-6 w-6" />;
+  }
+}
+
+function statusMessage(s: string) {
+  switch (s) {
+    case "new":
+      return "تم استلام حجزك وسيتم التواصل معك قريباً للتأكيد.";
+    case "confirmed":
+      return "تم تأكيد موعدك. نرجو الحضور قبل الموعد بـ 15 دقيقة.";
+    case "completed":
+      return "تمّت زيارتك بنجاح. نتمنى لك دوام الصحة.";
+    case "cancelled":
+      return "تم إلغاء هذا الحجز. يمكنك حجز موعد جديد في أي وقت.";
+    case "no_show":
+      return "لم يتم تسجيل حضورك. يرجى إعادة الحجز عند الحاجة.";
+    default:
+      return "";
+  }
+}
+
+function countdown(dateStr: string, timeStr: string): string | null {
+  const target = new Date(`${dateStr}T${timeStr}`);
+  const diff = target.getTime() - Date.now();
+  if (diff <= 0) return null;
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  if (days > 0) return `متبقّي ${days} يوم${days > 1 ? "" : ""} و ${hours} ساعة`;
+  if (hours > 0) return `متبقّي ${hours} ساعة و ${mins} دقيقة`;
+  return `متبقّي ${mins} دقيقة`;
+}
+
 function LookupPage() {
   const { t, lang } = useI18n();
   const [ref, setRef] = useState("");
@@ -66,6 +110,8 @@ function LookupPage() {
   const [appt, setAppt] = useState<AppointmentRow | null>(null);
   const [searched, setSearched] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -86,17 +132,21 @@ function LookupPage() {
     }
     const row = Array.isArray(data) ? data[0] : data;
     setAppt(row ?? null);
+    setShowCancel(false);
+    setCancelReason("");
   };
 
   const cancelBooking = async () => {
     if (!appt) return;
-    if (!confirm(t("cancel_confirm"))) return;
-    const reason = window.prompt(t("cancel_reason_ph") ?? "") ?? undefined;
+    if (!cancelReason.trim()) {
+      toast.error("السبب مطلوب");
+      return;
+    }
     setCancelling(true);
     const { data, error } = await supabase.rpc("cancel_appointment_by_ref", {
       _ref: ref.trim(),
       _phone: phone.trim(),
-      _reason: reason,
+      _reason: cancelReason.trim(),
     });
     setCancelling(false);
     if (error) {
@@ -105,6 +155,8 @@ function LookupPage() {
     }
     if (data) {
       toast.success(t("cancelled_ok"));
+      setShowCancel(false);
+      setCancelReason("");
       submit();
     } else {
       toast.error(t("lookup_not_found"));
@@ -121,6 +173,7 @@ function LookupPage() {
       ? appt.specialty_name_ar
       : appt.specialty_name_en
     : null;
+
 
   const share: ShareBooking | null = appt
     ? {
@@ -193,67 +246,116 @@ function LookupPage() {
         )}
 
         {appt && share && (
-          <div className="mt-6 rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <div className="text-xs text-muted-foreground">{t("booking_ref")}</div>
-                <div className="font-mono font-bold text-primary text-lg">{share.ref}</div>
+          <div className="mt-6 space-y-4">
+            {/* Prominent status banner */}
+            <div className={`rounded-2xl border p-5 ${statusColor(appt.status)}`}>
+              <div className="flex items-start gap-4">
+                <div className="shrink-0">{statusIcon(appt.status)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-lg font-bold">{t(statusKey(appt.status))}</div>
+                    <div className="text-xs opacity-80">
+                      <span className="opacity-70">{t("booking_ref")}: </span>
+                      <span className="font-mono font-bold">{share.ref}</span>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-sm opacity-90">{statusMessage(appt.status)}</p>
+                  {(appt.status === "new" || appt.status === "confirmed") &&
+                    countdown(appt.appointment_date, appt.appointment_time) && (
+                      <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-background/70 px-3 py-1 text-xs font-semibold">
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        {countdown(appt.appointment_date, appt.appointment_time)}
+                      </div>
+                    )}
+                </div>
               </div>
-              <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusColor(appt.status)}`}
-              >
-                {t(statusKey(appt.status))}
-              </span>
             </div>
 
-            <div className="mt-6 grid gap-3 text-sm">
-              <Row icon={<User className="h-4 w-4" />} label={t("name")} value={appt.patient_name} />
-              <Row icon={<Phone className="h-4 w-4" />} label={t("phone")} value={appt.patient_phone} />
-              {specialtyName && (
+            {/* Details card */}
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <div className="grid gap-3 text-sm">
+                <Row icon={<User className="h-4 w-4" />} label={t("name")} value={appt.patient_name} />
+                <Row icon={<Phone className="h-4 w-4" />} label={t("phone")} value={appt.patient_phone} />
+                {specialtyName && (
+                  <Row
+                    icon={<Stethoscope className="h-4 w-4" />}
+                    label={t("nav_specialties")}
+                    value={specialtyName}
+                  />
+                )}
+                {doctorName && (
+                  <Row icon={<User className="h-4 w-4" />} label={t("nav_doctors")} value={doctorName} />
+                )}
                 <Row
-                  icon={<Stethoscope className="h-4 w-4" />}
-                  label={t("nav_specialties")}
-                  value={specialtyName}
+                  icon={<Calendar className="h-4 w-4" />}
+                  label={t("date")}
+                  value={`${appt.appointment_date} (${WEEKDAYS_AR[new Date(appt.appointment_date).getDay()]})`}
                 />
-              )}
-              {doctorName && (
-                <Row icon={<User className="h-4 w-4" />} label={t("nav_doctors")} value={doctorName} />
-              )}
-              <Row
-                icon={<Calendar className="h-4 w-4" />}
-                label={t("date")}
-                value={`${appt.appointment_date} (${WEEKDAYS_AR[new Date(appt.appointment_date).getDay()]})`}
-              />
-              <Row
-                icon={<Clock className="h-4 w-4" />}
-                label={t("time")}
-                value={appt.appointment_time.slice(0, 5)}
-              />
-            </div>
+                <Row
+                  icon={<Clock className="h-4 w-4" />}
+                  label={t("time")}
+                  value={appt.appointment_time.slice(0, 5)}
+                />
+              </div>
 
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                onClick={() => downloadIcs(share)}
-                className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-              >
-                <Calendar className="h-4 w-4" /> {t("add_to_calendar")}
-              </button>
-              <a
-                href={whatsappShareUrl(share)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-              >
-                {t("share_whatsapp")}
-              </a>
-              {(appt.status === "new" || appt.status === "confirmed") && (
+              <div className="mt-6 flex flex-wrap gap-2">
                 <button
-                  onClick={cancelBooking}
-                  disabled={cancelling}
-                  className="ms-auto inline-flex items-center gap-2 rounded-md border border-destructive/40 px-4 py-2 text-sm text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                  onClick={() => downloadIcs(share)}
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
                 >
-                  <X className="h-4 w-4" /> {t("cancel_booking")}
+                  <Calendar className="h-4 w-4" /> {t("add_to_calendar")}
                 </button>
+                <a
+                  href={whatsappShareUrl(share)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+                >
+                  {t("share_whatsapp")}
+                </a>
+                {(appt.status === "new" || appt.status === "confirmed") && !showCancel && (
+                  <button
+                    onClick={() => setShowCancel(true)}
+                    className="ms-auto inline-flex items-center gap-2 rounded-md border border-destructive/40 px-4 py-2 text-sm text-destructive hover:bg-destructive/5"
+                  >
+                    <X className="h-4 w-4" /> {t("cancel_booking")}
+                  </button>
+                )}
+              </div>
+
+              {showCancel && (
+                <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                  <div className="text-sm font-semibold text-destructive">
+                    {t("cancel_confirm")}
+                  </div>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder={t("cancel_reason_ph") ?? "سبب الإلغاء"}
+                    rows={3}
+                    maxLength={500}
+                    className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <div className="mt-3 flex flex-wrap gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setShowCancel(false);
+                        setCancelReason("");
+                      }}
+                      className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+                    >
+                      تراجع
+                    </button>
+                    <button
+                      onClick={cancelBooking}
+                      disabled={cancelling || !cancelReason.trim()}
+                      className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                    >
+                      <X className="h-4 w-4" />
+                      {cancelling ? t("loading") : t("cancel_booking")}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
