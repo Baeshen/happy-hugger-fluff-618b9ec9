@@ -44,47 +44,98 @@ export function ReminderPreferenceHistoryList({
       </div>
     );
   }
+
+  // Group rows by local calendar date (YYYY-MM-DD), preserving order.
+  const groups: { key: string; date: Date; rows: ReminderAuditRow[] }[] = [];
+  const indexByKey = new Map<string, number>();
+  for (const r of rows) {
+    const d = new Date(r.changed_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    let idx = indexByKey.get(key);
+    if (idx === undefined) {
+      idx = groups.length;
+      indexByKey.set(key, idx);
+      groups.push({ key, date: d, rows: [] });
+    }
+    groups[idx].rows.push(r);
+  }
+
+  const today = new Date();
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  const headingFor = (d: Date) => {
+    if (isSameDay(d, today)) return "اليوم";
+    if (isSameDay(d, yesterday)) return "أمس";
+    return d.toLocaleDateString("ar-SA", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
   return (
-    <ol className="space-y-2">
-      {rows.map((r) => (
-        <li
-          key={r.id}
-          className="rounded-lg border border-border bg-card p-3 text-sm"
-        >
-          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              {showActor && r.changed_by_name
-                ? r.changed_by_name
-                : (SOURCE_LABEL[r.source ?? ""] ?? "—")}
+    <div className="space-y-4">
+      {groups.map((g) => (
+        <section key={g.key}>
+          <h5 className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <span className="rounded-md bg-muted/60 px-2 py-0.5 text-foreground">
+              {headingFor(g.date)}
             </span>
-            <span dir="ltr">
-              {new Date(r.changed_at).toLocaleString("ar-SA")}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs">
-              <span className="font-medium">
-                {KIND_LABEL[r.reminder_kind] ?? r.reminder_kind}
-              </span>
-              <span className="text-muted-foreground">:</span>
-              <span>{valueLabel(r.old_value)}</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="font-medium">{valueLabel(r.new_value)}</span>
-            </span>
-            {showActor && r.source && (
-              <span className="text-xs text-muted-foreground">
-                ({SOURCE_LABEL[r.source] ?? r.source})
-              </span>
-            )}
-          </div>
-          {r.reason && (
-            <div className="mt-1 text-xs text-muted-foreground">
-              السبب: <span className="text-foreground">{r.reason}</span>
-            </div>
-          )}
-        </li>
+            <span className="h-px flex-1 bg-border" aria-hidden />
+            <span className="text-[10px]">{g.rows.length} تعديل</span>
+          </h5>
+          <ol className="space-y-2">
+            {g.rows.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-lg border border-border bg-card p-3 text-sm"
+              >
+                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {showActor && r.changed_by_name
+                      ? r.changed_by_name
+                      : (SOURCE_LABEL[r.source ?? ""] ?? "—")}
+                  </span>
+                  <span dir="ltr">
+                    {new Date(r.changed_at).toLocaleTimeString("ar-SA", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs">
+                    <span className="font-medium">
+                      {KIND_LABEL[r.reminder_kind] ?? r.reminder_kind}
+                    </span>
+                    <span className="text-muted-foreground">:</span>
+                    <span>{valueLabel(r.old_value)}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-medium">{valueLabel(r.new_value)}</span>
+                  </span>
+                  {showActor && r.source && (
+                    <span className="text-xs text-muted-foreground">
+                      ({SOURCE_LABEL[r.source] ?? r.source})
+                    </span>
+                  )}
+                </div>
+                {r.reason && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    السبب: <span className="text-foreground">{r.reason}</span>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
       ))}
-    </ol>
+    </div>
   );
 }
 
