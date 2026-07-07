@@ -10,10 +10,13 @@ import {
   evaluateRules,
   STATUS_LABEL,
   SCOPE_LABEL,
+  SEVERITY_LABEL,
+  SEVERITY_STYLES,
   type AlertRule,
   type AlertScope,
   type AlertStatus,
 } from "@/lib/transition-alerts";
+
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function daysAgoISO(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
