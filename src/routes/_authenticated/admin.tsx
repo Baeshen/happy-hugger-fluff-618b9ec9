@@ -242,6 +242,7 @@ function AdminDashboard() {
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
       {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
       {tab === "security-audit" && isAdmin && <SecurityAuditTab />}
+      {tab === "content" && isAdmin && <ContentTab />}
     </div>
   );
 }
