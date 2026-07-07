@@ -5,23 +5,75 @@ import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { z } from "zod";
+import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
 
 const search = z.object({ specialty: z.string().optional() });
 
+const SITE_URL = "https://happy-hugger-fluff.lovable.app";
+const PAGE_URL = `${SITE_URL}/doctors`;
+const PAGE_TITLE = "أطباؤنا | مجمع باعشن الطبي";
+const PAGE_DESC =
+  "استشاريون وأخصائيون في مختلف التخصصات الطبية بمجمع باعشن الطبي – صبيا، جازان.";
+
+type DoctorSlim = { slug: string | null; name_ar: string };
+
+async function fetchDoctorSlugs(): Promise<DoctorSlim[]> {
+  const { data } = await supabase
+    .from("doctors")
+    .select("slug, name_ar")
+    .eq("is_active", true)
+    .not("slug", "is", null)
+    .order("sort_order");
+  return (data ?? []) as DoctorSlim[];
+}
+
 export const Route = createFileRoute("/doctors/")({
   validateSearch: search,
-  head: () => ({
-    meta: [
-      { title: "أطباؤنا | مجمع باعشن الطبي" },
-      {
-        name: "description",
-        content: "استشاريون وأخصائيون في مختلف التخصصات الطبية بمجمع باعشن الطبي – صبيا، جازان.",
-      },
-      { property: "og:title", content: "أطباؤنا — مجمع باعشن الطبي" },
-    ],
-  }),
+  loader: async ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: ["doctors-slugs"],
+      queryFn: fetchDoctorSlugs,
+    }),
+  head: ({ loaderData }) => {
+    const list = (loaderData as DoctorSlim[] | undefined) ?? [];
+    const itemList = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: list
+        .filter((d) => d.slug)
+        .map((d, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          name: d.name_ar,
+          url: `${SITE_URL}/doctors/${encodeURIComponent(d.slug!)}`,
+        })),
+    };
+    return {
+      meta: [
+        { title: PAGE_TITLE },
+        { name: "description", content: PAGE_DESC },
+        { property: "og:title", content: PAGE_TITLE },
+        { property: "og:description", content: PAGE_DESC },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: PAGE_URL },
+        { property: "og:locale", content: "ar_SA" },
+      ],
+      links: [{ rel: "canonical", href: PAGE_URL }],
+      scripts: [
+        { type: "application/ld+json", children: JSON.stringify(buildLocalBusinessSchema({ pageUrl: PAGE_URL })) },
+        { type: "application/ld+json", children: JSON.stringify(buildBreadcrumbs([
+          { name: "الرئيسية", path: "/" },
+          { name: "الأطباء", path: "/doctors" },
+        ])) },
+        ...(itemList.itemListElement.length > 0
+          ? [{ type: "application/ld+json", children: JSON.stringify(itemList) }]
+          : []),
+      ],
+    };
+  },
   component: DoctorsPage,
 });
+
 
 function DoctorsPage() {
   const { specialty } = Route.useSearch();
