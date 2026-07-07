@@ -422,7 +422,18 @@ function LookupPage() {
                 >
                   {t("share_whatsapp")}
                 </a>
-                {(appt.status === "new" || appt.status === "confirmed") && !showCancel && (
+                {(appt.status === "new" || appt.status === "confirmed") &&
+                  appt.doctor_id &&
+                  !showReschedule &&
+                  !showCancel && (
+                    <button
+                      onClick={() => setShowReschedule(true)}
+                      className="inline-flex items-center gap-2 rounded-md border border-primary/40 px-4 py-2 text-sm text-primary hover:bg-primary/5"
+                    >
+                      <CalendarPlus className="h-4 w-4" /> إعادة جدولة
+                    </button>
+                  )}
+                {(appt.status === "new" || appt.status === "confirmed") && !showCancel && !showReschedule && (
                   <button
                     onClick={() => setShowCancel(true)}
                     className="ms-auto inline-flex items-center gap-2 rounded-md border border-destructive/40 px-4 py-2 text-sm text-destructive hover:bg-destructive/5"
@@ -431,6 +442,101 @@ function LookupPage() {
                   </button>
                 )}
               </div>
+
+              {showReschedule && (
+                <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-sm font-semibold text-primary">اختيار موعد جديد</div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
+                      </p>
+                    </div>
+                  </div>
+
+                  {!availability ? (
+                    <div className="mt-4 text-center text-sm text-muted-foreground py-6">
+                      {t("loading")}
+                    </div>
+                  ) : availableDates.length === 0 ? (
+                    <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-800">
+                      لا تتوفر مواعيد متاحة لهذا الطبيب حالياً. يمكنك التواصل مع الاستقبال.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4">
+                        <div className="mb-2 text-xs font-medium text-muted-foreground">التاريخ</div>
+                        <div className="flex flex-wrap gap-2">
+                          {availableDates.map((d) => (
+                            <button
+                              key={d.date}
+                              onClick={() => {
+                                setNewDate(d.date);
+                                setNewTime("");
+                              }}
+                              className={`rounded-md border px-3 py-2 text-xs transition ${
+                                newDate === d.date
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background hover:border-primary/50"
+                              }`}
+                            >
+                              <div className="font-semibold">{WEEKDAYS_AR[d.weekday]}</div>
+                              <div className="opacity-80">{d.label}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {newDate && (
+                        <div className="mt-4">
+                          <div className="mb-2 text-xs font-medium text-muted-foreground">الوقت</div>
+                          {availableTimes.length === 0 ? (
+                            <div className="text-xs text-muted-foreground">لا توجد أوقات متاحة</div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {availableTimes.map((tm) => (
+                                <button
+                                  key={tm}
+                                  onClick={() => setNewTime(tm)}
+                                  className={`rounded-md border px-3 py-1.5 text-xs font-mono transition ${
+                                    newTime === tm
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-border bg-background hover:border-primary/50"
+                                  }`}
+                                >
+                                  {tm}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setShowReschedule(false);
+                        setNewDate("");
+                        setNewTime("");
+                      }}
+                      className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+                    >
+                      تراجع
+                    </button>
+                    <button
+                      onClick={rescheduleBooking}
+                      disabled={rescheduling || !newDate || !newTime}
+                      className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      {rescheduling ? t("loading") : "تأكيد إعادة الجدولة"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
 
               {showCancel && (
                 <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
