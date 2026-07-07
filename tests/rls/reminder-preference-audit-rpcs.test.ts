@@ -339,6 +339,103 @@ async function main() {
       }
     });
 
+    // ── Phone-format normalization on profiles.phone side ───────────
+    // Function normalizes both sides with regexp_replace(phone,'\D','','g'),
+    // so any formatting that leaves the same digit sequence must still match,
+    // and a different digit sequence must NOT match.
+    async function seedForDigits(digits: string) {
+      // Appointment phone stored plain (digits only) so we vary only profile.phone.
+      return seedAppt(digits);
+    }
+    async function makeUserWithProfilePhone(email: string, profilePhone: string) {
+      const u = await createUserWithPhone(email, profilePhone);
+      createdUsers.push(u.userId);
+      // createUserWithPhone already upserts profiles.phone verbatim.
+      const c = await signIn(u.email, u.password);
+      return { u, c };
+    }
+
+    const fmtDigits = "0512345" + String(stamp).slice(-3); // canonical digit form
+
+    await test("my_audit: profile phone with SPACES matches plain-digit appt", async () => {
+      const apptId = await seedForDigits(fmtDigits);
+      const spaced = fmtDigits.replace(/(\d{3})(\d{3})/, "$1 $2 ");
+      const { c } = await makeUserWithProfilePhone(
+        `rpa-fmt-space-${stamp}@test.local`, spaced,
+      );
+      const { data, error } = await c.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: apptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length >= 1, `spaced profile phone failed to match, got ${rows.length}`);
+    });
+
+    await test("my_audit: profile phone with DASHES matches plain-digit appt", async () => {
+      const apptId = await seedForDigits(fmtDigits);
+      const dashed = fmtDigits.slice(0, 4) + "-" + fmtDigits.slice(4);
+      const { c } = await makeUserWithProfilePhone(
+        `rpa-fmt-dash-${stamp}@test.local`, dashed,
+      );
+      const { data, error } = await c.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: apptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length >= 1, `dashed profile phone failed to match, got ${rows.length}`);
+    });
+
+    await test("my_audit: profile phone with PARENS/PLUS around identical digits matches", async () => {
+      const apptId = await seedForDigits(fmtDigits);
+      // Wrap the first 3 digits in parens and add a leading '+' — non-digits are stripped.
+      const wrapped = "+(" + fmtDigits.slice(0, 3) + ") " + fmtDigits.slice(3);
+      const { c } = await makeUserWithProfilePhone(
+        `rpa-fmt-paren-${stamp}@test.local`, wrapped,
+      );
+      const { data, error } = await c.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: apptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length >= 1, `parens/plus profile phone failed to match, got ${rows.length}`);
+    });
+
+    await test("my_audit: profile phone with DIFFERENT digits (country code vs leading 0) does NOT match", async () => {
+      // Appt "0500...", profile "+966500..." → digit sequences differ (leading 0 vs 966).
+      // The function must NOT match — this documents that normalization is digit-preserving,
+      // not country-code aware.
+      const apptDigits = "0500999" + String(stamp).slice(-3);
+      const apptId = await seedForDigits(apptDigits);
+      const intl = "+966" + apptDigits.slice(1); // drops leading 0, prepends 966
+      const { c } = await makeUserWithProfilePhone(
+        `rpa-fmt-intl-${stamp}@test.local`, intl,
+      );
+      const { data, error } = await c.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: apptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length === 0, `country-code variant should NOT match, leaked ${rows.length} rows`);
+    });
+
+    await test("my_audit: profile phone with EXTRA leading zeros does NOT match", async () => {
+      // "00" prefix (international dial-out) changes the digit sequence.
+      const apptDigits = "0522000" + String(stamp).slice(-3);
+      const apptId = await seedForDigits(apptDigits);
+      const withLeading = "00" + apptDigits; // e.g. "000522..." != "0522..."
+      const { c } = await makeUserWithProfilePhone(
+        `rpa-fmt-lead0-${stamp}@test.local`, withLeading,
+      );
+      const { data, error } = await c.rpc("my_reminder_preference_audit" as never, {
+        _appointment_id: apptId,
+      } as never);
+      assert(!error, `err: ${error?.message}`);
+      const rows = (data ?? []) as unknown[];
+      assert(rows.length === 0, `extra leading zeros should NOT match, leaked ${rows.length} rows`);
+    });
+
+
+
 
 
   } finally {
