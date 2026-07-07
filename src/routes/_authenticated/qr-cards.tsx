@@ -108,7 +108,7 @@ function PatientCardTab() {
             (searchQ.data?.rows ?? []).map((p) => (
               <button
                 key={p.id}
-                onClick={() => setSelected({ id: p.id, mrn: p.mrn, full_name_ar: p.full_name_ar, branch_name: p.branch_name_ar })}
+                onClick={() => setSelected({ id: p.id, mrn: p.mrn, full_name_ar: p.full_name_ar, branch_name_ar: p.branch_name_ar })}
                 className={`w-full text-right px-3 py-2 hover:bg-muted transition ${selected?.id === p.id ? "bg-primary/10" : ""}`}
               >
                 <p className="text-sm font-medium">{p.full_name_ar}</p>
