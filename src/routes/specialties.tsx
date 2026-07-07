@@ -4,17 +4,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { Stethoscope } from "lucide-react";
 
+const SITE_URL = "https://happy-hugger-fluff.lovable.app";
+const PAGE_URL = `${SITE_URL}/specialties`;
+const PAGE_TITLE_AR = "التخصصات الطبية — مجمع باعشن الطبي بصبيا، جازان";
+const PAGE_DESC_AR =
+  "تخصصات طبية شاملة في مجمع باعشن الطبي بصبيا، جازان: الباطنة، الأطفال، النساء والولادة، الأسنان، العيون، الجراحة والمزيد. احجز موعدك أونلاين مع نخبة من الاستشاريين والأخصائيين.";
+
 export const Route = createFileRoute("/specialties")({
   head: () => ({
     meta: [
-      { title: "التخصصات الطبية | مجمع باعشن الطبي" },
-      {
-        name: "description",
-        content:
-          "تخصصات طبية شاملة: الباطنة، الأطفال، النساء والولادة، الأسنان، العيون، الجراحة والمزيد في صبيا، جازان.",
-      },
-      { property: "og:title", content: "التخصصات الطبية — مجمع باعشن الطبي" },
+      { title: PAGE_TITLE_AR },
+      { name: "description", content: PAGE_DESC_AR },
+      { property: "og:title", content: PAGE_TITLE_AR },
+      { property: "og:description", content: PAGE_DESC_AR },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: PAGE_URL },
+      { property: "og:locale", content: "ar_SA" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: PAGE_TITLE_AR },
+      { name: "twitter:description", content: PAGE_DESC_AR },
     ],
+    links: [{ rel: "canonical", href: PAGE_URL }],
   }),
   component: SpecialtiesPage,
 });
