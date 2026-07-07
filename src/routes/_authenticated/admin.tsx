@@ -217,6 +217,14 @@ function AdminDashboard() {
               التقويم
             </Link>
           )}
+          {roles.includes("admin") && (
+            <Link
+              to="/doctors-management"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              إدارة الأطباء
+            </Link>
+          )}
           {(roles.includes("admin") || roles.includes("reception") || roles.includes("doctor" as any)) && (
             <Link
               to="/patients"
