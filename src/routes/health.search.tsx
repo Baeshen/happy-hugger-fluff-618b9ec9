@@ -133,7 +133,7 @@ function HealthSearch() {
     const id = setTimeout(() => {
       if (qLocal !== q) {
         navigate({
-          search: (prev) => ({ ...prev, q: qLocal || undefined }),
+          search: (prev: { q?: string; cat?: string; season?: string }) => ({ ...prev, q: qLocal || undefined }),
           replace: true,
         });
       }
@@ -163,9 +163,9 @@ function HealthSearch() {
   };
 
   const setCat = (slug: string) =>
-    navigate({ search: (prev) => ({ ...prev, cat: slug || undefined }), replace: true });
+    navigate({ search: (prev: { q?: string; cat?: string; season?: string }) => ({ ...prev, cat: slug || undefined }), replace: true });
   const setSeason = (s: string) =>
-    navigate({ search: (prev) => ({ ...prev, season: s || undefined }), replace: true });
+    navigate({ search: (prev: { q?: string; cat?: string; season?: string }) => ({ ...prev, season: s || undefined }), replace: true });
 
   return (
     <div>
