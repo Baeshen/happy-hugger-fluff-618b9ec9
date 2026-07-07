@@ -29,6 +29,7 @@ import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
+import { Route as AuthenticatedDoctorsManagementRouteImport } from './routes/_authenticated/doctors-management'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
@@ -136,6 +137,12 @@ const AuthenticatedMyRoute = AuthenticatedMyRouteImport.update({
   path: '/my',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDoctorsManagementRoute =
+  AuthenticatedDoctorsManagementRouteImport.update({
+    id: '/doctors-management',
+    path: '/doctors-management',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -190,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
@@ -218,6 +226,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
@@ -248,6 +257,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/clinic-settings'
     | '/dashboard'
+    | '/doctors-management'
     | '/my'
     | '/settings'
     | '/doctors/$slug'
@@ -306,6 +317,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/clinic-settings'
     | '/dashboard'
+    | '/doctors-management'
     | '/my'
     | '/settings'
     | '/doctors/$slug'
@@ -335,6 +347,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/clinic-settings'
     | '/_authenticated/dashboard'
+    | '/_authenticated/doctors-management'
     | '/_authenticated/my'
     | '/_authenticated/settings'
     | '/doctors/$slug'
@@ -513,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/doctors-management': {
+      id: '/_authenticated/doctors-management'
+      path: '/doctors-management'
+      fullPath: '/doctors-management'
+      preLoaderRoute: typeof AuthenticatedDoctorsManagementRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -570,6 +590,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedClinicSettingsRoute: typeof AuthenticatedClinicSettingsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDoctorsManagementRoute: typeof AuthenticatedDoctorsManagementRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedPatientsPatientIdRoute: typeof AuthenticatedPatientsPatientIdRoute
@@ -581,6 +602,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedClinicSettingsRoute: AuthenticatedClinicSettingsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDoctorsManagementRoute: AuthenticatedDoctorsManagementRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedPatientsPatientIdRoute: AuthenticatedPatientsPatientIdRoute,
