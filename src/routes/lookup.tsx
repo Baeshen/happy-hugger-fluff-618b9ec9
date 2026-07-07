@@ -576,19 +576,31 @@ function LookupPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
                       </p>
-                      <div className="mt-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                          <div>
-                            <span className="font-semibold">تنبيه:</span> تفضيلات التذكير الحالية{" "}
-                            <span className="font-semibold">
-                              ({appt.reminder_24h ? "24 ساعة" : "—"} و{" "}
-                              {appt.reminder_2h ? "ساعتين" : "—"})
-                            </span>{" "}
-                            ستنتقل تلقائياً إلى الموعد الجديد قبل تأكيد الحجز.
+                      {appt.reminder_24h === null && appt.reminder_2h === null ? (
+                        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <div>
+                              <span className="font-semibold">تنبيه:</span> لا توجد تفضيلات تذكير محفوظة لهذا الحجز. سيتم تفعيل التذكيرات الافتراضية{" "}
+                              <span className="font-semibold">(24 ساعة وساعتين)</span> على الموعد الجديد بعد تأكيد إعادة الجدولة.
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="mt-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-xs text-primary/90">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <div>
+                              <span className="font-semibold">تنبيه:</span> تفضيلات التذكير الحالية{" "}
+                              <span className="font-semibold">
+                                ({appt.reminder_24h ? "24 ساعة" : "—"} و{" "}
+                                {appt.reminder_2h ? "ساعتين" : "—"})
+                              </span>{" "}
+                              ستنتقل تلقائياً إلى الموعد الجديد قبل تأكيد الحجز.
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
