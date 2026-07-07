@@ -589,3 +589,201 @@ function Legend({
     </div>
   );
 }
+
+const STATUS_KEYS_UI = ["active", "inactive", "archived", "deceased"] as const;
+type StatusKey = (typeof STATUS_KEYS_UI)[number];
+
+function TransitionsSection({
+  data,
+  loading,
+  error,
+}: {
+  data:
+    | {
+        period: { from: string; to: string; days: number };
+        previous: { from: string; to: string };
+        denominator: number;
+        current: {
+          totalChanges: number;
+          perTarget: Record<StatusKey, number>;
+          perTransition: { from: string; to: string; count: number }[];
+          ratePerTarget: Record<StatusKey, number>;
+        };
+        prior: {
+          totalChanges: number;
+          perTarget: Record<StatusKey, number>;
+          ratePerTarget: Record<StatusKey, number>;
+        };
+        delta: {
+          totalChanges: number;
+          perTarget: Record<StatusKey, number>;
+          ratePerTarget: Record<StatusKey, number>;
+        };
+      }
+    | undefined;
+  loading: boolean;
+  error: Error | null;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-6 rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+        جارٍ حساب مؤشرات الانتقال…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="mt-6 rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-center text-destructive">
+        {error.message}
+      </div>
+    );
+  }
+  if (!data) return null;
+
+  return (
+    <div className="mt-6 rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Activity className="h-4 w-4 text-primary" />
+          مؤشرات انتقال الحالات
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          الفترة الحالية: {data.period.from} → {data.period.to} ({data.period.days} يومًا) • مقارنة
+          بالسابقة: {data.previous.from} → {data.previous.to} • قاعدة الحساب: {data.denominator.toLocaleString("ar-SA")} مريض
+        </p>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+        <TransitionKpi
+          label="إجمالي التغييرات"
+          current={data.current.totalChanges}
+          prior={data.prior.totalChanges}
+        />
+        <TransitionKpi
+          label="معدل التغيير الكلي"
+          current={data.denominator ? +((data.current.totalChanges / data.denominator) * 100).toFixed(2) : 0}
+          prior={data.denominator ? +((data.prior.totalChanges / data.denominator) * 100).toFixed(2) : 0}
+          suffix="%"
+        />
+        <TransitionKpi
+          label="متوسط يومي"
+          current={+(data.current.totalChanges / data.period.days).toFixed(1)}
+          prior={+(data.prior.totalChanges / data.period.days).toFixed(1)}
+        />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-xs text-muted-foreground">
+              <th className="p-2 text-start">الحالة المستهدفة</th>
+              <th className="p-2 text-start">الحالية</th>
+              <th className="p-2 text-start">السابقة</th>
+              <th className="p-2 text-start">التغير</th>
+              <th className="p-2 text-start">معدل حالي %</th>
+              <th className="p-2 text-start">معدل سابق %</th>
+              <th className="p-2 text-start">Δ معدل</th>
+            </tr>
+          </thead>
+          <tbody>
+            {STATUS_KEYS_UI.map((k) => (
+              <tr key={k} className="border-b border-border/50">
+                <td className="p-2 font-medium">{STATUS_LABEL[k] ?? k}</td>
+                <td className="p-2 tabular-nums">{data.current.perTarget[k].toLocaleString("ar-SA")}</td>
+                <td className="p-2 tabular-nums text-muted-foreground">
+                  {data.prior.perTarget[k].toLocaleString("ar-SA")}
+                </td>
+                <td className="p-2">
+                  <DeltaBadge value={data.delta.perTarget[k]} />
+                </td>
+                <td className="p-2 tabular-nums">{data.current.ratePerTarget[k]}%</td>
+                <td className="p-2 tabular-nums text-muted-foreground">
+                  {data.prior.ratePerTarget[k]}%
+                </td>
+                <td className="p-2">
+                  <DeltaBadge value={data.delta.ratePerTarget[k]} suffix="%" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {data.current.perTransition.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">تفصيل الانتقالات (من → إلى)</p>
+          <div className="flex flex-wrap gap-2">
+            {data.current.perTransition.map((t) => (
+              <span
+                key={`${t.from}-${t.to}`}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs"
+              >
+                <span className="text-muted-foreground">
+                  {STATUS_LABEL[t.from] ?? t.from}
+                </span>
+                <span className="text-muted-foreground">→</span>
+                <span className="font-medium">{STATUS_LABEL[t.to] ?? t.to}</span>
+                <span className="ms-1 rounded-full bg-primary/10 px-1.5 text-primary tabular-nums">
+                  {t.count}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TransitionKpi({
+  label,
+  current,
+  prior,
+  suffix,
+}: {
+  label: string;
+  current: number;
+  prior: number;
+  suffix?: string;
+}) {
+  const delta = +(current - prior).toFixed(2);
+  return (
+    <div className="rounded-lg border border-border bg-background/60 p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className="text-2xl font-bold tabular-nums">
+          {current.toLocaleString("ar-SA")}
+          {suffix ?? ""}
+        </span>
+        <DeltaBadge value={delta} suffix={suffix} />
+      </div>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        السابقة: {prior.toLocaleString("ar-SA")}
+        {suffix ?? ""}
+      </p>
+    </div>
+  );
+}
+
+function DeltaBadge({ value, suffix }: { value: number; suffix?: string }) {
+  const zero = value === 0;
+  const up = value > 0;
+  const Icon = zero ? Minus : up ? ArrowUpRight : ArrowDownRight;
+  const cls = zero
+    ? "bg-muted text-muted-foreground"
+    : up
+      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+      : "bg-red-500/10 text-red-600 dark:text-red-400";
+  const sign = up ? "+" : "";
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${cls}`}
+    >
+      <Icon className="h-3 w-3" />
+      {sign}
+      {value.toLocaleString("ar-SA")}
+      {suffix ?? ""}
+    </span>
+  );
+}
+
