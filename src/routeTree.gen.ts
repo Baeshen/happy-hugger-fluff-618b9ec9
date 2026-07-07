@@ -33,6 +33,7 @@ import { Route as AuthenticatedTransitionAlertsRouteImport } from './routes/_aut
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
+import { Route as AuthenticatedRatingsRouteImport } from './routes/_authenticated/ratings'
 import { Route as AuthenticatedPatientsManagementRouteImport } from './routes/_authenticated/patients-management'
 import { Route as AuthenticatedPatientsAnalyticsRouteImport } from './routes/_authenticated/patients-analytics'
 import { Route as AuthenticatedNotificationsQueueRouteImport } from './routes/_authenticated/notifications-queue'
@@ -168,6 +169,11 @@ const AuthenticatedRbacRoute = AuthenticatedRbacRouteImport.update({
   path: '/rbac',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRatingsRoute = AuthenticatedRatingsRouteImport.update({
+  id: '/ratings',
+  path: '/ratings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPatientsManagementRoute =
   AuthenticatedPatientsManagementRouteImport.update({
     id: '/patients-management',
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
+  '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
+  '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -341,6 +349,7 @@ export interface FileRoutesById {
   '/_authenticated/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/_authenticated/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/_authenticated/patients-management': typeof AuthenticatedPatientsManagementRoute
+  '/_authenticated/ratings': typeof AuthenticatedRatingsRoute
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
     | '/notifications-queue'
     | '/patients-analytics'
     | '/patients-management'
+    | '/ratings'
     | '/rbac'
     | '/reports'
     | '/settings'
@@ -419,6 +429,7 @@ export interface FileRouteTypes {
     | '/notifications-queue'
     | '/patients-analytics'
     | '/patients-management'
+    | '/ratings'
     | '/rbac'
     | '/reports'
     | '/settings'
@@ -458,6 +469,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications-queue'
     | '/_authenticated/patients-analytics'
     | '/_authenticated/patients-management'
+    | '/_authenticated/ratings'
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
@@ -668,6 +680,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRbacRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ratings': {
+      id: '/_authenticated/ratings'
+      path: '/ratings'
+      fullPath: '/ratings'
+      preLoaderRoute: typeof AuthenticatedRatingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/patients-management': {
       id: '/_authenticated/patients-management'
       path: '/patients-management'
@@ -773,6 +792,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationsQueueRoute: typeof AuthenticatedNotificationsQueueRoute
   AuthenticatedPatientsAnalyticsRoute: typeof AuthenticatedPatientsAnalyticsRoute
   AuthenticatedPatientsManagementRoute: typeof AuthenticatedPatientsManagementRoute
+  AuthenticatedRatingsRoute: typeof AuthenticatedRatingsRoute
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -793,6 +813,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationsQueueRoute: AuthenticatedNotificationsQueueRoute,
   AuthenticatedPatientsAnalyticsRoute: AuthenticatedPatientsAnalyticsRoute,
   AuthenticatedPatientsManagementRoute: AuthenticatedPatientsManagementRoute,
+  AuthenticatedRatingsRoute: AuthenticatedRatingsRoute,
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
