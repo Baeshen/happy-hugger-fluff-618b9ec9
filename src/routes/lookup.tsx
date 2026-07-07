@@ -228,7 +228,17 @@ function LookupPage() {
       return;
     }
     if (data) {
-      toast.success("تمت إعادة الجدولة");
+      // Carry over the current reminder preferences explicitly so they survive
+      // any future changes to the reschedule RPC and reassure the patient.
+      const carry24 = appt.reminder_24h ?? true;
+      const carry2 = appt.reminder_2h ?? true;
+      await supabase.rpc("update_reminders_by_ref", {
+        _ref: ref.trim(),
+        _phone: phone.trim(),
+        _reminder_24h: carry24,
+        _reminder_2h: carry2,
+      });
+      toast.success("تمت إعادة الجدولة — تم نقل إعدادات التذكير");
       setShowReschedule(false);
       setNewDate("");
       setNewTime("");
@@ -555,6 +565,11 @@ function LookupPage() {
                       <div className="text-sm font-semibold text-primary">اختيار موعد جديد</div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         اختر تاريخاً ووقتاً متاحاً ثم أكّد لإعادة الجدولة. سيتم إعادة التأكيد من الاستقبال.
+                      </p>
+                      <p className="mt-1 text-[11px] text-primary/80">
+                        سيتم نقل إعدادات التذكير الحالية تلقائياً (
+                        {appt.reminder_24h ? "قبل 24 ساعة ✓" : "قبل 24 ساعة ✗"} ·{" "}
+                        {appt.reminder_2h ? "قبل ساعتين ✓" : "قبل ساعتين ✗"}).
                       </p>
                     </div>
                   </div>
