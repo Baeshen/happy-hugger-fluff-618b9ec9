@@ -32,6 +32,84 @@ SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... \
   bun tests/rls/pharmacy-friendly-errors.test.ts
 ```
 
+## تشغيل مجموعة الاختبارات الكاملة محليًا
+
+لتشغيل كل ما يُنفّذه CI قبل الـ push، نفّذ الأوامر التالية بالترتيب. بعضها يحتاج إلى الأسرار الثلاثة المذكورة أعلاه.
+
+### 1. فحوصات الشكل والكود
+
+```bash
+bun run format:check
+bun run lint:inserts
+bun run typecheck
+```
+
+### 2. فحوصات الوثائق والأمثلة
+
+```bash
+bash tests/lint/book-docs-examples.sh
+bun tests/unit/book-docs-keys.test.ts
+bash tests/lint/book-guardrails.sh
+```
+
+### 3. الاختبارات الوحدوية (unit tests)
+
+```bash
+set -e
+for f in tests/unit/*.test.ts; do
+  echo "── $f ──"
+  bun "$f"
+done
+```
+
+### 4. اختبارات RLS (تتطلّب Supabase حيًا)
+
+**أولاً: تأكّد من الأسرار**
+
+```bash
+set -a; source .env.local; set +a
+```
+
+(أو اكتبها يدويًا: `export SUPABASE_URL=...` و `SUPABASE_PUBLISHABLE_KEY=...` و `SUPABASE_SERVICE_ROLE_KEY=...`)
+
+**ثانيًا: شغّل مجموعة RLS كاملة**
+
+```bash
+set -e
+for f in tests/rls/*.test.ts; do
+  echo "── $f ──"
+  bun "$f"
+done
+```
+
+أو استخدم السكربت الجاهز:
+
+```bash
+bun run check:rls
+```
+
+### 5. أمر واحد للمجموعة الكاملة (بعد ضبط الأسرار)
+
+```bash
+set -e
+bun run format:check
+bun run lint:inserts
+bun run typecheck
+bash tests/lint/book-docs-examples.sh
+bun tests/unit/book-docs-keys.test.ts
+bash tests/lint/book-guardrails.sh
+for f in tests/unit/*.test.ts; do
+  echo "── $f ──"
+  bun "$f"
+done
+for f in tests/rls/*.test.ts; do
+  echo "── $f ──"
+  bun "$f"
+done
+```
+
+> **ملاحظة:** قسم `lint-and-typecheck` في CI يشغّل أيضًا `bun run lint:book` عند الحاجة، لكن `lint:inserts` أشمل (book + pharmacy).
+
 ## إعداد أسرار Supabase لاختبارات RLS
 
 تتطلّب اختبارات RLS مشروع Supabase حقيقيًا. يجب توفّر الأسرار التالية بأسمائها المحدّدة في GitHub Actions (Repository secrets) أو في بيئة التشغيل المحلّية:
