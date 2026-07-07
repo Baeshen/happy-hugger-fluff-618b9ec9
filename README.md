@@ -477,6 +477,151 @@ docker run --rm --env-file .env.local -v "$PWD":/app -w /app app-tests
 - إذا فشل `bun install --frozen-lockfile` لأن lockfile قديم، Dockerfile يقع تلقائيًا على `bun install`.
 - على Apple Silicon: الصورة `oven/bun:1-debian` متعددة المعمارية ولا تحتاج `--platform`.
 
+## تشخيص فشل اختبارات RLS محليًا خطوة بخطوة
+
+هذا القسم يجمع أكثر أسباب فشل `bun run check:rls` (أو أي ملف تحت `tests/rls/`) شيوعًا محليًا، مع طريقة تشخيص كل حالة وحلّها.
+
+### مخطّط تشخيصي سريع
+
+قبل الغوص في التفاصيل، اتبع هذا الترتيب — أول خطوة تعطي إشارة توقف عند المشكلة:
+
+1. **هل الأسرار الثلاثة موجودة؟** → `env | grep -E '^(SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY)='` — يجب أن يظهر ٣ أسطر.
+2. **هل الاتصال بالمشروع الصحيح؟** → `echo "$SUPABASE_URL"` يجب أن يطابق مشروع Supabase المستخدم في الاختبار.
+3. **هل السكيما محدَّثة؟** → آخر migration مطبَّق على نفس المشروع الذي تشير إليه `SUPABASE_URL`.
+4. **هل الفشل في ملف واحد أم كل الملفات؟** → واحد فقط ⇒ مشكلة اختبار/سكيما محدّدة؛ كل الملفات ⇒ مشكلة بيئة/شبكة/أسرار.
+5. **شغّل ملفًا واحدًا بمخرجات مفصّلة**: `bun tests/rls/<الملف>.test.ts` واقرأ أول سطر خطأ (وليس آخر سطر).
+
+### 1. أسرار غير مضبوطة أو غير محمّلة
+
+**العَرَض:**
+```
+❌ Missing: SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY
+```
+أو `TypeError: Cannot read properties of undefined` عند إنشاء عميل Supabase.
+
+**التشخيص:**
+```bash
+bash -c 'for k in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY; do
+  [ -z "${!k}" ] && echo "❌ $k فارغ" || echo "✅ $k مضبوط (${#!k} حرفًا)"
+done'
+```
+
+**الحل:**
+```bash
+set -a; source .env.local; set +a
+bun run check:rls
+```
+إذا كنت في shell جديد، الأسرار المُصدَّرة سابقًا لا تنتقل — أعد التحميل.
+
+### 2. مفاتيح خاطئة أو من مشروع مختلف (`401` / `Invalid API key`)
+
+**العَرَض:** `401 Unauthorized`, `Invalid API key`, أو `JWT malformed`.
+
+**التشخيص:**
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+  "$SUPABASE_URL/rest/v1/"
+```
+- `200` ⇒ المفتاح والعنوان صحيحان.
+- `401` ⇒ المفتاح لا يطابق `SUPABASE_URL`.
+- `000` أو timeout ⇒ عنوان خاطئ أو مشكلة شبكة.
+
+**سبب شائع:** خلط مفتاح `PUBLISHABLE` مع `SERVICE_ROLE`، أو نسخ مفتاح من مشروع Supabase آخر.
+
+**الحل:** انسخ المفاتيح من نفس المشروع الذي يشير إليه `SUPABASE_URL` وأعد الخطوة 1.
+
+### 3. `Expected 3 parts in JWT; got 1`
+
+**السبب:** استخدام مفتاح بصيغة `sb_secret_*` أو `sb_publishable_*` (الصيغة الجديدة) مع قارئ يتوقّع JWT قديم.
+
+**الحل:** استخدم مفتاح `service_role` أو `anon` بصيغة JWT الكلاسيكية (`eyJ...` ثلاثة أجزاء مفصولة بنقاط). على Lovable Cloud، لا يتوفّر `service_role` — استخدم مشروع Supabase منفصل للاختبارات.
+
+### 4. `permission denied for table` أو `relation ... does not exist`
+
+**العَرَض:** الاختبار يفشل حتى مع `SUPABASE_SERVICE_ROLE_KEY` صحيح.
+
+**التشخيص:**
+```bash
+# تحقّق من وجود الجدول والسياسات
+curl -sS \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  "$SUPABASE_URL/rest/v1/appointments?select=id&limit=1"
+```
+- `permission denied` ⇒ ينقص `GRANT` على الجدول.
+- `relation ... does not exist` ⇒ ينقص migration لم يُطبَّق.
+- `[]` ⇒ الجدول موجود وسليم؛ الفشل في منطق الاختبار نفسه.
+
+**الحل:**
+- تأكّد أن آخر migration مطبَّق على نفس المشروع.
+- تأكّد من وجود `GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table> TO authenticated;` و `GRANT ALL ... TO service_role;` في migration الجدول.
+
+### 5. `new row violates row-level security policy`
+
+**السبب:** الاختبار يُدرج صفًا كمستخدم عادي (عبر `PUBLISHABLE_KEY`) بينما السياسة تتطلّب `auth.uid() = user_id` والصف يفتقر إلى `user_id` صحيح.
+
+**التشخيص:** ابحث في ملف الاختبار عن استدعاء `insert(...)` وتأكّد أن `user_id` (أو الحقل المكافئ) يُضبط على `auth.uid()` لجلسة الاختبار.
+
+**الحل:** مرّر `user_id` صراحة في payload الاختبار، أو تحقّق أن جلسة الاختبار مُسجَّلة الدخول قبل الإدراج.
+
+### 6. `infinite recursion detected in policy`
+
+**السبب:** سياسة RLS تستعلم من نفس الجدول المطبَّقة عليه (كلاسيكية عندما `profiles.role = 'admin'` تُفحَص داخل سياسة على `profiles`).
+
+**الحل:** انقل الفحص إلى دالة `SECURITY DEFINER` مثل `public.has_role(auth.uid(), 'admin')` — راجع `has_role` الموجودة في المشروع.
+
+### 7. ملف واحد فقط يفشل بعد تحديث السكيما
+
+**السبب:** الاختبار مبني على شكل جدول أو enum قديم لم يواكب آخر migration.
+
+**التشخيص:**
+```bash
+# قارن الأعمدة الفعلية بما يتوقّعه الاختبار
+grep -nE "\.select\(|\.insert\(|\.update\(" tests/rls/<الملف>.test.ts
+```
+ثم تحقّق من الأعمدة الفعلية عبر Supabase (Table Editor أو `information_schema`).
+
+**الحل:** حدّث الاختبار ليطابق السكيما، أو أعِد تطبيق آخر migration إن كان مفقودًا.
+
+### 8. `fetch failed` / timeout
+
+**العَرَض:** `TypeError: fetch failed`, `ECONNREFUSED`, `ETIMEDOUT`.
+
+**التشخيص:**
+```bash
+curl -sSI "$SUPABASE_URL/rest/v1/" | head -1
+```
+- سطر `HTTP/2 200` ⇒ الشبكة سليمة؛ راجع الأسباب الأخرى.
+- لا مخرجات ⇒ مشكلة شبكة/جدار حماية/VPN أو `SUPABASE_URL` مكتوب خطأ (مثلاً بدون `https://`).
+
+**الحل:** تحقّق من `SUPABASE_URL` (يجب أن يبدأ بـ `https://` وينتهي بـ `.supabase.co` بلا شرطة مائلة في النهاية).
+
+### 9. اختبار ينجح مرة ويفشل أخرى (flaky)
+
+**الأسباب الشائعة:**
+- بيانات متبقّية من تشغيل سابق (اختبار لا يُنظّف).
+- تشغيل موازٍ لاختبارات تتشارك نفس السجلات.
+
+**الحل:**
+- شغّل الملفات بالتسلسل (`for f in tests/rls/*.test.ts; do bun "$f"; done`) بدل أي أداة موازية.
+- تحقّق أن كل اختبار يُنشئ ثم يحذف بياناته (transaction/`afterAll`).
+
+### 10. اختلاف السلوك بين محلي و Docker/CI
+
+إذا نجح الاختبار في shell محلي وفشل داخل `docker compose run --rm tests`:
+- تأكّد أن `.env.local` يحتوي القيم الصحيحة (Compose يقرأه عبر `env_file`).
+- تحقّق من إصدار Bun داخل الحاوية: `docker compose -f docker-compose.test.yml run --rm tests bun --version` — يجب أن يطابق إصدار CI.
+- امسح الطبقات القديمة: `docker compose -f docker-compose.test.yml build --no-cache`.
+
+### قائمة تحقّق نهائية قبل فتح PR
+
+- [ ] `env | grep SUPABASE_` يُظهر الأسرار الثلاثة.
+- [ ] `curl -H "apikey: $SUPABASE_PUBLISHABLE_KEY" $SUPABASE_URL/rest/v1/` يُعيد `200`.
+- [ ] `bun run check:rls` ينجح محليًا.
+- [ ] آخر migration مطبَّق على المشروع الذي تشير إليه `SUPABASE_URL`.
+- [ ] لا رسائل `RLS policy` أو `permission denied` في المخرجات.
+
 ## حمايات مهمة
 
 - لا يُعرض للمستخدم أي نص خطأ إنجليزي قادم من PostgREST/PL/pgSQL — الرسائل العربية الثابتة فقط.
