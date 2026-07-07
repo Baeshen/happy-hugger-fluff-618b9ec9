@@ -421,3 +421,172 @@ function exportRatingsCsv(rows: Awaited<ReturnType<typeof listRatings>>) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/* -------------------------------- KPI Card -------------------------------- */
+
+function KpiCard({
+  label,
+  value,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  tone: "amber" | "blue" | "red" | "green";
+}) {
+  const toneMap = {
+    amber: "from-amber-500/15 to-amber-500/5 text-amber-600 border-amber-500/30",
+    blue: "from-blue-500/15 to-blue-500/5 text-blue-600 border-blue-500/30",
+    red: "from-red-500/15 to-red-500/5 text-red-600 border-red-500/30",
+    green: "from-emerald-500/15 to-emerald-500/5 text-emerald-600 border-emerald-500/30",
+  } as const;
+  return (
+    <div className={`rounded-xl border bg-gradient-to-br ${toneMap[tone]} p-4`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="opacity-80">{icon}</span>
+      </div>
+      <p className="mt-2 text-2xl font-bold text-foreground tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+/* ------------------------------ Rating Card ------------------------------ */
+
+function RatingCard({
+  r,
+  onDelete,
+  onReply,
+  isReplying,
+}: {
+  r: import("@/lib/ratings.functions").RatingRow;
+  onDelete: () => void;
+  onReply: (reply: string | null) => void;
+  isReplying: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(r.staff_reply ?? "");
+
+  const save = () => {
+    const clean = draft.trim();
+    onReply(clean.length ? clean : null);
+    setEditing(false);
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Star key={n} className={`h-4 w-4 ${n <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
+            ))}
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${r.source === "public" ? "bg-blue-500/10 text-blue-700 border-blue-500/30" : "bg-purple-500/10 text-purple-700 border-purple-500/30"}`}>
+              {r.source === "public" ? "عام" : "داخلي"}
+            </span>
+            {r.staff_reply && !editing && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border bg-emerald-500/10 text-emerald-700 border-emerald-500/30">
+                <CheckCircle2 className="h-3 w-3" /> تم الرد
+              </span>
+            )}
+          </div>
+          {(r.doctor_name || r.branch_name) && (
+            <p className="text-xs text-muted-foreground">
+              {r.doctor_name && <>الطبيب: <span className="font-medium text-foreground">{r.doctor_name}</span></>}
+              {r.doctor_name && r.branch_name && " · "}
+              {r.branch_name && <>الفرع: <span className="font-medium text-foreground">{r.branch_name}</span></>}
+            </p>
+          )}
+          {r.comment && (
+            <p className="mt-2 text-sm leading-relaxed flex items-start gap-2">
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+              {r.comment}
+            </p>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {r.patient_name || "مجهول"}
+            {r.patient_phone && <> · <span dir="ltr">{r.patient_phone}</span></>}
+            {" · "}
+            <span dir="ltr">{new Date(r.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {!editing && (
+            <button
+              onClick={() => { setDraft(r.staff_reply ?? ""); setEditing(true); }}
+              title={r.staff_reply ? "تعديل الرد" : "الرد"}
+              className="rounded-md border border-border p-2 hover:bg-primary/10 text-primary"
+            >
+              <Reply className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={onDelete}
+            title="حذف"
+            className="rounded-md border border-border p-2 hover:bg-destructive/10 text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Existing reply */}
+      {r.staff_reply && !editing && (
+        <div className="mt-3 rounded-lg border-r-4 border-r-emerald-500 bg-emerald-500/5 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+              <Reply className="h-3 w-3" /> رد إدارة العيادة
+            </span>
+            {r.staff_reply_at && (
+              <span className="text-[10px] text-muted-foreground" dir="ltr">
+                {new Date(r.staff_reply_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
+              </span>
+            )}
+          </div>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{r.staff_reply}</p>
+        </div>
+      )}
+
+      {/* Reply editor */}
+      {editing && (
+        <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.slice(0, 1000))}
+            rows={3}
+            placeholder="اكتب ردًا لطيفًا ومهنيًا على هذا التقييم…"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+          />
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[11px] text-muted-foreground">{draft.length}/1000</span>
+            <div className="flex items-center gap-1.5">
+              {r.staff_reply && (
+                <button
+                  onClick={() => { onReply(null); setEditing(false); }}
+                  disabled={isReplying}
+                  className="inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 text-destructive px-3 py-1.5 text-xs hover:bg-destructive/10 disabled:opacity-40"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> حذف الرد
+                </button>
+              )}
+              <button
+                onClick={() => setEditing(false)}
+                className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-1.5 text-xs hover:bg-muted"
+              >
+                <X className="h-3.5 w-3.5" /> إلغاء
+              </button>
+              <button
+                onClick={save}
+                disabled={isReplying || draft.trim().length === 0}
+                className="inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-40"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> حفظ الرد
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
