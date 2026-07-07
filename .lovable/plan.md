@@ -1,28 +1,32 @@
-## الهدف
-توسيع `tests/rls/reminder-preference-audit-rpcs.test.ts` بسيناريوهات تُثبت أن `my_reminder_preference_audit` تعزل المستخدمين تمامًا عند وجود عدة حجوزات لكل هاتف، ولا يحدث أي تداخل حتى عند تبديل هاتف الـ profile.
+## الوضع الحالي
 
-> ملاحظة: هذه الاختبارات نُفّذت فعليًا في الجولة السابقة ونجحت (20/20). هذه الخطة تُعيد تقديمها للاعتماد الرسمي في plan mode قبل أي تعديل لاحق.
+الصفحة الرئيسية `/` تحتوي بالفعل على JSON-LD كامل من نوع `MedicalClinic` + `LocalBusiness` (إحداثيات جغرافية، ساعات عمل السبت–الخميس والجمعة، عنوان بريدي، طرق دفع، تخصصات، contactPoint عربي/إنجليزي).
+كما توجد `GeoCoordinates` جزئية في `/about` وصفحات الأطباء.
 
-## التغييرات
-ملف واحد فقط: `tests/rls/reminder-preference-audit-rpcs.test.ts` — إضافة 5 اختبارات جديدة بعد اختبارات "authenticated user with NO profile phone".
+الصفحات `/contact` و `/complex` — وهي الأهم لنتائج جوجل المحلية ("مجمع باعشن صبيا"، "عيادات صبيا"، "أرقام العيادات") — لا تحتوي على أي JSON-LD حتى الآن.
 
-### Seeding إضافي
-- `ownerAppt2` لصاحب `ownerPhone` (يصبح لديه حجزان).
-- `otherAppt2` لصاحب `otherPhone` (يصبح لديه حجزان).
-- كل حجز يُنتج صف audit عبر تحديث `reminder_24h` (نفس نمط `seedAppt` الحالي).
+## المطلوب
 
-### الاختبارات الخمسة
-1. **owner sees each own appt** — حلقة على `[ownerAppt, ownerAppt2]`: كل استدعاء يُرجع ≥1 صف. يمنع الانحدار حيث تعمل الدالة لحجز واحد فقط للمالك.
-2. **owner cannot read either of other's appts** — حلقة على `[otherAppt, otherAppt2]`: كل استدعاء يُرجع 0 صف.
-3. **other cannot read either of owner's appts** — الاتجاه المعاكس، حلقة مماثلة.
-4. **returned rows belong ONLY to requested appointment** — استدعاء `ownerAppt`، ثم مقارنة الـ ids المُعادة مع صفوف `admin.select` لنفس الحجز؛ التأكد أن أي صف من `ownerAppt2` (نفس المالك، حجز مختلف) لا يظهر. حارس ضد كون الفلترة بالهاتف فقط دون `_appointment_id`.
-5. **profile phone swap re-scopes access dynamically** — تعديل `profiles.phone` لصاحب `ownerU` إلى `otherPhone`، ثم:
-   - `otherAppt` يُصبح مقروءًا (يكسب صفوف الطرف الآخر) — يُثبت أن التطابق ديناميكي.
-   - `ownerAppt` يُصبح 0 صف (يفقد الوصول القديم).
-   - استعادة القيمة الأصلية في `finally` لتنظيف الحالة.
+تعزيز Local SEO عبر:
 
-## التفاصيل التقنية
-- كل الاختبارات تستخدم `ownerC`/`otherC` (جلسات موقّعة) المُنشأة أصلًا في نفس الملف.
-- التنظيف: لا حاجة لإضافات — الحجوزات الجديدة تُدفع إلى `createdAppts` عبر `seedAppt`، ويتكفل `finally` الحالي بحذفها وحذف المستخدمين.
-- التشغيل ضمن CI: يُلتقط تلقائيًا في وظيفة `rls-tests-pr` (glob على `tests/rls/*.test.ts`).
-- زمن التشغيل: +حوالي 2 ثانية (استدعاءات RPC خفيفة على بيانات مُنشأة بالفعل).
+1. **`src/lib/localBusinessSchema.ts`** (جديد): استخراج كائن `MedicalClinic/LocalBusiness` المشترك من `index.tsx` إلى دالة قابلة لإعادة الاستخدام تأخذ `{ pageUrl, pageType }` وتعيد الـ JSON-LD مع الحقول الأساسية (geo, address, openingHoursSpecification, contactPoint, medicalSpecialty, sameAs, hasMap, areaServed).
+
+2. **`src/routes/contact.tsx`**: إضافة JSON-LD كامل عبر الدالة الجديدة، مع BreadcrumbList، وإثراء الـ meta الحالي بـ `og:url` و`canonical` يشيران للصفحة نفسها. هذه الصفحة الأهم لاستعلامات "أرقام / موقع / وسائل التواصل".
+
+3. **`src/routes/complex.tsx`**: إضافة JSON-LD مماثل + `amenityFeature` (صيدلية داخلية، اعتماد CBAHI، مواقف، خدمات طوارئ) + BreadcrumbList.
+
+4. **`src/routes/index.tsx`**: تبديل الكائن المضمّن باستخدام الدالة المشتركة (بدون تغيير الحقول) لضمان اتساق البيانات عبر الصفحات.
+
+5. **`src/routes/__root.tsx`**: التحقق من عدم إضافة JSON-LD متضاربة سيتم فحصها فقط.
+
+## ملاحظات تقنية
+
+- الحفاظ على `@id` موحّد `${SITE_URL}/#clinic` في جميع الصفحات (Schema.org يفضّل معرّف كيان واحد لنفس المنشأة).
+- لكل صفحة `@type` مختلف عند اللزوم: الرئيسية والاتصال `MedicalClinic + LocalBusiness`، `/complex` تضيف `Place` لتوصيف المرافق.
+- الاعتماد على `SITE` من `src/lib/site.ts` (موجود مسبقاً) — لا حاجة لأي متغيرات جديدة.
+- لا تغييرات على قاعدة البيانات أو الترجمات.
+
+## ملفات ستُعدّل
+
+- إنشاء: `src/lib/localBusinessSchema.ts`
+- تعديل: `src/routes/index.tsx`, `src/routes/contact.tsx`, `src/routes/complex.tsx`
