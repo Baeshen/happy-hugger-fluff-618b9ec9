@@ -289,6 +289,11 @@ async def main():
     phone = f"05{stamp % 100000000:08d}"
     patient = f"LookupErr-{stamp}"
 
+    # Pick any existing doctor so the reschedule button renders
+    # (the UI hides it when `appt.doctor_id` is null).
+    doctors = sb("/rest/v1/doctors?select=id&limit=1", method="GET") or []
+    doctor_id = doctors[0]["id"] if doctors else None
+
     # Seed a real appointment for cases C and D.
     row = sb("/rest/v1/appointments", body={
         "patient_name": patient,
@@ -297,6 +302,7 @@ async def main():
             "%Y-%m-%d", time.gmtime(time.time() + 3 * 86400)),
         "appointment_time": "10:00",
         "status": "new",
+        "doctor_id": doctor_id,
         "reminder_24h": True,
         "reminder_2h": True,
     })
