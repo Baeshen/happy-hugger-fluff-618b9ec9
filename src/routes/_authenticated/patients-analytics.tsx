@@ -1583,6 +1583,10 @@ function PatientTransitionsTable({
   const [sortKey, setSortKey] = useState<TxSortKey>("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive" | "archived" | "deceased">("");
+  const [statusFromFilter, setStatusFromFilter] = useState<"" | "active" | "inactive" | "archived" | "deceased" | "__none__">("");
+  const [txFrom, setTxFrom] = useState<string>("");
+  const [txTo, setTxTo] = useState<string>("");
+  const [bulkOnly, setBulkOnly] = useState<boolean>(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedRow, setSelectedRow] = useState<PatientTransitionRow | null>(null);
