@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function Header() {
   const { t, lang, setLang } = useI18n();
@@ -82,6 +83,7 @@ export function Header() {
           </Link>
           {signedIn ? (
             <>
+              <NotificationBell />
               <Link
                 to="/my"
                 className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"

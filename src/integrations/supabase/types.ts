@@ -272,6 +272,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          appointment_id: string | null
+          audience: string
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          audience: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          audience?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
