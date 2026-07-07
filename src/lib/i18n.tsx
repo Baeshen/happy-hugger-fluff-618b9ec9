@@ -115,6 +115,7 @@ const STRINGS = {
   en: {
     nav_home: "Home",
     nav_specialties: "Specialties",
+    nav_complex: "Complex",
     nav_doctors: "Doctors",
     nav_book: "Book Appointment",
     nav_pharmacy: "Order Medicine",
