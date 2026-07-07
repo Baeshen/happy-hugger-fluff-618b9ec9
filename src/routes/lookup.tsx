@@ -58,6 +58,50 @@ function statusColor(s: string) {
   }
 }
 
+function statusIcon(s: string) {
+  switch (s) {
+    case "confirmed":
+      return <CheckCircle2 className="h-6 w-6" />;
+    case "completed":
+      return <CheckCircle2 className="h-6 w-6" />;
+    case "cancelled":
+      return <XCircle className="h-6 w-6" />;
+    case "no_show":
+      return <AlertCircle className="h-6 w-6" />;
+    default:
+      return <Clock3 className="h-6 w-6" />;
+  }
+}
+
+function statusMessage(s: string) {
+  switch (s) {
+    case "new":
+      return "تم استلام حجزك وسيتم التواصل معك قريباً للتأكيد.";
+    case "confirmed":
+      return "تم تأكيد موعدك. نرجو الحضور قبل الموعد بـ 15 دقيقة.";
+    case "completed":
+      return "تمّت زيارتك بنجاح. نتمنى لك دوام الصحة.";
+    case "cancelled":
+      return "تم إلغاء هذا الحجز. يمكنك حجز موعد جديد في أي وقت.";
+    case "no_show":
+      return "لم يتم تسجيل حضورك. يرجى إعادة الحجز عند الحاجة.";
+    default:
+      return "";
+  }
+}
+
+function countdown(dateStr: string, timeStr: string): string | null {
+  const target = new Date(`${dateStr}T${timeStr}`);
+  const diff = target.getTime() - Date.now();
+  if (diff <= 0) return null;
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  if (days > 0) return `متبقّي ${days} يوم${days > 1 ? "" : ""} و ${hours} ساعة`;
+  if (hours > 0) return `متبقّي ${hours} ساعة و ${mins} دقيقة`;
+  return `متبقّي ${mins} دقيقة`;
+}
+
 function LookupPage() {
   const { t, lang } = useI18n();
   const [ref, setRef] = useState("");
