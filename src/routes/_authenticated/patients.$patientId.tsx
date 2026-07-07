@@ -207,12 +207,15 @@ function PatientDetail() {
               />
             </div>
           </div>
-          <PatientQrDialog
-            patientId={p.id}
-            mrn={p.mrn}
-            fullNameAr={p.full_name_ar}
-            variant="button"
-          />
+          <div className="flex flex-col items-end gap-2">
+            <PatientQrDialog
+              patientId={p.id}
+              mrn={p.mrn}
+              fullNameAr={p.full_name_ar}
+              variant="button"
+            />
+            <QrScanStats patientId={p.id} />
+          </div>
         </div>
       </div>
 
