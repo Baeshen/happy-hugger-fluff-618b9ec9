@@ -131,7 +131,7 @@ export const listAuditLog = createServerFn({ method: "POST" })
     let q = supabase
       .from("security_audit_log")
       .select(
-        "id, action, actor, appointment_id, from_status, to_status, reason, metadata, ip_address, user_agent, created_at",
+        "id, action, actor, appointment_id, from_status, to_status, reason, metadata, ip_address, user_agent, created_at, branch_id, table_name, record_id",
       )
       .order("created_at", { ascending: false })
       .limit(data.limit);
@@ -157,6 +157,20 @@ export const listAuditLog = createServerFn({ method: "POST" })
       }
     }
 
+    const branchIds = Array.from(
+      new Set((rows ?? []).map((r: any) => r.branch_id).filter(Boolean)),
+    ) as string[];
+    let branchMap = new Map<string, string>();
+    if (branchIds.length) {
+      const { data: brs } = await supabase
+        .from("branches")
+        .select("id, name_ar, name_en")
+        .in("id", branchIds);
+      for (const b of (brs ?? []) as any[]) {
+        branchMap.set(b.id, b.name_ar ?? b.name_en ?? b.id);
+      }
+    }
+
     return (rows ?? []).map((r: any) => ({
       id: r.id as string,
       action: r.action as string,
@@ -171,6 +185,10 @@ export const listAuditLog = createServerFn({ method: "POST" })
       ip_address: r.ip_address as string | null,
       user_agent: r.user_agent as string | null,
       created_at: r.created_at as string,
+      branch_id: (r.branch_id as string | null) ?? null,
+      branch_name: r.branch_id ? branchMap.get(r.branch_id) ?? null : null,
+      table_name: (r.table_name as string | null) ?? null,
+      record_id: (r.record_id as string | null) ?? null,
     }));
   });
 
