@@ -379,7 +379,24 @@ function PatientsAnalyticsPage() {
       )}
 
       {data && (
-        <>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 sm:inline-flex h-auto">
+            <TabsTrigger value="overview">
+              <Users className="h-4 w-4 ml-1" /> نظرة عامة
+            </TabsTrigger>
+            <TabsTrigger value="trends">
+              <Activity className="h-4 w-4 ml-1" /> الاتجاهات
+            </TabsTrigger>
+            <TabsTrigger value="smart">
+              <Sparkles className="h-4 w-4 ml-1" /> الملخّص الذكي
+            </TabsTrigger>
+            <TabsTrigger value="transitions">
+              <History className="h-4 w-4 ml-1" /> الانتقالات
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Kpi
