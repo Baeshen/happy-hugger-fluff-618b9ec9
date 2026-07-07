@@ -124,6 +124,23 @@ function TransitionAlertsPage() {
         </div>
       </header>
 
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground flex items-center gap-4 flex-wrap">
+          <span className="font-semibold text-foreground">مستويات الشدة (حسب نسبة التجاوز):</span>
+          {(["low", "medium", "high"] as const).map((sev) => {
+            const s = SEVERITY_STYLES[sev];
+            const range = sev === "low" ? "< ×1.5" : sev === "medium" ? "×1.5 – ×2.5" : "≥ ×2.5";
+            return (
+              <span key={sev} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${s.badge}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                {SEVERITY_LABEL[sev]} <span className="opacity-70">({range})</span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {/* Evaluation window */}
         <section className="rounded-xl border border-border bg-card p-4">
