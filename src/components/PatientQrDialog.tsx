@@ -9,6 +9,8 @@ type Props = {
   mrn: string;
   fullNameAr: string;
   branchNameAr?: string | null;
+  branchId?: string | null;
+  doctorId?: string | null;
   /** Rendered trigger. Defaults to a small icon button. */
   variant?: "icon" | "button";
 };
