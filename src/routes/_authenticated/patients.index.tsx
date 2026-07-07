@@ -7,6 +7,7 @@ import { PatientQrDialog } from "@/components/PatientQrDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { listBranches } from "@/lib/dashboard.functions";
 import { generateMrn } from "@/lib/patients.functions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users,
   Search,
@@ -16,7 +17,9 @@ import {
   IdCard,
   Building2,
   Loader2,
+  BarChart3,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/patients/")({
   head: () => ({
