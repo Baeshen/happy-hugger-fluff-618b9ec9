@@ -17,6 +17,8 @@ cd "$ROOT"
 
 METHOD="auto"
 RUN_RLS=1
+WATCH=0
+WATCH_PATHS=(src tests scripts package.json Dockerfile.test docker-compose.test.yml)
 CUSTOM_CMD=()
 
 # ---------- تحليل الوسائط ----------
@@ -25,8 +27,10 @@ while [ $# -gt 0 ]; do
     --method=*) METHOD="${1#*=}"; shift ;;
     --method)   METHOD="$2"; shift 2 ;;
     --no-rls)   RUN_RLS=0; shift ;;
+    --watch|-w) WATCH=1; shift ;;
+    --watch-path=*) WATCH_PATHS+=("${1#*=}"); shift ;;
     -h|--help)
-      sed -n '2,15p' "$0"
+      sed -n '2,18p' "$0"
       exit 0 ;;
     --) shift; CUSTOM_CMD=("$@"); break ;;
     *)  echo "❌ وسيطة غير معروفة: $1" >&2; exit 2 ;;
