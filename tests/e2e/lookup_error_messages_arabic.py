@@ -168,13 +168,18 @@ async def case_reschedule_missing_datetime(page, ref, phone, failures):
     await page.wait_for_timeout(400)
 
     # Force-click the disabled confirm button to trigger the guard clause.
+    # React re-syncs `disabled` on every render, so we (a) clear it,
+    # (b) dispatch a synthetic MouseEvent instead of calling .click() which
+    #     the browser blocks when disabled=true.
     await page.evaluate(r"""
       () => {
         const btns = Array.from(document.querySelectorAll('button'));
         const target = btns.find(b => b.innerText.includes('تأكيد إعادة الجدولة'));
         if (!target) throw new Error('confirm button not found');
+        target.removeAttribute('disabled');
         target.disabled = false;
-        target.click();
+        target.dispatchEvent(new MouseEvent('click',
+          { bubbles: true, cancelable: true, view: window }));
       }
     """)
     await page.wait_for_timeout(500)
