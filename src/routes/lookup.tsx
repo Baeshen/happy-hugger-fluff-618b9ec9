@@ -130,7 +130,7 @@ function LookupPage() {
       const { data, error } = await supabase
         .from("availability")
         .select("weekday,start_time,end_time,slot_minutes")
-        .eq("doctor_id", appt.doctor_id);
+        .eq("doctor_id", appt.doctor_id!);
       if (cancelled) return;
       if (error) {
         toast.error(error.message);
