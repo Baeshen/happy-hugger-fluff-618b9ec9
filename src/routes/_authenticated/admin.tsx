@@ -627,6 +627,15 @@ function AuditModal({
             ))}
           </ol>
         )}
+
+        <div className="mt-6 border-t border-border pt-4">
+          <h4 className="mb-2 text-sm font-semibold">سجل تفضيلات التذكير</h4>
+          {rq.isLoading ? (
+            <div className="py-4 text-center text-sm text-muted-foreground">جارٍ التحميل…</div>
+          ) : (
+            <ReminderPreferenceHistoryList rows={reminderRows} showActor />
+          )}
+        </div>
       </div>
     </div>
   );
