@@ -283,6 +283,201 @@ async function main() {
         );
       },
     );
+
+    // ── Boundary-time tests ─────────────────────────────────────────────
+    // The DB enforces `(_new_date + _new_time) > now()` (see
+    // reschedule_appointment_by_ref). Date/time are timestamp-without-tz and
+    // compared to now() in the DB session TZ (Supabase default = UTC), so we
+    // build target date/time from UTC components.
+    const toParts = (ms: number) => {
+      const d = new Date(ms);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return {
+        date: `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`,
+        time: `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`,
+      };
+    };
+
+    await test(
+      "boundary: reschedule to 1 minute in the past → rejected, reminders untouched",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: false,
+        });
+        const before = await readAppt(id);
+        const p = toParts(Date.now() - 60_000);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: p.date,
+            _new_time: p.time,
+            _reason: "r",
+          } as never,
+        );
+        // DB raises: "الموعد الجديد يجب أن يكون في المستقبل"
+        assert(
+          error != null || data === false,
+          `expected error or false, got data=${JSON.stringify(data)} err=${error?.message}`,
+        );
+        const row = await readAppt(id);
+        assert(
+          row.appointment_date === before.appointment_date &&
+            String(row.appointment_time) === String(before.appointment_time),
+          "appointment must not change when target is in the past",
+        );
+        assert(
+          row.reminder_24h === true && row.reminder_2h === false,
+          "reminders must not change when reschedule is rejected",
+        );
+      },
+    );
+
+    await test(
+      "boundary: reschedule to exactly +2 hours preserves both reminders",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+        // Add a small buffer past exactly-2h so we clear the strict '>' check
+        // deterministically across clock skew (~30 s).
+        const p = toParts(Date.now() + 2 * 3_600_000 + 30_000);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: p.date,
+            _new_time: p.time,
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        await anon.rpc("update_reminders_by_ref" as never, {
+          _ref: ref,
+          _phone: phone,
+          _reminder_24h: true,
+          _reminder_2h: true,
+        } as never);
+        const row = await readAppt(id);
+        assert(
+          row.appointment_date === p.date,
+          `date mismatch: ${row.appointment_date} vs ${p.date}`,
+        );
+        assert(row.reminder_24h === true, "reminder_24h must remain true");
+        assert(row.reminder_2h === true, "reminder_2h must remain true");
+      },
+    );
+
+    await test(
+      "boundary: reschedule to exactly +24 hours preserves both reminders",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+        const p = toParts(Date.now() + 24 * 3_600_000 + 30_000);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: p.date,
+            _new_time: p.time,
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        await anon.rpc("update_reminders_by_ref" as never, {
+          _ref: ref,
+          _phone: phone,
+          _reminder_24h: true,
+          _reminder_2h: true,
+        } as never);
+        const row = await readAppt(id);
+        assert(
+          row.appointment_date === p.date,
+          `date mismatch: ${row.appointment_date} vs ${p.date}`,
+        );
+        assert(row.reminder_24h === true, "reminder_24h must remain true");
+        assert(row.reminder_2h === true, "reminder_2h must remain true");
+      },
+    );
+
+    await test(
+      "boundary: reschedule to less than +2 hours still accepts reminder choices as-is (no time-window enforcement)",
+      async () => {
+        const { id, ref } = await newAppt();
+        // 30 minutes ahead — inside both reminder windows.
+        const p = toParts(Date.now() + 30 * 60_000);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: p.date,
+            _new_time: p.time,
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        // User keeps both toggles ON even though the appointment is only 30 min
+        // away — the RPC must persist the raw booleans without silently
+        // clearing "impossible" reminders.
+        const { error: rerr } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: true,
+            _reminder_2h: true,
+          } as never,
+        );
+        assert(!rerr, `rpc error: ${rerr?.message}`);
+        const row = await readAppt(id);
+        assert(row.reminder_24h === true, "reminder_24h must be persisted true");
+        assert(row.reminder_2h === true, "reminder_2h must be persisted true");
+      },
+    );
+
+    await test(
+      "boundary: reschedule +5 seconds into the future is accepted and reminders can be updated",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: false,
+          reminder_2h: false,
+        });
+        const p = toParts(Date.now() + 5_000);
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: p.date,
+            _new_time: p.time,
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${JSON.stringify(data)}`);
+        await anon.rpc("update_reminders_by_ref" as never, {
+          _ref: ref,
+          _phone: phone,
+          _reminder_24h: true,
+          _reminder_2h: false,
+        } as never);
+        const row = await readAppt(id);
+        assert(row.reminder_24h === true, "reminder_24h must flip to true");
+        assert(row.reminder_2h === false, "reminder_2h must stay false");
+      },
+    );
+
   } finally {
     if (created.length) {
       await admin.from("appointments").delete().in("id", created);
