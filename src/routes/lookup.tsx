@@ -752,6 +752,13 @@ function LookupPage() {
           </div>
         )}
       </div>
+      {showReminderHistory && appt && (
+        <ReminderHistoryByRefModal
+          refValue={ref.trim()}
+          phone={phone.trim()}
+          onClose={() => setShowReminderHistory(false)}
+        />
+      )}
     </div>
   );
 }
