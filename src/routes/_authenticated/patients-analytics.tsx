@@ -1663,6 +1663,16 @@ function PatientTransitionsTable({
           <option value="archived">مؤرشف</option>
           <option value="deceased">متوفى</option>
         </select>
+        <select
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value))}
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          title="عدد الصفوف لكل صفحة"
+        >
+          {[10, 25, 50, 100].map((n) => (
+            <option key={n} value={n}>{n} / صفحة</option>
+          ))}
+        </select>
       </div>
 
       {q.isLoading && (
