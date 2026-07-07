@@ -108,6 +108,7 @@ export type Database = {
           id: string
           national_id: string | null
           notes: string | null
+          patient_email: string | null
           patient_id: string | null
           patient_name: string
           patient_phone: string
@@ -129,6 +130,7 @@ export type Database = {
           id?: string
           national_id?: string | null
           notes?: string | null
+          patient_email?: string | null
           patient_id?: string | null
           patient_name: string
           patient_phone: string
@@ -150,6 +152,7 @@ export type Database = {
           id?: string
           national_id?: string | null
           notes?: string | null
+          patient_email?: string | null
           patient_id?: string | null
           patient_name?: string
           patient_phone?: string
@@ -749,11 +752,16 @@ export type Database = {
           audience: string
           body: string | null
           branch_id: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
           created_at: string
           id: string
           kind: string
+          last_error: string | null
           metadata: Json | null
           read_at: string | null
+          recipient: string | null
+          send_status: Database["public"]["Enums"]["notification_send_status"]
+          sent_at: string | null
           title: string
           user_id: string | null
         }
@@ -762,11 +770,16 @@ export type Database = {
           audience: string
           body?: string | null
           branch_id?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
           id?: string
           kind: string
+          last_error?: string | null
           metadata?: Json | null
           read_at?: string | null
+          recipient?: string | null
+          send_status?: Database["public"]["Enums"]["notification_send_status"]
+          sent_at?: string | null
           title: string
           user_id?: string | null
         }
@@ -775,11 +788,16 @@ export type Database = {
           audience?: string
           body?: string | null
           branch_id?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
           id?: string
           kind?: string
+          last_error?: string | null
           metadata?: Json | null
           read_at?: string | null
+          recipient?: string | null
+          send_status?: Database["public"]["Enums"]["notification_send_status"]
+          sent_at?: string | null
           title?: string
           user_id?: string | null
         }
@@ -1160,6 +1178,9 @@ export type Database = {
           national_id: string | null
           nationality: string | null
           notes: string | null
+          notify_email: boolean
+          notify_sms: boolean
+          notify_whatsapp: boolean
           phone: string
           profile_id: string | null
           secondary_phone: string | null
@@ -1186,6 +1207,9 @@ export type Database = {
           national_id?: string | null
           nationality?: string | null
           notes?: string | null
+          notify_email?: boolean
+          notify_sms?: boolean
+          notify_whatsapp?: boolean
           phone: string
           profile_id?: string | null
           secondary_phone?: string | null
@@ -1212,6 +1236,9 @@ export type Database = {
           national_id?: string | null
           nationality?: string | null
           notes?: string | null
+          notify_email?: boolean
+          notify_sms?: boolean
+          notify_whatsapp?: boolean
           phone?: string
           profile_id?: string | null
           secondary_phone?: string | null
@@ -1408,6 +1435,15 @@ export type Database = {
     }
     Functions: {
       _assert_staff: { Args: never; Returns: undefined }
+      _emit_appointment_notification: {
+        Args: {
+          _appt: Database["public"]["Tables"]["appointments"]["Row"]
+          _body: string
+          _kind: string
+          _title: string
+        }
+        Returns: undefined
+      }
       can_access_patient: { Args: { _patient_id: string }; Returns: boolean }
       can_write_patient_clinical: {
         Args: { _patient_id: string }
@@ -1679,6 +1715,13 @@ export type Database = {
         | "out_for_delivery"
         | "delivered"
         | "cancelled"
+      notification_channel: "in_app" | "sms" | "whatsapp" | "email"
+      notification_send_status:
+        | "pending"
+        | "queued"
+        | "sent"
+        | "failed"
+        | "skipped"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1835,6 +1878,14 @@ export const Constants = {
         "out_for_delivery",
         "delivered",
         "cancelled",
+      ],
+      notification_channel: ["in_app", "sms", "whatsapp", "email"],
+      notification_send_status: [
+        "pending",
+        "queued",
+        "sent",
+        "failed",
+        "skipped",
       ],
     },
   },
