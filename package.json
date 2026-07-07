@@ -17,7 +17,8 @@
     "prepare": "husky",
     "check:rls": "bash scripts/pre-push-rls-checks.sh",
     "test:all": "bash scripts/run-tests.sh",
-    "test:compare-ci": "bash scripts/compare-ci.sh"
+    "test:compare-ci": "bash scripts/compare-ci.sh",
+    "test:act": "bash scripts/run-act.sh"
 
   },
   "dependencies": {

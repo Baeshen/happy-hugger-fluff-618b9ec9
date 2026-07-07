@@ -485,6 +485,42 @@ grep -E "^\s+run:|bun |bash tests/" .github/workflows/ci.yml
 
 
 
+### محاكاة GitHub Actions محليًا عبر `act`
+
+للحصول على مقارنة **أدقّ** بين المحلي و CI، شغّل نفس ملف الـ workflow (`.github/workflows/ci.yml`) داخل حاوية Docker مطابقة لـ `ubuntu-latest` باستخدام [`act`](https://nektosact.com). هذا يضمن نفس الأوامر، الترتيب، ومتغيّرات البيئة التي يستخدمها GitHub.
+
+**المتطلبات:**
+- Docker يعمل في الخلفية.
+- `act`: `brew install act` (macOS) أو `curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash`.
+- ملف `.env.local` بالأسرار الثلاثة (يُستخدَم تلقائيًا كملف أسرار لـ `act`).
+
+**ملف `.actrc` المُرفَق** يضبط صورة `catthehacker/ubuntu:act-latest` (الأقرب لبيئة GitHub Actions) ومجلّد المصنوعات في `/tmp/act-artifacts`.
+
+**الاستخدام:**
+
+```bash
+bun run test:act                                  # كل الوظائف على حدث push
+bun run test:act -- --list                        # اعرض الوظائف المتاحة
+bun run test:act -- --job lint-and-typecheck     # وظيفة واحدة
+bun run test:act -- --job rls-tests-main          # RLS الصارمة (تحتاج .env.local)
+bun run test:act -- --event pull_request          # محاكاة حدث PR
+bun run test:act -- --dry-run                     # طباعة الخطوات دون تنفيذ
+```
+
+**تكامل مع تقرير المقارنة:**
+
+`compare-ci.sh` يدعم الآن `--act` / `--act-job` لتوليد سجل CI محليًا عبر `act` بدل الاعتماد على سجل بعيد:
+
+```bash
+# مقارنة أدقّ: كلا الطرفين يعملان محليًا بنفس الأوامر
+bun run test:compare-ci -- --act-job lint-and-typecheck --method=compose
+
+# افتراضيًا يستخدم وظيفة lint-and-typecheck
+bun run test:compare-ci -- --act
+```
+
+الفرق عن `--gh-run` / `--ci-log`: تشغيل `act` يعطي مخرجات مكافئة تمامًا لأوامر CI بدون الحاجة لسجل بعيد أو دفع commit، فيقلّل الاختلافات "الشكلية" (طوابع، معرّفات run) إلى الحد الأدنى.
+
 ### إخراج تقرير مقارنة JSON (محلي ↔ CI)
 
 `scripts/compare-ci.sh` يشغّل الاختبارات محليًا، يقارن مخرجاتها بسجل CI بعد التطبيع (إزالة ANSI، طوابع GitHub Actions، بادئات job/step، `::group::`)، ويُخرج تقريرًا `ci-compare.json` بالبنية التالية:

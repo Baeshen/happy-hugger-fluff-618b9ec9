@@ -20,6 +20,7 @@ cd "$ROOT"
 
 CI_LOG=""
 GH_RUN=""
+ACT_JOB=""
 METHOD="auto"
 OUT="ci-compare.json"
 RUN_LOCAL=1
@@ -31,6 +32,9 @@ while [ $# -gt 0 ]; do
     --ci-log)      CI_LOG="$2"; shift 2 ;;
     --gh-run=*)    GH_RUN="${1#*=}"; shift ;;
     --gh-run)      GH_RUN="$2"; shift 2 ;;
+    --act|--act=*) ACT_JOB="${1#*=}"; [ "$ACT_JOB" = "--act" ] && ACT_JOB="lint-and-typecheck"; shift ;;
+    --act-job=*)   ACT_JOB="${1#*=}"; shift ;;
+    --act-job)     ACT_JOB="$2"; shift 2 ;;
     --method=*)    METHOD="${1#*=}"; shift ;;
     --method)      METHOD="$2"; shift 2 ;;
     --out=*)       OUT="${1#*=}"; shift ;;
@@ -51,7 +55,11 @@ trap 'rm -rf "$TMP"' EXIT
 # ---------- 1) جلب سجل CI ----------
 CI_RAW="$TMP/ci.raw"
 CI_SOURCE=""
-if [ -n "$GH_RUN" ]; then
+if [ -n "$ACT_JOB" ]; then
+  echo "▶ تنفيذ act محليًا للوظيفة: $ACT_JOB (يحاكي CI بالضبط)"
+  bash scripts/run-act.sh --job "$ACT_JOB" > "$CI_RAW" 2>&1 || true
+  CI_SOURCE="act:$ACT_JOB"
+elif [ -n "$GH_RUN" ]; then
   command -v gh >/dev/null 2>&1 || { echo "❌ gh CLI غير مثبّت"; exit 1; }
   echo "▶ تنزيل سجل CI عبر gh run view $GH_RUN"
   gh run view "$GH_RUN" --log > "$CI_RAW"
@@ -61,7 +69,7 @@ elif [ -n "$CI_LOG" ]; then
   cp "$CI_LOG" "$CI_RAW"
   CI_SOURCE="file:$CI_LOG"
 else
-  echo "❌ حدّد --ci-log <path> أو --gh-run <id>"; exit 2
+  echo "❌ حدّد أحد الخيارات: --act, --act-job <name>, --gh-run <id>, أو --ci-log <path>"; exit 2
 fi
 
 # ---------- 2) تشغيل/قراءة السجل المحلي ----------
