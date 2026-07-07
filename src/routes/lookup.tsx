@@ -152,6 +152,13 @@ function LookupPage() {
   >(null);
 
   useEffect(() => {
+    if (showReschedule && appt) {
+      setRescheduleReminder24h(appt.reminder_24h ?? true);
+      setRescheduleReminder2h(appt.reminder_2h ?? true);
+    }
+  }, [showReschedule, appt]);
+
+  useEffect(() => {
     if (!showReschedule || !appt?.doctor_id) return;
     let cancelled = false;
     (async () => {
