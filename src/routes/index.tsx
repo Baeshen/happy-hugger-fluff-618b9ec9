@@ -5,84 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { QuickBar } from "@/components/QuickBar";
 import { SITE } from "@/lib/site";
 import { ShieldCheck, Pill, Users, ArrowLeft, Stethoscope } from "lucide-react";
-
-const SITE_URL = "https://happy-hugger-fluff.lovable.app";
-
-const medicalClinicJsonLd = {
-  "@context": "https://schema.org",
-  "@type": ["MedicalClinic", "LocalBusiness"],
-  "@id": `${SITE_URL}/#clinic`,
-  name: SITE.nameAr,
-  alternateName: SITE.nameEn,
-  url: SITE_URL,
-  telephone: SITE.phone,
-  email: SITE.email,
-  image: `${SITE_URL}/og-image.jpg`,
-  priceRange: "$$",
-  currenciesAccepted: "SAR",
-  paymentAccepted: "Cash, Credit Card, Mada, Insurance",
-  medicalSpecialty: [
-    "Cardiovascular",
-    "Dermatology",
-    "Pediatric",
-    "Obstetric",
-    "Dentistry",
-    "InternalMedicine",
-    "Ophthalmologic",
-    "Otolaryngologic",
-    "Orthopedic",
-  ],
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: "King Abdulaziz Rd, Al-Dhabya",
-    addressLocality: "Sabya",
-    addressRegion: "Jazan",
-    postalCode: SITE.postalCode,
-    addressCountry: "SA",
-  },
-  geo: {
-    "@type": "GeoCoordinates",
-    latitude: SITE.lat,
-    longitude: SITE.lng,
-  },
-  hasMap: SITE.mapsUrl,
-  areaServed: [
-    { "@type": "City", name: "Sabya" },
-    { "@type": "AdministrativeArea", name: "Jazan Region" },
-  ],
-  openingHoursSpecification: [
-    {
-      "@type": "OpeningHoursSpecification",
-      dayOfWeek: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
-      opens: "09:00",
-      closes: "23:00",
-    },
-    {
-      "@type": "OpeningHoursSpecification",
-      dayOfWeek: "Friday",
-      opens: "16:00",
-      closes: "23:00",
-    },
-  ],
-  sameAs: [SITE.instagram, SITE.tiktok, SITE.x],
-  contactPoint: [
-    {
-      "@type": "ContactPoint",
-      telephone: SITE.phone,
-      contactType: "reservations",
-      areaServed: "SA",
-      availableLanguage: ["Arabic", "English"],
-    },
-    {
-      "@type": "ContactPoint",
-      telephone: SITE.mobile,
-      contactType: "customer service",
-      areaServed: "SA",
-      availableLanguage: ["Arabic", "English"],
-    },
-  ],
-  isAcceptingNewPatients: true,
-};
+import { buildLocalBusinessSchema, SITE_URL } from "@/lib/localBusinessSchema";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -102,7 +25,7 @@ export const Route = createFileRoute("/")({
     scripts: [
       {
         type: "application/ld+json",
-        children: JSON.stringify(medicalClinicJsonLd),
+        children: JSON.stringify(buildLocalBusinessSchema({ pageUrl: SITE_URL })),
       },
     ],
   }),
