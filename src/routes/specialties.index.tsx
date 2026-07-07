@@ -64,10 +64,17 @@ export const Route = createFileRoute("/specialties/")({
         { name: "twitter:description", content: PAGE_DESC_AR },
       ],
       links: [{ rel: "canonical", href: PAGE_URL }],
-      scripts:
-        list.length > 0
+      scripts: [
+        { type: "application/ld+json", children: JSON.stringify(buildLocalBusinessSchema({ pageUrl: PAGE_URL })) },
+        { type: "application/ld+json", children: JSON.stringify(buildBreadcrumbs([
+          { name: "الرئيسية", path: "/" },
+          { name: "التخصصات", path: "/specialties" },
+        ])) },
+        ...(list.length > 0
           ? [{ type: "application/ld+json", children: JSON.stringify(jsonLd) }]
-          : [],
+          : []),
+      ],
+
     };
   },
   component: SpecialtiesPage,
