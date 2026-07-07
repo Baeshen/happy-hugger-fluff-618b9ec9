@@ -122,8 +122,95 @@ export const setNotificationStatus = createServerFn({ method: "POST" })
     }
     const { error } = await context.supabase
       .from("notifications")
-      .update(patch)
+      .update(patch as never)
       .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/* -------- Per-user notifications (bell) -------- */
+
+const ListMyInput = z
+  .object({
+    limit: z.number().int().min(1).max(100).optional(),
+    onlyUnread: z.boolean().optional(),
+  })
+  .default({});
+
+export const listMyNotifications = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ListMyInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const userId = context.userId;
+    const roles = await getRoles(sb, userId);
+    const isStaff = roles.some((r) =>
+      (["admin", "super_admin", "reception", "doctor"] as Role[]).includes(r),
+    );
+    let q = sb
+      .from("notifications")
+      .select(
+        "id, audience, kind, title, body, appointment_id, metadata, read_at, created_at",
+      )
+      .eq("channel", "in_app")
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 30);
+    q = isStaff
+      ? q.or(`audience.eq.staff,user_id.eq.${userId}`)
+      : q.eq("user_id", userId);
+    if (data.onlyUnread) q = q.is("read_at", null);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return { items: rows ?? [] };
+  });
+
+export const countUnreadNotifications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = context.supabase;
+    const userId = context.userId;
+    const roles = await getRoles(sb, userId);
+    const isStaff = roles.some((r) =>
+      (["admin", "super_admin", "reception", "doctor"] as Role[]).includes(r),
+    );
+    let q = sb
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .is("read_at", null)
+      .eq("channel", "in_app");
+    q = isStaff
+      ? q.or(`audience.eq.staff,user_id.eq.${userId}`)
+      : q.eq("user_id", userId);
+    const { count, error } = await q;
+    if (error) throw new Error(error.message);
+    return { count: count ?? 0 };
+  });
+
+export const markNotificationsRead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        all: z.boolean().optional(),
+      })
+      .refine((v) => v.id || v.all, "id or all required")
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const userId = context.userId;
+    const roles = await getRoles(sb, userId);
+    const isStaff = roles.some((r) =>
+      (["admin", "super_admin", "reception", "doctor"] as Role[]).includes(r),
+    );
+    let q = sb.from("notifications").update({ read_at: new Date().toISOString() });
+    if (data.id) q = q.eq("id", data.id);
+    else q = q.is("read_at", null);
+    q = isStaff
+      ? q.or(`audience.eq.staff,user_id.eq.${userId}`)
+      : q.eq("user_id", userId);
+    const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
   });
