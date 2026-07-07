@@ -45,7 +45,7 @@ async function main() {
     console.log("(skipping — missing Supabase env vars)");
     return;
   }
-  const hasPsql = !!process.env.PGHOST;
+  
 
   const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });
   const anon = createClient(URL, ANON, { auth: { persistSession: false } });
