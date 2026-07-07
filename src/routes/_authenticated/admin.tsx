@@ -2144,6 +2144,71 @@ function ExportRemindersCsvPanel() {
   );
 }
 
+function csvEscape(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function exportSecurityAuditCsv(
+  items: any[],
+  filters: { ref: string; phone: string; action: string; from: string; to: string; limit: number },
+) {
+  const headers = [
+    "created_at",
+    "action",
+    "appointment_id",
+    "patient_name",
+    "patient_phone",
+    "from_status",
+    "to_status",
+    "actor_id",
+    "actor_name",
+    "reason",
+  ];
+  const lines = [headers.join(",")];
+  for (const it of items) {
+    lines.push(
+      [
+        it.created_at ?? "",
+        it.action ?? "",
+        it.appointment_id ?? "",
+        it.patient_name ?? "",
+        it.patient_phone ?? "",
+        it.from_status ?? "",
+        it.to_status ?? "",
+        it.actor ?? "",
+        it.actor_name ?? "",
+        it.reason ?? "",
+      ]
+        .map(csvEscape)
+        .join(","),
+    );
+  }
+  // Prepend a UTF-8 BOM so Excel opens Arabic text correctly.
+  const csv = "\uFEFF" + lines.join("\r\n");
+
+  const parts: string[] = [];
+  if (filters.ref) parts.push(`ref-${filters.ref}`);
+  if (filters.phone) parts.push(`phone-${filters.phone.replace(/\D/g, "")}`);
+  if (filters.action) parts.push(`action-${filters.action}`);
+  if (filters.from) parts.push(`from-${filters.from}`);
+  if (filters.to) parts.push(`to-${filters.to}`);
+  const suffix = parts.length ? `_${parts.join("_")}` : "";
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const filename = `security-audit_${stamp}${suffix}.csv`;
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function SecurityAuditTab() {
   const listFn = useServerFn(listSecurityAuditLog);
   const actionsFn = useServerFn(listSecurityAuditActions);
@@ -2290,6 +2355,16 @@ function SecurityAuditTab() {
               </span>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => exportSecurityAuditCsv(items, applied)}
+            disabled={listQuery.isLoading || items.length === 0}
+            title={items.length === 0 ? "لا توجد نتائج للتصدير" : "تصدير النتائج الحالية إلى CSV"}
+            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            تصدير CSV
+          </button>
         </div>
         {listQuery.isLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">جارٍ التحميل…</div>
