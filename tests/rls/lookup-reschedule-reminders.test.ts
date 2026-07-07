@@ -1493,6 +1493,201 @@ async function main() {
       },
     );
 
+    // ── Reminder-adjacent fields (whatsapp_opt_in) and NOT-NULL safety.
+    // The schema declares reminder_24h / reminder_2h / whatsapp_opt_in as
+    // NOT NULL with default true. Safe-default behavior means:
+    //  (a) direct NULL writes are rejected by the constraint,
+    //  (b) reschedule NEVER silently flips any of these flags,
+    //  (c) update_reminders_by_ref cannot inject NULL into stored columns,
+    //  (d) whatsapp_opt_in=false stays false across reschedule.
+
+    async function readApptFull(id: string) {
+      const { data, error } = await admin
+        .from("appointments")
+        .select(
+          "appointment_date, appointment_time, status, reminder_24h, reminder_2h, whatsapp_opt_in",
+        )
+        .eq("id", id)
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    await test(
+      "schema: reminder_24h / reminder_2h / whatsapp_opt_in reject NULL writes",
+      async () => {
+        const { id } = await newAppt();
+        for (const col of ["reminder_24h", "reminder_2h", "whatsapp_opt_in"]) {
+          const { error } = await admin
+            .from("appointments")
+            .update({ [col]: null })
+            .eq("id", id);
+          assert(
+            error != null,
+            `expected NOT-NULL rejection for ${col}, got no error`,
+          );
+        }
+      },
+    );
+
+    await test(
+      "reschedule preserves whatsapp_opt_in=false (safe default: never re-enable)",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+        // Turn WhatsApp off outside the /lookup flow.
+        const { error: upErr } = await admin
+          .from("appointments")
+          .update({ whatsapp_opt_in: false })
+          .eq("id", id);
+        assert(!upErr, `admin update err: ${upErr?.message}`);
+
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: futureDate(20),
+            _new_time: "09:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${data}`);
+        const row = await readApptFull(id);
+        assert(
+          row.whatsapp_opt_in === false,
+          `whatsapp_opt_in must remain false, got ${row.whatsapp_opt_in}`,
+        );
+        assert(row.reminder_24h === true, "24h should stay true");
+        assert(row.reminder_2h === true, "2h should stay true");
+      },
+    );
+
+    await test(
+      "reschedule preserves both-off reminders + WhatsApp-off (all-off remains all-off)",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: false,
+          reminder_2h: false,
+        });
+        const { error: upErr } = await admin
+          .from("appointments")
+          .update({ whatsapp_opt_in: false })
+          .eq("id", id);
+        assert(!upErr, `admin update err: ${upErr?.message}`);
+
+        const { data, error } = await anon.rpc(
+          "reschedule_appointment_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _new_date: futureDate(21),
+            _new_time: "10:00:00",
+            _reason: "r",
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${data}`);
+        const row = await readApptFull(id);
+        assert(
+          row.reminder_24h === false &&
+            row.reminder_2h === false &&
+            row.whatsapp_opt_in === false,
+          `all-off must remain all-off, got ${JSON.stringify(row)}`,
+        );
+      },
+    );
+
+    await test(
+      "update_reminders_by_ref cannot inject NULL — nulls are treated as 'no change' via COALESCE",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: false,
+          reminder_2h: true,
+        });
+        const { data, error } = await anon.rpc(
+          "update_reminders_by_ref" as never,
+          {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: null,
+            _reminder_2h: null,
+          } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        assert(data === true, `expected true, got ${data}`);
+        const row = await readApptFull(id);
+        // Prior values kept — and stored columns are still non-null (never NULL).
+        assert(
+          row.reminder_24h === false && row.reminder_2h === true,
+          `expected (false,true), got ${JSON.stringify(row)}`,
+        );
+        assert(
+          row.reminder_24h !== null && row.reminder_2h !== null,
+          "stored reminder columns must never become NULL",
+        );
+      },
+    );
+
+    await test(
+      "reschedule does NOT touch whatsapp_opt_in even when reminder flags are the extremes",
+      async () => {
+        // Two appointments, opposite reminder states, both with WhatsApp on.
+        const a = await newAppt({ reminder_24h: true, reminder_2h: true });
+        const b = await newAppt({ reminder_24h: false, reminder_2h: false });
+        for (const [i, appt] of [a, b].entries()) {
+          const { error } = await anon.rpc(
+            "reschedule_appointment_by_ref" as never,
+            {
+              _ref: appt.ref,
+              _phone: phone,
+              _new_date: futureDate(22 + i),
+              _new_time: "12:00:00",
+              _reason: "r",
+            } as never,
+          );
+          assert(!error, `reschedule err: ${error?.message}`);
+          const row = await readApptFull(appt.id);
+          assert(
+            row.whatsapp_opt_in === true,
+            `whatsapp_opt_in should stay true (default), got ${row.whatsapp_opt_in}`,
+          );
+        }
+      },
+    );
+
+    await test(
+      "lookup_appointment always returns non-null booleans for reminder flags",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: false,
+          reminder_2h: true,
+        });
+        const { data, error } = await anon.rpc(
+          "lookup_appointment" as never,
+          { _ref: ref, _phone: phone } as never,
+        );
+        assert(!error, `rpc error: ${error?.message}`);
+        const rows = data as Array<{
+          id: string;
+          reminder_24h: boolean | null;
+          reminder_2h: boolean | null;
+        }>;
+        assert(Array.isArray(rows) && rows.length === 1, "expected one row");
+        assert(rows[0].id === id, "id mismatch");
+        assert(
+          typeof rows[0].reminder_24h === "boolean" &&
+            typeof rows[0].reminder_2h === "boolean",
+          `reminder flags must be booleans, got ${JSON.stringify(rows[0])}`,
+        );
+      },
+    );
+
+
+
   } finally {
     if (created.length) {
       await admin.from("appointments").delete().in("id", created);
