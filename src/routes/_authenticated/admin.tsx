@@ -2455,3 +2455,454 @@ function SecurityAuditTab() {
     </div>
   );
 }
+
+/* ---------------- Content Tab (FAQs / About / Specialties) ---------------- */
+
+type ContentSub = "faqs" | "about" | "specialties";
+
+function ContentTab() {
+  const [sub, setSub] = useState<ContentSub>("faqs");
+  const subs: { id: ContentSub; label: string; icon: any }[] = [
+    { id: "faqs", label: "الأسئلة الشائعة", icon: HelpCircle },
+    { id: "about", label: "من نحن", icon: Info },
+    { id: "specialties", label: "التخصصات", icon: Tag },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {subs.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setSub(s.id)}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              sub === s.id
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <s.icon className="h-3.5 w-3.5" />
+            {s.label}
+          </button>
+        ))}
+      </div>
+      {sub === "faqs" && <FaqsTab />}
+      {sub === "about" && <AboutSectionsTab />}
+      {sub === "specialties" && <SpecialtiesTab />}
+    </div>
+  );
+}
+
+/* ---------------- FAQs Tab ---------------- */
+
+type FaqForm = {
+  id?: string;
+  question_ar: string;
+  answer_ar: string;
+  question_en: string;
+  answer_en: string;
+  is_active: boolean;
+  sort_order: number;
+};
+
+const emptyFaq: FaqForm = {
+  question_ar: "",
+  answer_ar: "",
+  question_en: "",
+  answer_en: "",
+  is_active: true,
+  sort_order: 0,
+};
+
+function FaqsTab() {
+  const listFn = useServerFn(listFaqsAdmin);
+  const createFn = useServerFn(createFaq);
+  const updateFn = useServerFn(updateFaq);
+  const deleteFn = useServerFn(deleteFaq);
+
+  const q = useQuery({ queryKey: ["admin-faqs"], queryFn: () => listFn() });
+  const [editing, setEditing] = useState<FaqForm | null>(null);
+
+  const deleteM = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("تم الحذف"); q.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الحذف"),
+  });
+  const saveM = useMutation({
+    mutationFn: async (f: FaqForm) => {
+      const payload = {
+        question_ar: f.question_ar.trim(),
+        answer_ar: f.answer_ar.trim(),
+        question_en: f.question_en.trim() || null,
+        answer_en: f.answer_en.trim() || null,
+        is_active: f.is_active,
+        sort_order: Number(f.sort_order) || 0,
+      };
+      if (f.id) return updateFn({ data: { id: f.id, ...payload } });
+      return createFn({ data: payload });
+    },
+    onSuccess: () => { toast.success("تم الحفظ"); setEditing(null); q.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الحفظ"),
+  });
+
+  if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
+  const rows = q.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          onClick={() => setEditing({ ...emptyFaq })}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" /> إضافة سؤال
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-right text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">السؤال</th>
+              <th className="px-4 py-3">الترتيب</th>
+              <th className="px-4 py-3">الحالة</th>
+              <th className="px-4 py-3">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">لا توجد أسئلة</td>
+              </tr>
+            )}
+            {rows.map((r: any) => (
+              <tr key={r.id} className="border-t border-border">
+                <td className="px-4 py-3">
+                  <div className="font-medium">{r.question_ar}</div>
+                  {r.question_en && (
+                    <div className="text-xs text-muted-foreground" dir="ltr">{r.question_en}</div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs" dir="ltr">{r.sort_order}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${r.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    {r.is_active ? "نشط" : "متوقف"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditing({
+                        id: r.id,
+                        question_ar: r.question_ar ?? "",
+                        answer_ar: r.answer_ar ?? "",
+                        question_en: r.question_en ?? "",
+                        answer_en: r.answer_en ?? "",
+                        is_active: !!r.is_active,
+                        sort_order: r.sort_order ?? 0,
+                      })}
+                      className="inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs hover:bg-muted"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> تعديل
+                    </button>
+                    <button
+                      onClick={() => { if (confirm(`حذف السؤال "${r.question_ar}"؟`)) deleteM.mutate(r.id); }}
+                      className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> حذف
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && (
+        <FaqFormModal
+          value={editing}
+          saving={saveM.isPending}
+          onCancel={() => setEditing(null)}
+          onSave={(v) => saveM.mutate(v)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FaqFormModal({
+  value, saving, onCancel, onSave,
+}: {
+  value: FaqForm;
+  saving: boolean;
+  onCancel: () => void;
+  onSave: (v: FaqForm) => void;
+}) {
+  const [form, setForm] = useState<FaqForm>(value);
+  const set = <K extends keyof FaqForm>(k: K, v: FaqForm[K]) => setForm((p) => ({ ...p, [k]: v }));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-lg font-bold">{form.id ? "تعديل سؤال" : "إضافة سؤال"}</h2>
+          <button onClick={onCancel} className="rounded-md p-1 hover:bg-muted"><XIcon className="h-4 w-4" /></button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!form.question_ar.trim() || !form.answer_ar.trim()) {
+              toast.error("السؤال والجواب بالعربية مطلوبان");
+              return;
+            }
+            if (form.question_ar.length > 500 || form.answer_ar.length > 4000) {
+              toast.error("النص أطول من الحد المسموح");
+              return;
+            }
+            onSave(form);
+          }}
+          className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2"
+        >
+          <Field label="السؤال (عربي) *" full>
+            <input required value={form.question_ar} onChange={(e) => set("question_ar", e.target.value)} className={inputCls} maxLength={500} />
+          </Field>
+          <Field label="الجواب (عربي) *" full>
+            <textarea required value={form.answer_ar} onChange={(e) => set("answer_ar", e.target.value)} className={inputCls} rows={4} maxLength={4000} />
+          </Field>
+          <Field label="Question (English)" full>
+            <input dir="ltr" value={form.question_en} onChange={(e) => set("question_en", e.target.value)} className={inputCls} maxLength={500} />
+          </Field>
+          <Field label="Answer (English)" full>
+            <textarea dir="ltr" value={form.answer_en} onChange={(e) => set("answer_en", e.target.value)} className={inputCls} rows={4} maxLength={4000} />
+          </Field>
+          <Field label="الترتيب">
+            <input type="number" value={form.sort_order} onChange={(e) => set("sort_order", Number(e.target.value))} className={inputCls} />
+          </Field>
+          <Field label="الحالة">
+            <label className="mt-2 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+              نشط
+            </label>
+          </Field>
+          <div className="sm:col-span-2 flex justify-end gap-2 border-t border-border pt-4">
+            <button type="button" onClick={onCancel} className="rounded-md border border-input px-4 py-2 text-sm hover:bg-muted">إلغاء</button>
+            <button type="submit" disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+              {saving ? "جارٍ الحفظ…" : "حفظ"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- About Sections Tab ---------------- */
+
+type AboutForm = {
+  id?: string;
+  section_key: string;
+  title_ar: string;
+  title_en: string;
+  body_ar: string;
+  body_en: string;
+  is_active: boolean;
+  sort_order: number;
+};
+
+const emptyAbout: AboutForm = {
+  section_key: "",
+  title_ar: "",
+  title_en: "",
+  body_ar: "",
+  body_en: "",
+  is_active: true,
+  sort_order: 0,
+};
+
+function AboutSectionsTab() {
+  const listFn = useServerFn(listAboutSectionsAdmin);
+  const createFn = useServerFn(createAboutSection);
+  const updateFn = useServerFn(updateAboutSection);
+  const deleteFn = useServerFn(deleteAboutSection);
+
+  const q = useQuery({ queryKey: ["admin-about"], queryFn: () => listFn() });
+  const [editing, setEditing] = useState<AboutForm | null>(null);
+
+  const deleteM = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("تم الحذف"); q.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الحذف"),
+  });
+  const saveM = useMutation({
+    mutationFn: async (f: AboutForm) => {
+      const payload = {
+        section_key: f.section_key.trim(),
+        title_ar: f.title_ar.trim() || null,
+        title_en: f.title_en.trim() || null,
+        body_ar: f.body_ar.trim() || null,
+        body_en: f.body_en.trim() || null,
+        is_active: f.is_active,
+        sort_order: Number(f.sort_order) || 0,
+      };
+      if (f.id) return updateFn({ data: { id: f.id, ...payload } });
+      return createFn({ data: payload });
+    },
+    onSuccess: () => { toast.success("تم الحفظ"); setEditing(null); q.refetch(); },
+    onError: (e: any) => toast.error(e?.message ?? "فشل الحفظ"),
+  });
+
+  if (q.isLoading) return <div className="text-muted-foreground">جارٍ التحميل…</div>;
+  const rows = q.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          onClick={() => setEditing({ ...emptyAbout })}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" /> إضافة قسم
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-right text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">القسم</th>
+              <th className="px-4 py-3">المفتاح</th>
+              <th className="px-4 py-3">الترتيب</th>
+              <th className="px-4 py-3">الحالة</th>
+              <th className="px-4 py-3">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">لا توجد أقسام</td>
+              </tr>
+            )}
+            {rows.map((r: any) => (
+              <tr key={r.id} className="border-t border-border">
+                <td className="px-4 py-3">
+                  <div className="font-medium">{r.title_ar ?? r.section_key}</div>
+                  {r.title_en && (
+                    <div className="text-xs text-muted-foreground" dir="ltr">{r.title_en}</div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs" dir="ltr">{r.section_key}</td>
+                <td className="px-4 py-3 text-xs" dir="ltr">{r.sort_order}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${r.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    {r.is_active ? "نشط" : "متوقف"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditing({
+                        id: r.id,
+                        section_key: r.section_key ?? "",
+                        title_ar: r.title_ar ?? "",
+                        title_en: r.title_en ?? "",
+                        body_ar: r.body_ar ?? "",
+                        body_en: r.body_en ?? "",
+                        is_active: !!r.is_active,
+                        sort_order: r.sort_order ?? 0,
+                      })}
+                      className="inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs hover:bg-muted"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> تعديل
+                    </button>
+                    <button
+                      onClick={() => { if (confirm(`حذف قسم "${r.title_ar ?? r.section_key}"؟`)) deleteM.mutate(r.id); }}
+                      className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> حذف
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && (
+        <AboutFormModal
+          value={editing}
+          saving={saveM.isPending}
+          onCancel={() => setEditing(null)}
+          onSave={(v) => saveM.mutate(v)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AboutFormModal({
+  value, saving, onCancel, onSave,
+}: {
+  value: AboutForm;
+  saving: boolean;
+  onCancel: () => void;
+  onSave: (v: AboutForm) => void;
+}) {
+  const [form, setForm] = useState<AboutForm>(value);
+  const set = <K extends keyof AboutForm>(k: K, v: AboutForm[K]) => setForm((p) => ({ ...p, [k]: v }));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-lg font-bold">{form.id ? "تعديل قسم" : "إضافة قسم"}</h2>
+          <button onClick={onCancel} className="rounded-md p-1 hover:bg-muted"><XIcon className="h-4 w-4" /></button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!form.section_key.trim()) {
+              toast.error("مفتاح القسم مطلوب");
+              return;
+            }
+            if (!/^[a-z0-9_-]+$/i.test(form.section_key.trim())) {
+              toast.error("المفتاح: أحرف/أرقام/شرطة/شرطة سفلية فقط");
+              return;
+            }
+            onSave(form);
+          }}
+          className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2"
+        >
+          <Field label="مفتاح القسم *">
+            <input required dir="ltr" value={form.section_key} onChange={(e) => set("section_key", e.target.value)} className={inputCls} placeholder="mission" maxLength={100} />
+          </Field>
+          <Field label="الترتيب">
+            <input type="number" value={form.sort_order} onChange={(e) => set("sort_order", Number(e.target.value))} className={inputCls} />
+          </Field>
+          <Field label="العنوان (عربي)">
+            <input value={form.title_ar} onChange={(e) => set("title_ar", e.target.value)} className={inputCls} maxLength={300} />
+          </Field>
+          <Field label="Title (English)">
+            <input dir="ltr" value={form.title_en} onChange={(e) => set("title_en", e.target.value)} className={inputCls} maxLength={300} />
+          </Field>
+          <Field label="النص (عربي)" full>
+            <textarea value={form.body_ar} onChange={(e) => set("body_ar", e.target.value)} className={inputCls} rows={6} maxLength={8000} />
+          </Field>
+          <Field label="Body (English)" full>
+            <textarea dir="ltr" value={form.body_en} onChange={(e) => set("body_en", e.target.value)} className={inputCls} rows={6} maxLength={8000} />
+          </Field>
+          <Field label="الحالة" full>
+            <label className="mt-2 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+              نشط
+            </label>
+          </Field>
+          <div className="sm:col-span-2 flex justify-end gap-2 border-t border-border pt-4">
+            <button type="button" onClick={onCancel} className="rounded-md border border-input px-4 py-2 text-sm hover:bg-muted">إلغاء</button>
+            <button type="submit" disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+              {saving ? "جارٍ الحفظ…" : "حفظ"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
