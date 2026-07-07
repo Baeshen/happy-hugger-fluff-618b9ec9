@@ -124,6 +124,7 @@ function LookupPage() {
   const [savingReminders, setSavingReminders] = useState(false);
   const [rescheduleReminder24h, setRescheduleReminder24h] = useState(true);
   const [rescheduleReminder2h, setRescheduleReminder2h] = useState(true);
+  const [showReminderHistory, setShowReminderHistory] = useState(false);
 
   const toggleReminder = async (which: "24h" | "2h", value: boolean) => {
     if (!appt) return;
