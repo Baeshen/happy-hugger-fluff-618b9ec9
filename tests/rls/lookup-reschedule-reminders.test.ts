@@ -1687,8 +1687,126 @@ async function main() {
     );
 
 
+    // ────────────────────────────────────────────────────────────────
+    // Concurrency: two simultaneous reschedule attempts on the same appt
+    // must not corrupt reminder preferences.
+    // ────────────────────────────────────────────────────────────────
+
+    await test(
+      "concurrent reschedule attempts on same appt keep reminders intact",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: false,
+        });
+        const dateA = futureDate(5);
+        const dateB = futureDate(6);
+        const [r1, r2] = await Promise.all([
+          anon.rpc("reschedule_appointment_by_ref" as never, {
+            _ref: ref,
+            _phone: phone,
+            _new_date: dateA,
+            _new_time: "11:00:00",
+            _reason: "concurrent-A",
+          } as never),
+          anon.rpc("reschedule_appointment_by_ref" as never, {
+            _ref: ref,
+            _phone: phone,
+            _new_date: dateB,
+            _new_time: "12:00:00",
+            _reason: "concurrent-B",
+          } as never),
+        ]);
+        assert(!r1.error, `A rpc error: ${r1.error?.message}`);
+        assert(!r2.error, `B rpc error: ${r2.error?.message}`);
+        assert(
+          r1.data === true && r2.data === true,
+          `both should return true, got ${JSON.stringify([r1.data, r2.data])}`,
+        );
+        const row = await readAppt(id);
+        // Final date must be one of the two candidates (last-writer-wins),
+        // never a mixed/null value.
+        assert(
+          row.appointment_date === dateA || row.appointment_date === dateB,
+          `final date must be A or B, got ${row.appointment_date}`,
+        );
+        // Reminder prefs must survive both writes untouched.
+        assert(
+          row.reminder_24h === true && row.reminder_2h === false,
+          `reminders corrupted: ${JSON.stringify(row)}`,
+        );
+        assert(row.status === "new", `status must be new, got ${row.status}`);
+      },
+    );
+
+    await test(
+      "concurrent reschedule + update_reminders must not lose reminder update",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: true,
+          reminder_2h: true,
+        });
+        const [rRe, rRem] = await Promise.all([
+          anon.rpc("reschedule_appointment_by_ref" as never, {
+            _ref: ref,
+            _phone: phone,
+            _new_date: futureDate(7),
+            _new_time: "13:00:00",
+            _reason: "concurrent-reschedule",
+          } as never),
+          anon.rpc("update_reminders_by_ref" as never, {
+            _ref: ref,
+            _phone: phone,
+            _reminder_24h: false,
+            _reminder_2h: false,
+          } as never),
+        ]);
+        assert(!rRe.error, `reschedule err: ${rRe.error?.message}`);
+        assert(!rRem.error, `reminders err: ${rRem.error?.message}`);
+        assert(rRe.data === true && rRem.data === true, "both should succeed");
+        const row = await readAppt(id);
+        // Reminder prefs must reflect explicit update (both false), regardless
+        // of which write landed last — reschedule never touches reminder cols.
+        assert(
+          row.reminder_24h === false && row.reminder_2h === false,
+          `reminder update lost under concurrency: ${JSON.stringify(row)}`,
+        );
+      },
+    );
+
+    await test(
+      "many parallel reschedules leave reminders untouched and status=new",
+      async () => {
+        const { id, ref } = await newAppt({
+          reminder_24h: false,
+          reminder_2h: true,
+        });
+        const results = await Promise.all(
+          Array.from({ length: 6 }, (_, i) =>
+            anon.rpc("reschedule_appointment_by_ref" as never, {
+              _ref: ref,
+              _phone: phone,
+              _new_date: futureDate(8 + i),
+              _new_time: "15:00:00",
+              _reason: `parallel-${i}`,
+            } as never),
+          ),
+        );
+        for (const r of results) {
+          assert(!r.error, `rpc err: ${r.error?.message}`);
+          assert(r.data === true, `expected true, got ${JSON.stringify(r.data)}`);
+        }
+        const row = await readAppt(id);
+        assert(
+          row.reminder_24h === false && row.reminder_2h === true,
+          `reminders corrupted under load: ${JSON.stringify(row)}`,
+        );
+        assert(row.status === "new", `status must be new, got ${row.status}`);
+      },
+    );
 
   } finally {
+
     if (created.length) {
       await admin.from("appointments").delete().in("id", created);
     }
