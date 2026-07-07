@@ -444,3 +444,117 @@ function AuditDetailModal({ row, onClose }: { row: any; onClose: () => void }) {
     </div>
   );
 }
+
+function copyJson(value: any, label: string) {
+  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  navigator.clipboard
+    .writeText(text)
+    .then(() => toast.success(`تم نسخ ${label}`))
+    .catch(() => toast.error("تعذّر النسخ"));
+}
+
+function JsonBlock({
+  title,
+  value,
+  tone = "neutral",
+  defaultOpen = true,
+}: {
+  title: string;
+  value: any;
+  tone?: "before" | "after" | "diff" | "neutral";
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const toneClasses: Record<string, string> = {
+    before: "border-destructive/30 bg-destructive/5",
+    after: "border-emerald-500/30 bg-emerald-500/5",
+    diff: "border-primary/30 bg-primary/5",
+    neutral: "border-border bg-muted/40",
+  };
+  return (
+    <div className={`rounded-lg border ${toneClasses[tone]}`}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-center gap-2 text-right text-sm font-semibold"
+        >
+          {open ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+          <span>{title}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => copyJson(value, title)}
+          className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs hover:bg-muted"
+          aria-label={`نسخ ${title}`}
+        >
+          <Copy className="h-3.5 w-3.5" />
+          نسخ
+        </button>
+      </div>
+      {open && (
+        <pre
+          dir="ltr"
+          className="max-h-72 overflow-auto border-t border-border/60 bg-background/50 p-3 text-xs leading-relaxed"
+        >
+          {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function MetadataBlocks({ metadata }: { metadata: any }) {
+  if (!metadata || typeof metadata !== "object") {
+    return <div className="text-sm text-muted-foreground">لا توجد بيانات إضافية.</div>;
+  }
+  const clean = sanitize(metadata) as any;
+  const changes = clean.changes && typeof clean.changes === "object" ? clean.changes : null;
+  const beforeVal =
+    clean.old ??
+    (changes
+      ? Object.fromEntries(Object.entries<any>(changes).map(([k, v]) => [k, v?.old]))
+      : null);
+  const afterVal =
+    clean.new ??
+    (changes
+      ? Object.fromEntries(Object.entries<any>(changes).map(([k, v]) => [k, v?.new]))
+      : null);
+
+  // Anything not covered by before/after/changes we still show as a raw block.
+  const { old: _o, new: _n, changes: _c, ...rest } = clean;
+  const hasRest = Object.keys(rest).length > 0;
+
+  return (
+    <>
+      <div className="text-xs font-medium text-muted-foreground">التفاصيل (Metadata)</div>
+      {changes && (
+        <JsonBlock title="الحقول المتغيّرة (Diff)" value={changes} tone="diff" />
+      )}
+      {beforeVal && (
+        <JsonBlock
+          title="قبل (Before)"
+          value={beforeVal}
+          tone="before"
+          defaultOpen={!changes}
+        />
+      )}
+      {afterVal && (
+        <JsonBlock
+          title="بعد (After)"
+          value={afterVal}
+          tone="after"
+          defaultOpen={!changes}
+        />
+      )}
+      {hasRest && <JsonBlock title="بيانات إضافية" value={rest} defaultOpen={false} />}
+      {!changes && !beforeVal && !afterVal && !hasRest && (
+        <div className="text-sm text-muted-foreground">—</div>
+      )}
+    </>
+  );
+}
