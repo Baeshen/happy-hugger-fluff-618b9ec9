@@ -431,6 +431,49 @@ function LookupPage() {
                 />
               </div>
 
+              {(appt.status === "new" || appt.status === "confirmed") && (
+                <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div>
+                      <div className="text-sm font-semibold">تذكيرات قبل الموعد</div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        فعّل/عطّل التذكيرات المرتبطة بهذا الحجز.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {[
+                      { key: "24h" as const, label: "قبل 24 ساعة", value: !!appt.reminder_24h },
+                      { key: "2h" as const, label: "قبل ساعتين", value: !!appt.reminder_2h },
+                    ].map((r) => (
+                      <button
+                        key={r.key}
+                        disabled={savingReminders}
+                        onClick={() => toggleReminder(r.key, !r.value)}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                          r.value
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${
+                            r.value ? "bg-primary-foreground" : "bg-muted-foreground/40"
+                          }`}
+                          aria-hidden
+                        />
+                        {r.label}
+                        <span className="text-[10px] opacity-80">
+                          {r.value ? "مفعّل" : "معطّل"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
+
               <div className="mt-6 flex flex-wrap gap-2">
                 <a
                   href={googleCalendarUrl(share)}
