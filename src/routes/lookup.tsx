@@ -521,6 +521,13 @@ function LookupPage() {
                       </button>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowReminderHistory(true)}
+                    className="mt-3 text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                  >
+                    عرض سجل تفضيلات التذكير
+                  </button>
                 </div>
               )}
 
