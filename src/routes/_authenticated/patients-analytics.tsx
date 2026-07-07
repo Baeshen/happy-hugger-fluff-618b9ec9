@@ -1547,14 +1547,28 @@ function PatientTransitionsTable({
 }) {
   const fn = useServerFn(listPatientTransitionRows);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortKey, setSortKey] = useState<TxSortKey>("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive" | "archived" | "deceased">("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  // Debounce search input to avoid firing a request per keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Reset to page 1 whenever filters/search/sort/pageSize change
+  useEffect(() => {
+    setPage(1);
+  }, [branchId, doctorId, gender, minAge, maxAge, from, to, debouncedSearch, statusFilter, sortKey, sortDir, pageSize]);
 
   const q = useQuery({
     queryKey: [
       "patient-transition-rows",
-      { branchId, doctorId, gender, minAge, maxAge, from, to },
+      { branchId, doctorId, gender, minAge, maxAge, from, to, search: debouncedSearch, statusFilter, sortKey, sortDir, page, pageSize },
     ],
     queryFn: () =>
       fn({
@@ -1566,40 +1580,23 @@ function PatientTransitionsTable({
           maxAge: maxAge ? Number(maxAge) : null,
           from,
           to,
-          limit: 500,
+          limit: 2000,
+          page,
+          pageSize,
+          search: debouncedSearch || null,
+          statusTo: statusFilter || null,
+          sortKey,
+          sortDir,
         },
       }),
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
-  const rows = (q.data as PatientTransitionRow[] | undefined) ?? [];
-
-  const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (statusFilter && r.to !== statusFilter) return false;
-      if (!s) return true;
-      return (
-        (r.patient_name ?? "").toLowerCase().includes(s) ||
-        (r.patient_mrn ?? "").toLowerCase().includes(s) ||
-        (r.branch_name ?? "").toLowerCase().includes(s) ||
-        (r.actor_name ?? "").toLowerCase().includes(s) ||
-        (r.reason ?? "").toLowerCase().includes(s)
-      );
-    });
-  }, [rows, search, statusFilter]);
-
-  const sorted = useMemo(() => {
-    const copy = [...filtered];
-    copy.sort((a, b) => {
-      const av = (a[sortKey] ?? "") as string;
-      const bv = (b[sortKey] ?? "") as string;
-      const cmp = av.localeCompare(bv, "ar");
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-    return copy;
-  }, [filtered, sortKey, sortDir]);
+  const pageData = q.data as { rows: PatientTransitionRow[]; total: number; page: number; pageSize: number } | undefined;
+  const sorted = pageData?.rows ?? [];
+  const total = pageData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const toggleSort = (k: TxSortKey) => {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
