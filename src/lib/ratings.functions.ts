@@ -32,6 +32,9 @@ export type RatingRow = {
   comment: string | null;
   source: string;
   created_at: string;
+  staff_reply: string | null;
+  staff_reply_at: string | null;
+  staff_reply_by: string | null;
   branch_name?: string | null;
   doctor_name?: string | null;
 };
