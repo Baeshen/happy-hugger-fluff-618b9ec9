@@ -517,7 +517,10 @@ function TransitionAlertsPage() {
         {statsQ.error && (
           <p className="text-sm text-destructive">تعذر تحميل الإحصائيات: {(statsQ.error as Error).message}</p>
         )}
+          </TabsContent>
+        </Tabs>
       </main>
+
     </div>
   );
 }
