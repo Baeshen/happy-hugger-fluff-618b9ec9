@@ -118,6 +118,13 @@ function HealthIndex() {
               ? "نصائح ومقالات موسمية موثوقة بأقلام أطباء مجمع باعشن الطبي في صبيا، جازان."
               : "Trusted seasonal health articles by physicians at Baeshen Medical Complex."}
           </p>
+          <Link
+            to="/health/search"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white/95 text-foreground px-4 py-3 text-sm font-semibold shadow-sm hover:bg-white transition"
+          >
+            <Search className="h-4 w-4" />
+            {lang === "ar" ? "ابحث في المقالات..." : "Search articles..."}
+          </Link>
         </div>
       </section>
 
