@@ -865,6 +865,8 @@ export type TransitionsStats = {
   byBranchStatus: { branch_id: string; branch_name: string; status: string; count: number }[];
   byActorStatus: { actor_id: string; actor_name: string; status: string; count: number }[];
   daily: { day: string; total: number; active: number; inactive: number; archived: number; deceased: number }[];
+  dailyByBranchStatus: { day: string; branch_id: string; branch_name: string; status: string; count: number }[];
+  dailyByActorStatus: { day: string; actor_id: string; actor_name: string; status: string; count: number }[];
   hourly: { hour: number; count: number }[];
   weekday: { weekday: number; label: string; count: number }[];
 };
@@ -903,6 +905,8 @@ export const getTransitionsStats = createServerFn({ method: "POST" })
     const byActor = new Map<string, number>();
     const byBranchStatus = new Map<string, number>(); // key: `${branchId}||${to}`
     const byActorStatus = new Map<string, number>();  // key: `${actorId}||${to}`
+    const dailyBranchStatus = new Map<string, number>(); // key: `${day}||${branchId}||${to}`
+    const dailyActorStatus = new Map<string, number>();  // key: `${day}||${actorId}||${to}`
     const dailyMap = new Map<string, { total: number; active: number; inactive: number; archived: number; deceased: number }>();
     const hourly = new Array<number>(24).fill(0);
     const weekday = new Array<number>(7).fill(0);
