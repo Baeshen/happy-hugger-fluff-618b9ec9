@@ -159,10 +159,12 @@ async def case_reschedule_missing_datetime(page, ref, phone, failures):
     await go_lookup(page)
     await fill_search(page, ref, phone)
     await submit_search(page)
-    await page.wait_for_timeout(900)
-
-    # Open the reschedule panel.
-    await page.get_by_role("button", name="إعادة جدولة", exact=False).first.click()
+    # The RPC + render takes noticeably longer than the search-only wait;
+    # explicitly wait for the reschedule button before clicking.
+    reschedule_btn = page.get_by_role(
+        "button", name="إعادة جدولة", exact=False).first
+    await reschedule_btn.wait_for(timeout=15000)
+    await reschedule_btn.click()
     await page.wait_for_timeout(400)
 
     # Force-click the disabled confirm button to trigger the guard clause.
