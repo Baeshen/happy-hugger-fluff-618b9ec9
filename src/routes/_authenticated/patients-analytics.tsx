@@ -24,6 +24,8 @@ import {
   getPatientTransitions,
   listBranchesForAnalytics,
   listDoctorsForAnalytics,
+  listRecentStatusChanges,
+  type RecentStatusEvent,
 } from "@/lib/patients-analytics.functions";
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
 
