@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /my
+Disallow: /settings
+Disallow: /auth
+Disallow: /api/
+
+Sitemap: https://happy-hugger-fluff.lovable.app/sitemap.xml
