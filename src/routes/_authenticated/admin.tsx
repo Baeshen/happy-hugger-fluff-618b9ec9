@@ -32,6 +32,14 @@ import {
   exportReminderPreferenceAuditCsv,
   listSecurityAuditLog,
   listSecurityAuditActions,
+  listFaqsAdmin,
+  createFaq,
+  updateFaq,
+  deleteFaq,
+  listAboutSectionsAdmin,
+  createAboutSection,
+  updateAboutSection,
+  deleteAboutSection,
 } from "@/lib/admin.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
