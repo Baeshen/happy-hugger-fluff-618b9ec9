@@ -79,6 +79,7 @@ function AuditLogPage() {
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
   const [limit, setLimit] = useState<number>(100);
+  const [selected, setSelected] = useState<any | null>(null);
 
   const actions = useQuery({
     queryKey: ["audit-actions"],
