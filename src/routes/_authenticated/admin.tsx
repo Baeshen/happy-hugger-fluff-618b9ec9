@@ -27,6 +27,7 @@ import {
   listAvailability,
   createAvailability,
   deleteAvailability,
+  listReminderPreferenceAudit,
 } from "@/lib/admin.functions";
 import {
   LayoutDashboard,
@@ -44,6 +45,7 @@ import {
   Tag,
   CalendarClock,
   History,
+  Bell,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -53,7 +55,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability";
+type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit";
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -135,6 +137,12 @@ function AdminDashboard() {
       icon: CalendarClock,
       show: isAdmin || isReception,
     },
+    {
+      id: "reminders-audit" as Tab,
+      label: "سجل التذكيرات",
+      icon: Bell,
+      show: canSeeAppts,
+    },
   ].filter((t) => t.show);
 
   return (
@@ -193,6 +201,7 @@ function AdminDashboard() {
       {tab === "doctors" && isAdmin && <DoctorsTab />}
       {tab === "specialties" && isAdmin && <SpecialtiesTab />}
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
+      {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
     </div>
   );
 }
@@ -1576,6 +1585,294 @@ function AvailabilityTab() {
             </table>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Reminders Audit Tab
+// ============================================================================
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const REMINDER_KIND_LABEL: Record<string, string> = {
+  reminder_24h: "قبل 24 ساعة",
+  reminder_2h: "قبل ساعتين",
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  staff: "موظف",
+  self_service: "المريض",
+  system: "النظام",
+};
+
+const SOURCE_CLASS: Record<string, string> = {
+  staff: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  self_service: "bg-muted text-muted-foreground",
+  system: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
+};
+
+function formatAuditDate(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("ar", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function RemindersAuditTab() {
+  const listFn = useServerFn(listReminderPreferenceAudit);
+  const [appointmentIdInput, setAppointmentIdInput] = useState("");
+  const [reminderKind, setReminderKind] = useState<"" | "reminder_24h" | "reminder_2h">("");
+  const [source, setSource] = useState<"" | "staff" | "self_service" | "system">("");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
+  // Applied filters (used in query key). Separate from inputs so typing doesn't fetch.
+  const [applied, setApplied] = useState<{
+    appointmentId: string;
+    reminderKind: "" | "reminder_24h" | "reminder_2h";
+    source: "" | "staff" | "self_service" | "system";
+  }>({ appointmentId: "", reminderKind: "", source: "" });
+
+  const [uuidError, setUuidError] = useState<string | null>(null);
+
+  const query = useQuery({
+    queryKey: ["reminders-audit", applied, page],
+    queryFn: () =>
+      listFn({
+        data: {
+          appointmentId: applied.appointmentId || undefined,
+          reminderKind: applied.reminderKind || undefined,
+          source: applied.source || undefined,
+          page,
+          pageSize,
+        },
+      }),
+    placeholderData: (prev) => prev,
+  });
+
+  function applyFilters() {
+    const trimmed = appointmentIdInput.trim();
+    if (trimmed && !UUID_RE.test(trimmed)) {
+      setUuidError(
+        "الرجاء استخدام معرّف الموعد الكامل (UUID) من صفحة تفاصيل الموعد.",
+      );
+      return;
+    }
+    setUuidError(null);
+    setApplied({ appointmentId: trimmed, reminderKind, source });
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setAppointmentIdInput("");
+    setReminderKind("");
+    setSource("");
+    setUuidError(null);
+    setApplied({ appointmentId: "", reminderKind: "", source: "" });
+    setPage(1);
+  }
+
+  const total = query.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rows = query.data?.rows ?? [];
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              معرّف الموعد (UUID كامل)
+            </label>
+            <input
+              type="text"
+              value={appointmentIdInput}
+              onChange={(e) => setAppointmentIdInput(e.target.value)}
+              placeholder="00000000-0000-0000-0000-000000000000"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+              dir="ltr"
+            />
+            {uuidError && (
+              <p className="mt-1 text-xs text-destructive">{uuidError}</p>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              نوع التذكير
+            </label>
+            <select
+              value={reminderKind}
+              onChange={(e) => setReminderKind(e.target.value as any)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">الكل</option>
+              <option value="reminder_24h">قبل 24 ساعة</option>
+              <option value="reminder_2h">قبل ساعتين</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              المصدر
+            </label>
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value as any)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">الكل</option>
+              <option value="staff">موظف</option>
+              <option value="self_service">المريض</option>
+              <option value="system">النظام</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={applyFilters}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            تطبيق
+          </button>
+          <button
+            onClick={clearFilters}
+            className="rounded-md border border-input px-4 py-2 text-sm hover:bg-muted"
+          >
+            مسح
+          </button>
+        </div>
+      </div>
+
+      {/* Results */}
+      {query.isLoading ? (
+        <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
+          جارٍ التحميل…
+        </div>
+      ) : query.isError ? (
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+          {(query.error as Error)?.message ?? "تعذّر تحميل السجلات."}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
+          لا توجد سجلات مطابقة للمعايير.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-right">التاريخ</th>
+                <th className="px-3 py-2 text-right">الموعد</th>
+                <th className="px-3 py-2 text-right">نوع التذكير</th>
+                <th className="px-3 py-2 text-right">من → إلى</th>
+                <th className="px-3 py-2 text-right">المصدر</th>
+                <th className="px-3 py-2 text-right">بواسطة</th>
+                <th className="px-3 py-2 text-right">السبب</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r: any) => {
+                const ref = String(r.appointment_id).replace(/-/g, "").slice(0, 8);
+                return (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                      {formatAuditDate(r.changed_at)}
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard?.writeText(r.appointment_id);
+                          toast.success("تم نسخ معرّف الموعد");
+                        }}
+                        className="font-mono text-xs text-primary hover:underline"
+                        title={r.appointment_id}
+                        dir="ltr"
+                      >
+                        {ref}…
+                      </button>
+                    </td>
+                    <td className="px-3 py-2">
+                      {REMINDER_KIND_LABEL[r.reminder_kind] ?? r.reminder_kind}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={
+                          r.old_value
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {r.old_value ? "✓" : "✗"}
+                      </span>
+                      <span className="mx-2 text-muted-foreground">←</span>
+                      <span
+                        className={
+                          r.new_value
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {r.new_value ? "✓" : "✗"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                          SOURCE_CLASS[r.source] ?? "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {SOURCE_LABEL[r.source] ?? r.source}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {r.changed_by_name || "—"}
+                    </td>
+                    <td className="max-w-xs px-3 py-2 text-muted-foreground">
+                      <span className="line-clamp-2" title={r.reason ?? ""}>
+                        {r.reason || "—"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm">
+          <div className="text-muted-foreground">
+            صفحة {page} من {totalPages} — الإجمالي {total}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || query.isFetching}
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              السابق
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || query.isFetching}
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              التالي
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
