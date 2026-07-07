@@ -129,8 +129,8 @@ function LookupPage() {
         patient_phone: appt.patient_phone,
         appointment_date: appt.appointment_date,
         appointment_time: appt.appointment_time,
-        doctor: doctorName,
-        specialty: specialtyName,
+      doctor: doctorName ?? undefined,
+      specialty: specialtyName ?? undefined,
       }
     : null;
 
