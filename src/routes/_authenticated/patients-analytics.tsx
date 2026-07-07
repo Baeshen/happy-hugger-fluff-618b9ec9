@@ -1600,12 +1600,23 @@ function PatientTransitionsTable({
   // Reset to page 1 whenever filters/search/sort/pageSize change
   useEffect(() => {
     setPage(1);
-  }, [branchId, doctorId, gender, minAge, maxAge, from, to, debouncedSearch, statusFilter, sortKey, sortDir, pageSize]);
+  }, [branchId, doctorId, gender, minAge, maxAge, from, to, debouncedSearch, statusFilter, statusFromFilter, txFrom, txTo, bulkOnly, sortKey, sortDir, pageSize]);
+
+  const activeAdvancedCount =
+    (statusFilter ? 1 : 0) + (statusFromFilter ? 1 : 0) + (txFrom ? 1 : 0) + (txTo ? 1 : 0) + (bulkOnly ? 1 : 0);
+
+  const resetAdvanced = () => {
+    setStatusFilter("");
+    setStatusFromFilter("");
+    setTxFrom("");
+    setTxTo("");
+    setBulkOnly(false);
+  };
 
   const q = useQuery({
     queryKey: [
       "patient-transition-rows",
-      { branchId, doctorId, gender, minAge, maxAge, from, to, search: debouncedSearch, statusFilter, sortKey, sortDir, page, pageSize },
+      { branchId, doctorId, gender, minAge, maxAge, from, to, search: debouncedSearch, statusFilter, statusFromFilter, txFrom, txTo, bulkOnly, sortKey, sortDir, page, pageSize },
     ],
     queryFn: () =>
       fn({
@@ -1622,6 +1633,10 @@ function PatientTransitionsTable({
           pageSize,
           search: debouncedSearch || null,
           statusTo: statusFilter || null,
+          statusFrom: statusFromFilter || null,
+          txFrom: txFrom || null,
+          txTo: txTo || null,
+          bulkOnly: bulkOnly || null,
           sortKey,
           sortDir,
         },
