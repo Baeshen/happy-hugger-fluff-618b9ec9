@@ -2,17 +2,47 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { Phone, Mail, MapPin, MessageCircle } from "lucide-react";
+import {
+  buildLocalBusinessSchema,
+  buildBreadcrumbs,
+  SITE_URL,
+} from "@/lib/localBusinessSchema";
+
+const CONTACT_URL = `${SITE_URL}/contact`;
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "تواصل معنا | مجمع باعشن الطبي" },
+      { title: "تواصل معنا | مجمع باعشن الطبي — صبيا، جازان" },
       {
         name: "description",
         content:
-          "أرقام التواصل، البريد الإلكتروني، والموقع على الخريطة لمجمع باعشن الطبي في صبيا، جازان.",
+          "أرقام التواصل، البريد الإلكتروني، والموقع على الخريطة لمجمع باعشن الطبي في صبيا، جازان. متاحون 7 أيام أسبوعياً.",
       },
       { property: "og:title", content: "تواصل معنا — مجمع باعشن الطبي" },
+      {
+        property: "og:description",
+        content: "اتصل بنا أو راسلنا واتساب — مجمع باعشن الطبي بصبيا، جازان.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: CONTACT_URL },
+      { property: "og:locale", content: "ar_SA" },
+    ],
+    links: [{ rel: "canonical", href: CONTACT_URL }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(buildLocalBusinessSchema({ pageUrl: CONTACT_URL })),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(
+          buildBreadcrumbs([
+            { name: "الرئيسية", path: "/" },
+            { name: "تواصل معنا", path: "/contact" },
+          ]),
+        ),
+      },
     ],
   }),
   component: ContactPage,
