@@ -1139,5 +1139,107 @@ function StatusChip({ s, muted }: { s: string; muted?: boolean }) {
   );
 }
 
+// ============ Export menu ============
 
+type AnalyticsData = NonNullable<ReturnType<typeof useQuery<Awaited<ReturnType<typeof getPatientAnalytics>>>>["data"]>;
+type TransitionsData = NonNullable<ReturnType<typeof useQuery<Awaited<ReturnType<typeof getPatientTransitions>>>>["data"]>;
+
+function ExportMenu({
+  data,
+  transitions,
+  filters,
+  branches,
+  doctors,
+}: {
+  data: AnalyticsData | undefined;
+  transitions: TransitionsData | undefined;
+  filters: { branchId: string | null; doctorId: string | null; gender: string | null; from: string; to: string };
+  branches: { id: string; name_ar: string }[];
+  doctors: { id: string; name_ar: string }[];
+}) {
+  const disabled = !data;
+  const branchName = filters.branchId ? branches.find((b) => b.id === filters.branchId)?.name_ar ?? "-" : "الكل";
+  const doctorName = filters.doctorId ? doctors.find((d) => d.id === filters.doctorId)?.name_ar ?? "-" : "الكل";
+  const genderLabel = filters.gender ? STATUS_LABEL[filters.gender] ?? filters.gender : "الكل";
+  const meta = {
+    الفترة: `${filters.from} → ${filters.to}`,
+    الفرع: branchName,
+    الطبيب: doctorName,
+    الجنس: genderLabel,
+  };
+
+  const buildRows = (): { section: string; label: string; value: string | number }[] => {
+    if (!data) return [];
+    const rows: { section: string; label: string; value: string | number }[] = [];
+    rows.push({ section: "ملخص", label: "إجمالي المرضى", value: data.total });
+    for (const s of data.byStatus) {
+      rows.push({ section: "الحالات", label: STATUS_LABEL[s.status] ?? s.status, value: s.count });
+    }
+    for (const g of data.byGender) {
+      rows.push({ section: "الجنس", label: GENDER_LABEL[g.gender] ?? g.gender, value: g.count });
+    }
+    for (const a of data.byAgeGroup) {
+      rows.push({ section: "الفئة العمرية", label: a.group, value: a.count });
+    }
+    for (const b of data.byBranch) {
+      rows.push({ section: "الفروع", label: b.branch_name, value: b.count });
+    }
+    for (const t of data.byTag) {
+      rows.push({ section: "الوسوم", label: t.tag, value: t.count });
+    }
+    if (transitions) {
+      for (const k of ["active", "inactive", "archived", "deceased"] as const) {
+        rows.push({
+          section: "انتقال الحالات",
+          label: `→ ${STATUS_LABEL[k]}`,
+          value: `${transitions.current.perTarget[k]} (${transitions.current.ratePerTarget[k]}%)`,
+        });
+      }
+    }
+    return rows;
+  };
+
+  const cols: Column<{ section: string; label: string; value: string | number }>[] = [
+    { header: "القسم", accessor: (r) => r.section, width: 20 },
+    { header: "البند", accessor: (r) => r.label, width: 32 },
+    { header: "القيمة", accessor: (r) => r.value, width: 20 },
+  ];
+
+  const filename = `patients-analytics-${filters.from}_${filters.to}`;
+
+  return (
+    <div className="inline-flex overflow-hidden rounded-md border border-input bg-background text-sm">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => exportXlsx(filename, cols, buildRows(), "التحليلات")}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-muted disabled:opacity-50"
+        title="تصدير إلى Excel"
+      >
+        <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+        Excel
+      </button>
+      <div className="w-px bg-border" />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() =>
+          exportPdf({
+            filename,
+            title: "تحليلات المرضى",
+            subtitle: `${filters.from} → ${filters.to}`,
+            cols,
+            rows: buildRows(),
+            meta,
+          })
+        }
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-muted disabled:opacity-50"
+        title="تصدير إلى PDF"
+      >
+        <FileText className="h-4 w-4 text-red-600" />
+        PDF
+      </button>
+    </div>
+  );
+}
 
