@@ -36,6 +36,8 @@ type AppointmentRow = {
   created_at: string;
   reminder_24h: boolean | null;
   reminder_2h: boolean | null;
+  cancel_reason: string | null;
+  cancelled_at: string | null;
 };
 
 
@@ -391,6 +393,30 @@ function LookupPage() {
                         {countdown(appt.appointment_date, appt.appointment_time)}
                       </div>
                     )}
+                  {appt.status === "cancelled" && (appt.cancel_reason || appt.cancelled_at) && (
+                    <div className="mt-3 rounded-xl border border-red-500/30 bg-background/70 p-3 text-sm">
+                      <div className="flex items-center gap-2 text-red-700 font-semibold">
+                        <XCircle className="h-4 w-4" />
+                        <span>سبب الإلغاء</span>
+                      </div>
+                      {appt.cancel_reason ? (
+                        <p className="mt-1.5 whitespace-pre-wrap text-foreground/90 leading-relaxed">
+                          {appt.cancel_reason}
+                        </p>
+                      ) : (
+                        <p className="mt-1.5 text-muted-foreground">لم يُسجَّل سبب محدد.</p>
+                      )}
+                      {appt.cancelled_at && (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          تاريخ الإلغاء:{" "}
+                          {new Date(appt.cancelled_at).toLocaleString("ar-SA", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
