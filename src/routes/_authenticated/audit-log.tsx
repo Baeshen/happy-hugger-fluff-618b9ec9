@@ -1,0 +1,216 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { listAuditLog, listAuditActions } from "@/lib/rbac.functions";
+import { getMyRoles } from "@/lib/admin.functions";
+import { ShieldAlert, ArrowRight, RefreshCw } from "lucide-react";
+
+export const Route = createFileRoute("/_authenticated/audit-log")({
+  head: () => ({
+    meta: [
+      { title: "سجل التدقيق | مجمع باعشن الطبي" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: AuditLogPage,
+});
+
+function AuditLogPage() {
+  const myRolesFn = useServerFn(getMyRoles);
+  const listFn = useServerFn(listAuditLog);
+  const actionsFn = useServerFn(listAuditActions);
+
+  const myRoles = useQuery({ queryKey: ["my-roles"], queryFn: () => myRolesFn() });
+  const isAdmin =
+    (myRoles.data?.roles ?? []).includes("admin" as any) ||
+    (myRoles.data?.roles ?? []).includes("super_admin" as any);
+
+  const [action, setAction] = useState<string>("");
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+  const [limit, setLimit] = useState<number>(100);
+
+  const actions = useQuery({
+    queryKey: ["audit-actions"],
+    queryFn: () => actionsFn(),
+    enabled: isAdmin,
+  });
+
+  const log = useQuery({
+    queryKey: ["audit-log", action, from, to, limit],
+    queryFn: () =>
+      listFn({
+        data: {
+          action: action || undefined,
+          from: from ? new Date(from).toISOString() : undefined,
+          to: to ? new Date(to).toISOString() : undefined,
+          limit,
+        },
+      }),
+    enabled: isAdmin,
+  });
+
+  if (myRoles.isLoading) {
+    return (
+      <div className="container-app py-16 text-center text-muted-foreground">جارٍ التحميل…</div>
+    );
+  }
+  if (!isAdmin) {
+    return (
+      <div className="container-app py-16 text-center">
+        <ShieldAlert className="mx-auto h-10 w-10 text-muted-foreground" />
+        <p className="mt-4 text-muted-foreground">هذه الصفحة للمسؤولين فقط.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-app py-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">سجل التدقيق (Audit Log)</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            جميع العمليات الحساسة مع الوقت واسم المستخدم وعنوان IP والمتصفح.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/rbac"
+            className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            إدارة الصلاحيات
+          </Link>
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <ArrowRight className="h-4 w-4" /> لوحة التحكم
+          </Link>
+        </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
+        <div>
+          <label className="block text-xs text-muted-foreground">العملية</label>
+          <select
+            value={action}
+            onChange={(e) => setAction(e.target.value)}
+            className="mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          >
+            <option value="">الكل</option>
+            {(actions.data ?? []).map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground">من</label>
+          <input
+            type="datetime-local"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground">إلى</label>
+          <input
+            type="datetime-local"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground">الحد</label>
+          <select
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value))}
+            className="mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          >
+            {[50, 100, 200, 500].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={() => log.refetch()}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
+        >
+          <RefreshCw className="h-4 w-4" /> تحديث
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="min-w-full text-sm">
+          <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-right">الوقت</th>
+              <th className="px-3 py-2 text-right">المستخدم</th>
+              <th className="px-3 py-2 text-right">العملية</th>
+              <th className="px-3 py-2 text-right">التفاصيل</th>
+              <th className="px-3 py-2 text-right">IP</th>
+              <th className="px-3 py-2 text-right">المتصفح</th>
+            </tr>
+          </thead>
+          <tbody>
+            {log.isLoading && (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  جارٍ التحميل…
+                </td>
+              </tr>
+            )}
+            {!log.isLoading && (log.data ?? []).length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  لا توجد سجلات
+                </td>
+              </tr>
+            )}
+            {(log.data ?? []).map((r) => (
+              <tr key={r.id} className="border-t border-border align-top">
+                <td className="whitespace-nowrap px-3 py-2 text-xs">
+                  {new Date(r.created_at).toLocaleString("ar-SA")}
+                </td>
+                <td className="px-3 py-2">
+                  <div className="font-medium">{r.actor_name || "—"}</div>
+                  <div className="text-xs text-muted-foreground">{r.actor_phone || ""}</div>
+                </td>
+                <td className="px-3 py-2">
+                  <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {r.action}
+                  </span>
+                  {r.from_status && r.to_status && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {r.from_status} → {r.to_status}
+                    </div>
+                  )}
+                </td>
+                <td className="max-w-md px-3 py-2 text-xs">
+                  {r.reason && <div className="mb-1">{r.reason}</div>}
+                  {r.metadata && (
+                    <pre dir="ltr" className="max-h-24 overflow-auto rounded bg-muted/50 p-1.5 text-[10px] leading-tight">
+                      {JSON.stringify(r.metadata, null, 2)}
+                    </pre>
+                  )}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 font-mono text-xs" dir="ltr">
+                  {r.ip_address || "—"}
+                </td>
+                <td className="max-w-xs truncate px-3 py-2 text-xs" dir="ltr" title={r.user_agent ?? ""}>
+                  {r.user_agent || "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

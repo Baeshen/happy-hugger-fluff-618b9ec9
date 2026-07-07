@@ -1330,9 +1330,11 @@ export type Database = {
           created_at: string
           from_status: string | null
           id: string
+          ip_address: unknown
           metadata: Json | null
           reason: string | null
           to_status: string | null
+          user_agent: string | null
         }
         Insert: {
           action: string
@@ -1341,9 +1343,11 @@ export type Database = {
           created_at?: string
           from_status?: string | null
           id?: string
+          ip_address?: unknown
           metadata?: Json | null
           reason?: string | null
           to_status?: string | null
+          user_agent?: string | null
         }
         Update: {
           action?: string
@@ -1352,9 +1356,11 @@ export type Database = {
           created_at?: string
           from_status?: string | null
           id?: string
+          ip_address?: unknown
           metadata?: Json | null
           reason?: string | null
           to_status?: string | null
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -1441,6 +1447,16 @@ export type Database = {
           _body: string
           _kind: string
           _title: string
+        }
+        Returns: undefined
+      }
+      assign_user_role: {
+        Args: {
+          _branch_id?: string
+          _ip?: string
+          _role: Database["public"]["Enums"]["app_role"]
+          _ua?: string
+          _user_id: string
         }
         Returns: undefined
       }
@@ -1571,17 +1587,42 @@ export type Database = {
           source: string
         }[]
       }
-      log_security_event: {
-        Args: {
-          _action: string
-          _appointment_id?: string
-          _from_status?: string
-          _metadata?: Json
-          _reason?: string
-          _to_status?: string
-        }
-        Returns: undefined
+      list_users_with_roles: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          phone: string
+          roles: Json
+          user_id: string
+        }[]
       }
+      log_security_event:
+        | {
+            Args: {
+              _action: string
+              _appointment_id?: string
+              _from_status?: string
+              _metadata?: Json
+              _reason?: string
+              _to_status?: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _action: string
+              _appointment_id?: string
+              _from_status?: string
+              _ip_address?: string
+              _metadata?: Json
+              _reason?: string
+              _to_status?: string
+              _user_agent?: string
+            }
+            Returns: undefined
+          }
       lookup_appointment: {
         Args: { _phone: string; _ref: string }
         Returns: {
@@ -1663,6 +1704,15 @@ export type Database = {
           _ref: string
         }
         Returns: boolean
+      }
+      revoke_user_role: {
+        Args: {
+          _ip?: string
+          _role: Database["public"]["Enums"]["app_role"]
+          _ua?: string
+          _user_id: string
+        }
+        Returns: undefined
       }
       update_appointment_notes: {
         Args: { _id: string; _notes: string; _reason?: string }

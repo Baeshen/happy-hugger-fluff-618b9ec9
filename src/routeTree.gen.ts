@@ -28,12 +28,14 @@ import { Route as HealthSearchRouteImport } from './routes/health.search'
 import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
 import { Route as AuthenticatedNotificationsQueueRouteImport } from './routes/_authenticated/notifications-queue'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedDoctorsManagementRouteImport } from './routes/_authenticated/doctors-management'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
+import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
@@ -133,6 +135,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRbacRoute = AuthenticatedRbacRouteImport.update({
+  id: '/rbac',
+  path: '/rbac',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedNotificationsQueueRoute =
   AuthenticatedNotificationsQueueRouteImport.update({
     id: '/notifications-queue',
@@ -164,6 +171,11 @@ const AuthenticatedClinicSettingsRoute =
 const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAuditLogRoute = AuthenticatedAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -201,12 +213,14 @@ export interface FileRoutesByFullPath {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/rbac': typeof AuthenticatedRbacRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
@@ -231,12 +245,14 @@ export interface FileRoutesByTo {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/rbac': typeof AuthenticatedRbacRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
@@ -263,12 +279,14 @@ export interface FileRoutesById {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
@@ -295,12 +313,14 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/admin'
+    | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
     | '/dashboard'
     | '/doctors-management'
     | '/my'
     | '/notifications-queue'
+    | '/rbac'
     | '/settings'
     | '/doctors/$slug'
     | '/health/$slug'
@@ -325,12 +345,14 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/admin'
+    | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
     | '/dashboard'
     | '/doctors-management'
     | '/my'
     | '/notifications-queue'
+    | '/rbac'
     | '/settings'
     | '/doctors/$slug'
     | '/health/$slug'
@@ -356,12 +378,14 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/_authenticated/admin'
+    | '/_authenticated/audit-log'
     | '/_authenticated/calendar'
     | '/_authenticated/clinic-settings'
     | '/_authenticated/dashboard'
     | '/_authenticated/doctors-management'
     | '/_authenticated/my'
     | '/_authenticated/notifications-queue'
+    | '/_authenticated/rbac'
     | '/_authenticated/settings'
     | '/doctors/$slug'
     | '/health/$slug'
@@ -532,6 +556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/rbac': {
+      id: '/_authenticated/rbac'
+      path: '/rbac'
+      fullPath: '/rbac'
+      preLoaderRoute: typeof AuthenticatedRbacRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notifications-queue': {
       id: '/_authenticated/notifications-queue'
       path: '/notifications-queue'
@@ -574,6 +605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCalendarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/audit-log': {
+      id: '/_authenticated/audit-log'
+      path: '/audit-log'
+      fullPath: '/audit-log'
+      preLoaderRoute: typeof AuthenticatedAuditLogRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -607,12 +645,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAuditLogRoute: typeof AuthenticatedAuditLogRoute
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedClinicSettingsRoute: typeof AuthenticatedClinicSettingsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDoctorsManagementRoute: typeof AuthenticatedDoctorsManagementRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedNotificationsQueueRoute: typeof AuthenticatedNotificationsQueueRoute
+  AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedPatientsPatientIdRoute: typeof AuthenticatedPatientsPatientIdRoute
   AuthenticatedPatientsIndexRoute: typeof AuthenticatedPatientsIndexRoute
@@ -620,12 +660,14 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAuditLogRoute: AuthenticatedAuditLogRoute,
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedClinicSettingsRoute: AuthenticatedClinicSettingsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDoctorsManagementRoute: AuthenticatedDoctorsManagementRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedNotificationsQueueRoute: AuthenticatedNotificationsQueueRoute,
+  AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedPatientsPatientIdRoute: AuthenticatedPatientsPatientIdRoute,
   AuthenticatedPatientsIndexRoute: AuthenticatedPatientsIndexRoute,

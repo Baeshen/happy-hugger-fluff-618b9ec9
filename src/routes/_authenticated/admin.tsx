@@ -243,6 +243,22 @@ function AdminDashboard() {
           )}
           {roles.includes("admin") && (
             <Link
+              to="/rbac"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              الصلاحيات
+            </Link>
+          )}
+          {roles.includes("admin") && (
+            <Link
+              to="/audit-log"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              سجل التدقيق
+            </Link>
+          )}
+          {roles.includes("admin") && (
+            <Link
               to="/clinic-settings"
               className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
             >
