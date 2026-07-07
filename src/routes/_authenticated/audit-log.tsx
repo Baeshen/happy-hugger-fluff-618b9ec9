@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { listAuditLog, listAuditActions } from "@/lib/rbac.functions";
 import { getMyRoles } from "@/lib/admin.functions";
-import { ShieldAlert, ArrowRight, RefreshCw, Download } from "lucide-react";
+import { ShieldAlert, ArrowRight, RefreshCw, Download, X } from "lucide-react";
 
 function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return "";
