@@ -1,9 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Area,
   AreaChart,
@@ -30,6 +37,7 @@ import {
   type RecentStatusEvent,
 } from "@/lib/patients-analytics.functions";
 import { getPatientsAiSummary, type AiSummary } from "@/lib/patients-ai-summary.functions";
+import { listPatientsForKpi, type KpiPatientRow } from "@/lib/patients-analytics.functions";
 import { exportXlsx, exportPdf, type Column } from "@/lib/export-utils";
 
 function todayISO() {
@@ -87,9 +95,14 @@ const COLORS = [
 
 
 
+type DrilldownState =
+  | { kind: "patients"; status: "active" | "inactive" | "archived" | "deceased" | null; title: string }
+  | { kind: "events"; title: string };
+
 function PatientsAnalyticsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/patients-analytics" });
+  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
   const { branchId, doctorId, gender, minAge, maxAge, from, to } = search;
 
   const update = (patch: Partial<typeof search>) =>
@@ -360,21 +373,29 @@ function PatientsAnalyticsPage() {
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Kpi label="إجمالي المرضى" value={data.total} tone="primary" />
+            <Kpi
+              label="إجمالي المرضى"
+              value={data.total}
+              tone="primary"
+              onClick={() => setDrilldown({ kind: "patients", status: null, title: "إجمالي المرضى" })}
+            />
             <Kpi
               label="نشط"
               value={data.byStatus.find((s) => s.status === "active")?.count ?? 0}
               tone="success"
+              onClick={() => setDrilldown({ kind: "patients", status: "active", title: "المرضى النشطون" })}
             />
             <Kpi
               label="مؤرشف"
               value={data.byStatus.find((s) => s.status === "archived")?.count ?? 0}
               tone="info"
+              onClick={() => setDrilldown({ kind: "patients", status: "archived", title: "المرضى المؤرشفون" })}
             />
             <Kpi
               label="تغيّرات الحالة (الفترة)"
               value={data.statusChangesDaily.reduce((s, d) => s + d.count, 0)}
               tone="warning"
+              onClick={() => setDrilldown({ kind: "events", title: "أحداث تغيير الحالة خلال الفترة" })}
             />
           </div>
 
@@ -576,6 +597,12 @@ function PatientsAnalyticsPage() {
           )}
         </>
       )}
+
+      <DrilldownModal
+        state={drilldown}
+        onClose={() => setDrilldown(null)}
+        filters={{ branchId, doctorId, gender, minAge, maxAge, from, to }}
+      />
     </div>
   );
 }
@@ -591,10 +618,12 @@ function Kpi({
   label,
   value,
   tone,
+  onClick,
 }: {
   label: string;
   value: number;
   tone: "primary" | "success" | "info" | "warning";
+  onClick?: () => void;
 }) {
   const toneClass: Record<string, string> = {
     primary: "text-primary from-primary/10",
@@ -602,13 +631,26 @@ function Kpi({
     info: "text-sky-600 dark:text-sky-400 from-sky-500/10",
     warning: "text-amber-600 dark:text-amber-400 from-amber-500/10",
   };
+  const clickable = typeof onClick === "function";
   return (
-    <div className={`rounded-xl border border-border bg-gradient-to-br to-card p-4 shadow-sm transition hover:shadow-md ${toneClass[tone].split(" ").slice(-1)[0]}`}>
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={`group w-full text-start rounded-xl border border-border bg-gradient-to-br to-card p-4 shadow-sm transition ${clickable ? "cursor-pointer hover:shadow-md hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/40" : "cursor-default"} ${toneClass[tone].split(" ").slice(-1)[0]}`}
+    >
+      <p className="flex items-center justify-between text-xs text-muted-foreground">
+        {label}
+        {clickable && (
+          <span className="text-[10px] font-normal text-muted-foreground/70 opacity-0 transition group-hover:opacity-100">
+            عرض التفاصيل ←
+          </span>
+        )}
+      </p>
       <p className={`mt-2 text-3xl font-bold tabular-nums ${toneClass[tone].split(" ")[0]}`}>
         {value.toLocaleString("ar-SA")}
       </p>
-    </div>
+    </button>
   );
 }
 
@@ -1243,3 +1285,231 @@ function ExportMenu({
   );
 }
 
+
+// ============ KPI Drill-down modal ============
+
+function DrilldownModal({
+  state,
+  onClose,
+  filters,
+}: {
+  state: DrilldownState | null;
+  onClose: () => void;
+  filters: {
+    branchId: string | null;
+    doctorId: string | null;
+    gender: "male" | "female" | "other" | null;
+    minAge: string;
+    maxAge: string;
+    from: string;
+    to: string;
+  };
+}) {
+  const open = state !== null;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>{state?.title ?? ""}</DialogTitle>
+          <DialogDescription>
+            {state?.kind === "events"
+              ? "قائمة تفصيلية بأحداث تغيير الحالة خلال الفترة والفلاتر الحالية."
+              : "قائمة المرضى الذين تكوّنت منهم هذه النتيجة وفق الفلاتر الحالية."}
+          </DialogDescription>
+        </DialogHeader>
+        {state?.kind === "patients" && (
+          <PatientsDrilldown status={state.status} filters={filters} />
+        )}
+        {state?.kind === "events" && <EventsDrilldown filters={filters} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PatientsDrilldown({
+  status,
+  filters,
+}: {
+  status: "active" | "inactive" | "archived" | "deceased" | null;
+  filters: {
+    branchId: string | null;
+    gender: "male" | "female" | "other" | null;
+    minAge: string;
+    maxAge: string;
+  };
+}) {
+  const fn = useServerFn(listPatientsForKpi);
+  const q = useQuery({
+    queryKey: [
+      "kpi-patients",
+      { status, branchId: filters.branchId, gender: filters.gender, minAge: filters.minAge, maxAge: filters.maxAge },
+    ],
+    queryFn: () =>
+      fn({
+        data: {
+          status,
+          branchId: filters.branchId,
+          gender: filters.gender,
+          minAge: filters.minAge ? Number(filters.minAge) : null,
+          maxAge: filters.maxAge ? Number(filters.maxAge) : null,
+          limit: 200,
+        },
+      }),
+    staleTime: 60_000,
+  });
+
+  const rows = (q.data as KpiPatientRow[] | undefined) ?? [];
+
+  return (
+    <div className="max-h-[65vh] overflow-auto">
+      {q.isLoading && (
+        <div className="space-y-2 p-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded bg-muted/60" />
+          ))}
+        </div>
+      )}
+      {q.error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {(q.error as Error).message}
+        </div>
+      )}
+      {!q.isLoading && rows.length === 0 && (
+        <p className="rounded-md bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          لا توجد بيانات مطابقة.
+        </p>
+      )}
+      {rows.length > 0 && (
+        <>
+          <p className="mb-2 text-xs text-muted-foreground">
+            عرض {rows.length.toLocaleString("ar-SA")} مريضًا (بحد أقصى 200 صف).
+          </p>
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-card">
+              <tr className="border-b border-border text-xs text-muted-foreground">
+                <th className="p-2 text-start">الاسم</th>
+                <th className="p-2 text-start">MRN</th>
+                <th className="p-2 text-start">الحالة</th>
+                <th className="p-2 text-start">الفرع</th>
+                <th className="p-2 text-start">التسجيل</th>
+                <th className="p-2 text-start"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="p-2 font-medium">{r.full_name_ar ?? "-"}</td>
+                  <td className="p-2 font-mono text-xs" dir="ltr">
+                    {r.mrn ?? "-"}
+                  </td>
+                  <td className="p-2">
+                    <StatusChip s={r.status} />
+                  </td>
+                  <td className="p-2 text-muted-foreground">{r.branch_name ?? "-"}</td>
+                  <td className="p-2 text-xs text-muted-foreground" dir="ltr">
+                    {new Date(r.created_at).toLocaleDateString("ar-SA")}
+                  </td>
+                  <td className="p-2">
+                    <Link
+                      to="/patients/$patientId"
+                      params={{ patientId: r.id }}
+                      className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] hover:bg-muted"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      فتح
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EventsDrilldown({
+  filters,
+}: {
+  filters: { branchId: string | null; doctorId: string | null; from: string; to: string };
+}) {
+  const fn = useServerFn(listRecentStatusChanges);
+  const q = useQuery({
+    queryKey: ["kpi-events", filters],
+    queryFn: () => fn({ data: { ...filters, limit: 50 } }),
+    staleTime: 60_000,
+  });
+  const events = (q.data as RecentStatusEvent[] | undefined) ?? [];
+
+  return (
+    <div className="max-h-[65vh] overflow-auto">
+      {q.isLoading && (
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded bg-muted/60" />
+          ))}
+        </div>
+      )}
+      {q.error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {(q.error as Error).message}
+        </div>
+      )}
+      {!q.isLoading && events.length === 0 && (
+        <p className="rounded-md bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          لا توجد أحداث تغيير حالة خلال هذه الفترة.
+        </p>
+      )}
+      {events.length > 0 && (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {events.map((e) => (
+            <li key={e.audit_id} className="p-3 hover:bg-muted/30">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {e.from && (
+                  <>
+                    <StatusChip s={e.from} muted />
+                    <span className="text-muted-foreground">→</span>
+                  </>
+                )}
+                <StatusChip s={e.to} />
+                {e.count > 1 && (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                    جماعي · {e.count}
+                  </span>
+                )}
+                <span className="text-muted-foreground" dir="ltr">
+                  {new Date(e.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
+                </span>
+              </div>
+              <div className="mt-1 text-xs">
+                {e.patient_name ? (
+                  <span className="font-medium">
+                    {e.patient_name}
+                    {e.patient_mrn && (
+                      <span className="ms-1 font-mono text-[10px] text-muted-foreground" dir="ltr">
+                        #{e.patient_mrn}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {e.count > 1 ? "عملية جماعية" : "مريض غير محدد"}
+                  </span>
+                )}
+                {e.branch_name && <span className="ms-2 text-muted-foreground">· {e.branch_name}</span>}
+                {e.actor_name && <span className="ms-2 text-muted-foreground">· {e.actor_name}</span>}
+              </div>
+              {e.reason && (
+                <p className="mt-1 rounded-md bg-muted/40 p-2 text-xs text-foreground/90">
+                  <span className="font-semibold text-muted-foreground">السبب: </span>
+                  {e.reason}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
