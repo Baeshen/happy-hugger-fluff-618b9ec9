@@ -1553,6 +1553,7 @@ function PatientTransitionsTable({
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive" | "archived" | "deceased">("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [selectedRow, setSelectedRow] = useState<PatientTransitionRow | null>(null);
 
   // Debounce search input to avoid firing a request per keystroke
   useEffect(() => {
@@ -1711,7 +1712,11 @@ function PatientTransitionsTable({
             </thead>
             <tbody>
               {sorted.map((r, i) => (
-                <tr key={`${r.audit_id}-${r.patient_id}-${i}`} className="border-b border-border/50 hover:bg-muted/30">
+                <tr
+                  key={`${r.audit_id}-${r.patient_id}-${i}`}
+                  onClick={() => setSelectedRow(r)}
+                  className="border-b border-border/50 cursor-pointer hover:bg-muted/30"
+                >
                   <td className="p-2 text-xs text-muted-foreground" dir="ltr">
                     {new Date(r.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
                   </td>
@@ -1732,7 +1737,7 @@ function PatientTransitionsTable({
                   </td>
                   <td className="p-2 text-xs text-muted-foreground">{r.actor_name ?? "-"}</td>
                   <td className="p-2">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Link
                         to="/patients/$patientId"
                         params={{ patientId: r.patient_id }}
@@ -1810,6 +1815,190 @@ function PatientTransitionsTable({
           </div>
         </div>
       )}
+      <TransitionDetailModal
+        row={selectedRow}
+        filters={{ branchId, doctorId, gender, minAge, maxAge, from, to }}
+        onClose={() => setSelectedRow(null)}
+      />
     </div>
+  );
+}
+
+function TransitionDetailModal({
+  row,
+  filters,
+  onClose,
+}: {
+  row: PatientTransitionRow | null;
+  filters: {
+    branchId: string | null;
+    doctorId: string | null;
+    gender: "male" | "female" | "other" | null;
+    minAge: string;
+    maxAge: string;
+    from: string;
+    to: string;
+  };
+  onClose: () => void;
+}) {
+  const open = row !== null;
+  const fn = useServerFn(listPatientTransitionRows);
+  const relatedQ = useQuery({
+    queryKey: [
+      "patient-transition-related",
+      { patientId: row?.patient_id, branchId: filters.branchId, doctorId: filters.doctorId, gender: filters.gender, minAge: filters.minAge, maxAge: filters.maxAge, from: filters.from, to: filters.to },
+    ],
+    queryFn: () =>
+      fn({
+        data: {
+          patientId: row?.patient_id,
+          branchId: filters.branchId,
+          doctorId: filters.doctorId,
+          gender: filters.gender,
+          minAge: filters.minAge ? Number(filters.minAge) : null,
+          maxAge: filters.maxAge ? Number(filters.maxAge) : null,
+          from: filters.from,
+          to: filters.to,
+          limit: 50,
+          sortKey: "created_at",
+          sortDir: "desc",
+        },
+      }),
+    enabled: open && !!row?.patient_id,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+  });
+  const related = ((relatedQ.data as { rows: PatientTransitionRow[] } | undefined)?.rows ?? []).filter(
+    (r) => r.audit_id !== row?.audit_id || r.patient_id !== row?.patient_id,
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>تفاصيل انتقال الحالة</DialogTitle>
+          <DialogDescription>
+            تفاصيل الحدث المختار والأحداث المرتبطة بالمريض ضمن نفس الفترة.
+          </DialogDescription>
+        </DialogHeader>
+        {row && (
+          <div className="max-h-[70vh] overflow-auto">
+            <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+                {row.from ? (
+                  <>
+                    <StatusChip s={row.from} muted />
+                    <span className="text-muted-foreground">→</span>
+                  </>
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+                <StatusChip s={row.to} />
+                {row.bulk && (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                    جماعي
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <span className="text-xs text-muted-foreground">المريض</span>
+                  <p className="font-medium">{row.patient_name ?? "-"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">MRN</span>
+                  <p className="font-mono text-xs" dir="ltr">{row.patient_mrn ?? "-"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">الفرع</span>
+                  <p>{row.branch_name ?? "-"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">تاريخ التغيير</span>
+                  <p className="text-xs" dir="ltr">
+                    {new Date(row.created_at).toLocaleString("ar-SA", { dateStyle: "long", timeStyle: "short" })}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">الموظف</span>
+                  <p>{row.actor_name ?? "-"}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-xs text-muted-foreground">السبب</span>
+                  <p className="mt-0.5 rounded-md bg-background p-2 text-xs">{row.reason ?? "غير محدد"}</p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Link
+                  to="/patients/$patientId"
+                  params={{ patientId: row.patient_id }}
+                  className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-muted"
+                >
+                  <UserIcon className="h-3.5 w-3.5" />
+                  فتح ملف المريض
+                </Link>
+                <Link
+                  to="/audit-log"
+                  search={{ id: row.audit_id }}
+                  className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs hover:bg-muted"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  فتح سجل Audit
+                </Link>
+              </div>
+            </div>
+
+            <h3 className="mb-2 text-sm font-semibold">الأحداث المرتبطة بالمريض</h3>
+            {relatedQ.isLoading && (
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-10 animate-pulse rounded bg-muted/60" />
+                ))}
+              </div>
+            )}
+            {relatedQ.error && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                {(relatedQ.error as Error).message}
+              </div>
+            )}
+            {!relatedQ.isLoading && related.length === 0 && (
+              <p className="rounded-md bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+                لا توجد أحداث مرتبطة أخرى للمريض ضمن الفترة.
+              </p>
+            )}
+            {related.length > 0 && (
+              <div className="max-h-[320px] overflow-auto rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-card">
+                    <tr className="border-b border-border text-xs text-muted-foreground">
+                      <th className="p-2 text-start">التاريخ</th>
+                      <th className="p-2 text-start">من</th>
+                      <th className="p-2 text-start">إلى</th>
+                      <th className="p-2 text-start">الموظف</th>
+                      <th className="p-2 text-start">السبب</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {related.map((r) => (
+                      <tr key={r.audit_id} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="p-2 text-xs text-muted-foreground" dir="ltr">
+                          {new Date(r.created_at).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" })}
+                        </td>
+                        <td className="p-2">{r.from ? <StatusChip s={r.from} muted /> : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="p-2"><StatusChip s={r.to} /></td>
+                        <td className="p-2 text-xs">{r.actor_name ?? "-"}</td>
+                        <td className="p-2 text-xs text-muted-foreground max-w-[200px] truncate" title={r.reason ?? ""}>
+                          {r.reason ?? "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

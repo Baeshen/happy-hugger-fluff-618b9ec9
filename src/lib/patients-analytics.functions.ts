@@ -643,6 +643,7 @@ const TransitionRowsInput = z.object({
   gender: z.enum(["male", "female", "other"]).nullable().optional(),
   minAge: z.number().int().min(0).max(150).nullable().optional(),
   maxAge: z.number().int().min(0).max(150).nullable().optional(),
+  patientId: z.string().uuid().nullable().optional(),
   limit: z.number().int().min(1).max(2000).optional(),
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(200).optional(),
@@ -699,6 +700,12 @@ export const listPatientTransitionRows = createServerFn({ method: "POST" })
       if (data.minAge != null && (age == null || age < data.minAge)) continue;
       if (data.maxAge != null && (age == null || age > data.maxAge)) continue;
       patientMap.set(p.id as string, p);
+    }
+    // If scoped to a single patient, drop all others
+    if (data.patientId) {
+      for (const id of [...patientMap.keys()]) {
+        if (id !== data.patientId) patientMap.delete(id);
+      }
     }
 
     if (data.doctorId) {
