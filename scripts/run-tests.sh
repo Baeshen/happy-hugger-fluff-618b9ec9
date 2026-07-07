@@ -63,30 +63,117 @@ else
 fi
 
 # ---------- كشف البيئة الحالية ----------
-in_container() {
-  [ -f /.dockerenv ] || grep -qE '(docker|containerd|kubepods)' /proc/1/cgroup 2>/dev/null \
-    || [ -n "${REMOTE_CONTAINERS:-}${CODESPACES:-}${DEVCONTAINER:-}" ]
-}
-
 has() { command -v "$1" >/dev/null 2>&1; }
 
-# ---------- اختيار الطريقة ----------
-if [ "$METHOD" = "auto" ]; then
-  if in_container; then
-    METHOD="bun"
-  elif has docker && docker compose version >/dev/null 2>&1; then
+detect_env() {
+  # يعبّئ متغيرات عالمية + مصفوفة REASONS لعرض تفسير الاختيار.
+  IN_CONTAINER=0; IN_CONTAINER_WHY=""
+  HAS_DEVCONTAINER=0; DEVCONTAINER_PATH=""
+  HAS_DOCKER=0; DOCKER_DAEMON=0; DOCKER_SOCK=""
+  HAS_COMPOSE=0; COMPOSE_KIND=""
+  HAS_COMPOSE_FILE=0; HAS_DOCKERFILE=0
+  HAS_BUN=0; BUN_VERSION=""
+
+  # داخل حاوية؟
+  if [ -f /.dockerenv ]; then IN_CONTAINER=1; IN_CONTAINER_WHY="/.dockerenv موجود"; fi
+  if [ "$IN_CONTAINER" -eq 0 ] && grep -qE '(docker|containerd|kubepods)' /proc/1/cgroup 2>/dev/null; then
+    IN_CONTAINER=1; IN_CONTAINER_WHY="/proc/1/cgroup يشير لحاوية"
+  fi
+  if [ -n "${REMOTE_CONTAINERS:-}${CODESPACES:-}${DEVCONTAINER:-}" ]; then
+    IN_CONTAINER=1
+    IN_CONTAINER_WHY="${IN_CONTAINER_WHY:+$IN_CONTAINER_WHY, }متغيّر بيئة devcontainer/codespaces"
+  fi
+
+  # devcontainer.json؟
+  for p in .devcontainer/devcontainer.json .devcontainer.json; do
+    if [ -f "$p" ]; then HAS_DEVCONTAINER=1; DEVCONTAINER_PATH="$p"; break; fi
+  done
+
+  # docker + daemon
+  if has docker; then
+    HAS_DOCKER=1
+    if docker info >/dev/null 2>&1; then
+      DOCKER_DAEMON=1
+      DOCKER_SOCK="${DOCKER_HOST:-}"
+      [ -z "$DOCKER_SOCK" ] && [ -S /var/run/docker.sock ] && DOCKER_SOCK="unix:///var/run/docker.sock"
+    fi
+  fi
+
+  # compose (v2 plugin أو v1 binary)
+  if [ "$HAS_DOCKER" -eq 1 ] && docker compose version >/dev/null 2>&1; then
+    HAS_COMPOSE=1; COMPOSE_KIND="docker compose (v2)"
+  elif has docker-compose; then
+    HAS_COMPOSE=1; COMPOSE_KIND="docker-compose (v1)"
+  fi
+
+  [ -f docker-compose.test.yml ] && HAS_COMPOSE_FILE=1
+  [ -f Dockerfile.test ] && HAS_DOCKERFILE=1
+
+  if has bun; then HAS_BUN=1; BUN_VERSION="$(bun --version 2>/dev/null || echo '?')"; fi
+}
+
+print_env_report() {
+  printf '\033[1;34m── فحص البيئة ──\033[0m\n'
+  printf '  داخل حاوية        : %s%s\n' "$([ $IN_CONTAINER -eq 1 ] && echo نعم || echo لا)" \
+    "$([ -n "$IN_CONTAINER_WHY" ] && echo " ($IN_CONTAINER_WHY)")"
+  printf '  devcontainer.json : %s\n' "$([ $HAS_DEVCONTAINER -eq 1 ] && echo "$DEVCONTAINER_PATH" || echo "غير موجود")"
+  printf '  docker CLI        : %s\n' "$([ $HAS_DOCKER -eq 1 ] && echo متاح || echo غير متاح)"
+  printf '  docker daemon     : %s%s\n' \
+    "$([ $DOCKER_DAEMON -eq 1 ] && echo "متصل" || echo "غير متصل")" \
+    "$([ -n "$DOCKER_SOCK" ] && echo " [$DOCKER_SOCK]")"
+  printf '  docker compose    : %s\n' "$([ $HAS_COMPOSE -eq 1 ] && echo "$COMPOSE_KIND" || echo "غير متاح")"
+  printf '  compose file      : %s\n' "$([ $HAS_COMPOSE_FILE -eq 1 ] && echo "docker-compose.test.yml" || echo "غير موجود")"
+  printf '  Dockerfile.test   : %s\n' "$([ $HAS_DOCKERFILE -eq 1 ] && echo موجود || echo "غير موجود")"
+  printf '  bun               : %s\n' "$([ $HAS_BUN -eq 1 ] && echo "v$BUN_VERSION" || echo "غير مثبّت")"
+}
+
+choose_method() {
+  # يعيد METHOD + REASON.
+  if [ "$IN_CONTAINER" -eq 1 ]; then
+    if [ "$HAS_BUN" -eq 1 ]; then
+      METHOD="bun"; REASON="نحن داخل حاوية ($IN_CONTAINER_WHY) و bun متاح — لا داعي لتشغيل docker متداخل."
+    else
+      METHOD="bun"; REASON="داخل حاوية لكن bun غير مثبّت — سيفشل التشغيل؛ ثبّت bun في الصورة الأساسية."
+    fi
+    return
+  fi
+  if [ "$HAS_DOCKER" -eq 1 ] && [ "$DOCKER_DAEMON" -eq 1 ] && [ "$HAS_COMPOSE" -eq 1 ] && [ "$HAS_COMPOSE_FILE" -eq 1 ]; then
     METHOD="compose"
-  elif has docker; then
+    REASON="docker daemon متصل + $COMPOSE_KIND + docker-compose.test.yml موجود$([ $HAS_DEVCONTAINER -eq 1 ] && echo " (متوافق مع devcontainer الحالي)")."
+    return
+  fi
+  if [ "$HAS_DOCKER" -eq 1 ] && [ "$DOCKER_DAEMON" -eq 1 ] && [ "$HAS_DOCKERFILE" -eq 1 ]; then
     METHOD="docker"
-  elif has bun; then
-    METHOD="bun"
-  else
-    err "لم أجد docker ولا bun. ثبّت أحدهما ثم أعد المحاولة."
+    REASON="docker daemon متصل و Dockerfile.test موجود، لكن لا يوجد compose أو ملف compose."
+    return
+  fi
+  if [ "$HAS_DOCKER" -eq 1 ] && [ "$DOCKER_DAEMON" -eq 0 ]; then
+    if [ "$HAS_BUN" -eq 1 ]; then
+      METHOD="bun"; REASON="docker CLI موجود لكن الـdaemon غير متصل (لا socket) — تحويل إلى bun المحلي."
+      return
+    fi
+    err "docker CLI موجود لكن الـdaemon غير متصل، و bun غير مثبّت. شغّل docker أو ثبّت bun."
     exit 1
   fi
+  if [ "$HAS_BUN" -eq 1 ]; then
+    METHOD="bun"; REASON="لا docker متاح — الرجوع إلى bun المحلي."
+    return
+  fi
+  err "لم أجد docker (daemon) ولا bun. ثبّت أحدهما ثم أعد المحاولة."
+  exit 1
+}
+
+detect_env
+print_env_report
+
+if [ "$METHOD" = "auto" ]; then
+  choose_method
+else
+  REASON="مفروضة يدويًا عبر --method=$METHOD"
 fi
 
-log "الطريقة المختارة: $METHOD"
+printf '\033[1;36m▶ الطريقة المختارة: %s\033[0m\n' "$METHOD"
+printf '\033[0;36m  السبب: %s\033[0m\n' "$REASON"
 
 # ---------- تحقّق من .env.local عند الحاجة ----------
 need_env_file() {
