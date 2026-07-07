@@ -28,6 +28,7 @@ import {
   createAvailability,
   deleteAvailability,
   listReminderPreferenceAudit,
+  getReminderPreferenceStats,
 } from "@/lib/admin.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
@@ -47,6 +48,7 @@ import {
   CalendarClock,
   History,
   Bell,
+  BarChart3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -56,7 +58,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit";
+type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit" | "reminders-stats";
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -144,6 +146,12 @@ function AdminDashboard() {
       icon: Bell,
       show: canSeeAppts,
     },
+    {
+      id: "reminders-stats" as Tab,
+      label: "إحصائيات التذكيرات",
+      icon: BarChart3,
+      show: canSeeAppts,
+    },
   ].filter((t) => t.show);
 
   return (
@@ -203,6 +211,7 @@ function AdminDashboard() {
       {tab === "specialties" && isAdmin && <SpecialtiesTab />}
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
+      {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
     </div>
   );
 }
@@ -1890,6 +1899,112 @@ function RemindersAuditTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------- Reminders Stats Tab ---------------- */
+
+function StatBar({ label, value, total, tone = "primary" }: { label: string; value: number; total: number; tone?: "primary" | "emerald" | "amber" | "destructive" | "sky" }) {
+  const pct = total > 0 ? Math.min(100, Math.round((value / total) * 1000) / 10) : 0;
+  const bar = {
+    primary: "bg-primary",
+    emerald: "bg-emerald-500",
+    amber: "bg-amber-500",
+    destructive: "bg-destructive",
+    sky: "bg-sky-500",
+  }[tone];
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-medium tabular-nums text-foreground">
+          {value.toLocaleString("ar-EG")} <span className="text-xs text-muted-foreground">({pct}%)</span>
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function RemindersStatsTab() {
+  const fn = useServerFn(getReminderPreferenceStats);
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ["reminder-preference-stats"],
+    queryFn: () => fn(),
+  });
+
+  if (isLoading) return <div className="text-muted-foreground">جارٍ تحميل الإحصائيات…</div>;
+  if (error) return <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">تعذّر تحميل الإحصائيات.</div>;
+  if (!data) return null;
+
+  const total = data.appointmentsTotal;
+  const auditTotal = data.auditTotal;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">إحصائيات تفضيلات التذكير</h2>
+          <p className="mt-1 text-sm text-muted-foreground">توزيع الحجوزات حسب نوع التذكير المُفعّل، ومطابقتها مع سجل التدقيق.</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-60"
+        >
+          {isFetching ? "…" : "تحديث"}
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="إجمالي الحجوزات" value={total} icon={CalendarDays} />
+        <StatCard label="إجمالي سجل التدقيق" value={auditTotal} icon={History} />
+        <StatCard label="حجوزات لديها تدقيق" value={data.appointmentsWithAudit} icon={Bell} />
+        <StatCard label="تغييرات آخر 7 أيام" value={data.auditLast7d} icon={Clock} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="mb-4 text-base font-semibold">توزيع الحجوزات حسب التفضيل</h3>
+          <div className="space-y-4">
+            <StatBar label="تذكير قبل 24 ساعة مُفعّل" value={data.reminder24Enabled} total={total} tone="primary" />
+            <StatBar label="تذكير قبل ساعتين مُفعّل" value={data.reminder2Enabled} total={total} tone="sky" />
+            <StatBar label="الاثنان مُفعّلان" value={data.bothEnabled} total={total} tone="emerald" />
+            <StatBar label="الاثنان مُعطّلان" value={data.bothDisabled} total={total} tone="destructive" />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="mb-4 text-base font-semibold">توزيع سجل التدقيق</h3>
+          <div className="space-y-4">
+            <StatBar label="حسب النوع: 24 ساعة" value={data.audit24} total={auditTotal} tone="primary" />
+            <StatBar label="حسب النوع: ساعتان" value={data.audit2} total={auditTotal} tone="sky" />
+            <StatBar label="من المراجع (خدمة ذاتية)" value={data.auditSelfService} total={auditTotal} tone="emerald" />
+            <StatBar label="من الموظفين" value={data.auditStaff} total={auditTotal} tone="amber" />
+            <StatBar label="من النظام" value={data.auditSystem} total={auditTotal} tone="destructive" />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-baseline justify-between">
+          <h3 className="text-base font-semibold">نسبة التطابق مع سجل التدقيق</h3>
+          <span className="text-3xl font-bold text-primary tabular-nums">{data.coveragePct}%</span>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          نسبة الحجوزات التي لديها تغيير واحد على الأقل في تفضيلات التذكير مقارنةً بإجمالي الحجوزات.
+        </p>
+        <div className="mt-4 h-3 overflow-hidden rounded-full bg-muted">
+          <div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, data.coveragePct)}%` }} />
+        </div>
+        <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+          <span>{data.appointmentsWithAudit.toLocaleString("ar-EG")} حجز بتغييرات</span>
+          <span>من أصل {total.toLocaleString("ar-EG")}</span>
+        </div>
+      </div>
     </div>
   );
 }
