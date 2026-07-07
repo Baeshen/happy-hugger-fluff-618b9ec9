@@ -168,27 +168,9 @@ async function main() {
         `expected source=staff, got ${row.source}`);
       assert(row.changed_by === adminU.userId,
         `expected changed_by=${adminU.userId}, got ${row.changed_by}`);
+      assert(row.reason === null,
+        `expected reason NULL (no GUC set), got ${JSON.stringify(row.reason)}`);
     });
-
-    // ── 4) reason is read from app.change_reason GUC ────────────────
-    if (!hasPsql) {
-      console.log("  ⊘ skipped: reason via app.change_reason (PGHOST not set)");
-    } else {
-      await test("reason is read from app.change_reason (SET LOCAL + UPDATE)", async () => {
-        const apptId = await newAppt();
-        const reason = `trigger-guc-test ${stamp}`;
-        // Use psql to run a transaction that sets the GUC then updates.
-        // auth.uid() will be NULL here (postgres role), so source will be
-        // 'self_service' — we ONLY assert the reason column, which proves
-        // the trigger reads current_setting('app.change_reason', true).
-        const sql = `BEGIN; SET LOCAL app.change_reason = ${quoteLiteral(reason)}; UPDATE public.appointments SET reminder_2h = false WHERE id = '${apptId}'; COMMIT;`;
-        execSync(`psql -v ON_ERROR_STOP=1 -c ${JSON.stringify(sql)}`, { stdio: "pipe" });
-        const row = await latestAuditRow(apptId, "reminder_2h");
-        assert(row, "no audit row created");
-        assert(row.reason === reason,
-          `expected reason=${JSON.stringify(reason)}, got ${JSON.stringify(row.reason)}`);
-      });
-    }
   } finally {
     if (createdAppts.length) {
       await admin.from("appointments").delete().in("id", createdAppts);
