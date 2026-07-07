@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Search, Calendar, Clock, User, Phone, Stethoscope, X, CheckCircle2, AlertCircle, XCircle, Clock3, CalendarClock, CalendarPlus } from "lucide-react";
 import { WEEKDAYS_AR } from "@/lib/site";
-import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
+import { downloadIcs, whatsappShareUrl, googleCalendarUrl, type ShareBooking } from "@/lib/booking-share";
 
 export const Route = createFileRoute("/lookup")({
   head: () => ({
