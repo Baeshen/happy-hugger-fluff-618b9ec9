@@ -35,6 +35,7 @@ import { Route as AuthenticatedDoctorsManagementRouteImport } from './routes/_au
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
+import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
@@ -172,6 +173,11 @@ const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAuditLogRoute = AuthenticatedAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -271,6 +279,7 @@ export interface FileRoutesById {
   '/pharmacy': typeof PharmacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -304,6 +313,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/admin'
+    | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
     | '/dashboard'
@@ -335,6 +345,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/admin'
+    | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
     | '/dashboard'
@@ -367,6 +378,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/sitemap.xml'
     | '/_authenticated/admin'
+    | '/_authenticated/audit-log'
     | '/_authenticated/calendar'
     | '/_authenticated/clinic-settings'
     | '/_authenticated/dashboard'
@@ -593,6 +605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCalendarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/audit-log': {
+      id: '/_authenticated/audit-log'
+      path: '/audit-log'
+      fullPath: '/audit-log'
+      preLoaderRoute: typeof AuthenticatedAuditLogRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -626,6 +645,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAuditLogRoute: typeof AuthenticatedAuditLogRoute
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedClinicSettingsRoute: typeof AuthenticatedClinicSettingsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -640,6 +660,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAuditLogRoute: AuthenticatedAuditLogRoute,
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedClinicSettingsRoute: AuthenticatedClinicSettingsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
