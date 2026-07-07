@@ -237,26 +237,21 @@ function LookupPage() {
       return;
     }
     if (data) {
-      // Carry over the current reminder preferences explicitly so they survive
-      // any future changes to the reschedule RPC and reassure the patient.
-      const hasReminders = appt.reminder_24h !== null || appt.reminder_2h !== null;
-      const carry24 = appt.reminder_24h ?? true;
-      const carry2 = appt.reminder_2h ?? true;
-
-      if (!hasReminders) {
-        toast.info(
-          "لم يتم تسجيل تفضيلات تذكير لهذا الحجز؛ سيتم تفعيل التذكيرات الافتراضية (24 ساعة وساعتين) على الموعد الجديد.",
-          { duration: 6000 },
-        );
-      }
-
+      // Apply the reminder choices selected by the user inside the reschedule panel.
       await supabase.rpc("update_reminders_by_ref", {
         _ref: ref.trim(),
         _phone: phone.trim(),
-        _reminder_24h: carry24,
-        _reminder_2h: carry2,
+        _reminder_24h: rescheduleReminder24h,
+        _reminder_2h: rescheduleReminder2h,
       });
-      const reminderMsg = hasReminders ? "تم نقل إعدادات التذكير" : "تم تفعيل التذكيرات الافتراضية";
+      const reminderList = [
+        rescheduleReminder24h && "24 ساعة",
+        rescheduleReminder2h && "ساعتين",
+      ].filter(Boolean);
+      const reminderMsg =
+        reminderList.length > 0
+          ? `تم تعيين تذكير: ${reminderList.join(" و ")}`
+          : "تم إيقاف جميع التذكيرات";
       toast.success(`تمت إعادة الجدولة — ${reminderMsg}`);
       setShowReschedule(false);
       setNewDate("");
