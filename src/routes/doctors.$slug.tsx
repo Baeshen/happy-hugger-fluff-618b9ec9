@@ -44,12 +44,20 @@ const doctorQuery = (slug: string) => ({
 });
 
 export const Route = createFileRoute("/doctors/$slug")({
-  loader: ({ params, context }) => context.queryClient.ensureQueryData(doctorQuery(params.slug)),
+  loader: async ({ params, context }) => {
+    const [doctor, settings] = await Promise.all([
+      context.queryClient.ensureQueryData(doctorQuery(params.slug)),
+      context.queryClient.ensureQueryData(clinicSettingsQuery()),
+    ]);
+    return { doctor, settings };
+  },
   head: ({ params, loaderData }) => {
-    const d = loaderData as Doctor | undefined;
-    if (!d) {
+    const ld = loaderData as { doctor: Doctor; settings: ClinicSettings } | undefined;
+    if (!ld?.doctor) {
       return { meta: [{ title: "غير متوفر" }, { name: "robots", content: "noindex" }] };
     }
+    const d = ld.doctor;
+    const settings = ld.settings;
     const url = `${SITE_URL}/doctors/${params.slug}`;
     const specName = d.specialties?.name_ar ?? "";
     const title = `${d.name_ar}${specName ? ` — ${specName}` : ""} | مجمع باعشن الطبي`;
