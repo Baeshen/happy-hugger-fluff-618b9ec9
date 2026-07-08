@@ -119,7 +119,7 @@ function CenterPage() {
             </Link>
           </div>
 
-          <CenterBookingForm centerName={center.name} />
+          <CenterBookingForm centerName={center.name} services={center.services} />
         </aside>
       </section>
 
