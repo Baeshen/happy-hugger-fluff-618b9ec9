@@ -26,6 +26,16 @@ const REASON_MAX = 500;
 const PHONE_ALLOWED_RE = /^[+0-9\s\-()]+$/;
 const NAME_RE = /^[\p{L}\s'’\-.]+$/u;
 
+const REMINDER_PRESETS: { minutes: number; label: string }[] = [
+  { minutes: 15, label: "قبل 15 دقيقة" },
+  { minutes: 30, label: "قبل 30 دقيقة" },
+  { minutes: 60, label: "قبل ساعة" },
+  { minutes: 120, label: "قبل ساعتين" },
+  { minutes: 240, label: "قبل 4 ساعات" },
+  { minutes: 1440, label: "قبل يوم" },
+  { minutes: 2880, label: "قبل يومين" },
+];
+
 const nameSchema = z
   .string()
   .trim()
