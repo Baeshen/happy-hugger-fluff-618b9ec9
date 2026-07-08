@@ -543,55 +543,118 @@ export function BranchBookingForm({
         {step === "patient" && (
           <div className="grid gap-3 sm:grid-cols-2 animate-in fade-in duration-200">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold mb-1">الاسم الكامل</label>
+              <label htmlFor="bk-name" className="block text-xs font-semibold mb-1">
+                الاسم الكامل <span className="text-destructive">*</span>
+              </label>
               <input
-                className={inputCls}
+                id="bk-name"
+                className={`${inputCls} ${showErr("name") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 value={form.name}
                 maxLength={NAME_MAX}
+                autoComplete="name"
+                required
+                aria-required="true"
+                aria-invalid={showErr("name") ? true : undefined}
+                aria-describedby={showErr("name") ? "bk-name-err" : "bk-name-hint"}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                placeholder="مثال: محمد أحمد"
               />
+              {showErr("name") ? (
+                <p id="bk-name-err" className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.name}
+                </p>
+              ) : (
+                <p id="bk-name-hint" className="mt-1 text-[11px] text-muted-foreground">
+                  الاسم الأول والأخير على الأقل.
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1">رقم الجوال</label>
+              <label htmlFor="bk-phone" className="block text-xs font-semibold mb-1">
+                رقم الجوال <span className="text-destructive">*</span>
+              </label>
               <input
+                id="bk-phone"
                 dir="ltr"
-                className={inputCls}
+                inputMode="tel"
+                type="tel"
+                autoComplete="tel"
+                required
+                aria-required="true"
+                aria-invalid={showErr("phone") ? true : undefined}
+                aria-describedby={showErr("phone") ? "bk-phone-err" : "bk-phone-hint"}
+                className={`${inputCls} ${showErr("phone") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 value={form.phone}
                 maxLength={PHONE_MAX}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
                 placeholder="05xxxxxxxx"
               />
+              {showErr("phone") ? (
+                <p id="bk-phone-err" className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.phone}
+                </p>
+              ) : (
+                <p id="bk-phone-hint" className="mt-1 text-[11px] text-muted-foreground">
+                  أرقام فقط، من 9 إلى 15 رقمًا.
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1">الجنس</label>
+              <label htmlFor="bk-gender" className="block text-xs font-semibold mb-1">
+                الجنس <span className="text-destructive">*</span>
+              </label>
               <select
-                className={inputCls}
+                id="bk-gender"
+                className={`${inputCls} ${showErr("gender") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 value={form.gender}
+                aria-invalid={showErr("gender") ? true : undefined}
+                aria-describedby={showErr("gender") ? "bk-gender-err" : undefined}
                 onChange={(e) => setForm({ ...form, gender: e.target.value as "male" | "female" })}
+                onBlur={() => setTouched((t) => ({ ...t, gender: true }))}
               >
                 <option value="male">ذكر</option>
                 <option value="female">أنثى</option>
               </select>
+              {showErr("gender") && (
+                <p id="bk-gender-err" className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.gender}
+                </p>
+              )}
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold mb-1">سبب الزيارة (اختياري)</label>
+              <label htmlFor="bk-reason" className="block text-xs font-semibold mb-1">
+                سبب الزيارة <span className="text-muted-foreground font-normal">(اختياري)</span>
+              </label>
               <textarea
-                className={inputCls}
+                id="bk-reason"
+                className={`${inputCls} ${showErr("reason") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 rows={2}
                 maxLength={REASON_MAX}
                 value={form.reason}
+                aria-invalid={showErr("reason") ? true : undefined}
+                aria-describedby={showErr("reason") ? "bk-reason-err" : "bk-reason-count"}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                onBlur={() => setTouched((t) => ({ ...t, reason: true }))}
               />
-            </div>
-
-            {stepError && (
-              <div className="sm:col-span-2 flex items-center gap-2 text-xs text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                {stepError}
+              <div className="mt-1 flex items-center justify-between gap-2">
+                {showErr("reason") ? (
+                  <p id="bk-reason-err" className="flex items-center gap-1 text-xs text-destructive">
+                    <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.reason}
+                  </p>
+                ) : (
+                  <span />
+                )}
+                <span id="bk-reason-count" className="text-[11px] text-muted-foreground" dir="ltr">
+                  {form.reason.length}/{REASON_MAX}
+                </span>
               </div>
-            )}
+            </div>
           </div>
         )}
+
+
 
         {step === "confirm" && (
           <div className="grid gap-4 animate-in fade-in duration-200">
