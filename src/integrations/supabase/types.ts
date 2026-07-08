@@ -115,6 +115,7 @@ export type Database = {
           reason: string | null
           reminder_24h: boolean
           reminder_2h: boolean
+          reminder_offsets_minutes: number[]
           specialty_id: string | null
           status: Database["public"]["Enums"]["appointment_status"]
           updated_at: string
@@ -137,6 +138,7 @@ export type Database = {
           reason?: string | null
           reminder_24h?: boolean
           reminder_2h?: boolean
+          reminder_offsets_minutes?: number[]
           specialty_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
@@ -159,6 +161,7 @@ export type Database = {
           reason?: string | null
           reminder_24h?: boolean
           reminder_2h?: boolean
+          reminder_offsets_minutes?: number[]
           specialty_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
