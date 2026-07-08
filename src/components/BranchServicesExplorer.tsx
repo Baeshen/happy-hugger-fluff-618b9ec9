@@ -117,7 +117,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
     setSelected(it);
     setMapLoading(!!it);
     navigate({
-      search: (prev) => ({ ...prev, service: it?.id }),
+      search: (prev: Record<string, unknown>) => ({ ...prev, service: it?.id }),
       replace: true,
       resetScroll: false,
     });
