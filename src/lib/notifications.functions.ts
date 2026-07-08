@@ -128,6 +128,93 @@ export const setNotificationStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* -------- Reminder delivery log (staff view) -------- */
+
+export type ReminderDelivery = {
+  id: string;
+  appointment_id: string | null;
+  kind: string;
+  audience: "user" | "staff";
+  channel: "in_app" | "web_push" | "sms" | "whatsapp" | "email";
+  send_status: "pending" | "queued" | "sent" | "failed" | "skipped";
+  title: string;
+  body: string | null;
+  created_at: string;
+  sent_at: string | null;
+  last_error: string | null;
+  metadata: import("@/integrations/supabase/types").Json | null;
+  appointment: {
+    id: string;
+    patient_name: string | null;
+    patient_phone: string | null;
+    appointment_date: string | null;
+    appointment_time: string | null;
+    status: string | null;
+    branch_id: string | null;
+  } | null;
+};
+
+const ListRemindersInput = z
+  .object({
+    appointmentId: z.string().uuid().nullable().optional(),
+    channel: z.enum(["in_app", "web_push", "sms", "whatsapp", "email"]).nullable().optional(),
+    audience: z.enum(["user", "staff"]).nullable().optional(),
+    status: z.enum(["pending", "queued", "sent", "failed", "skipped"]).nullable().optional(),
+    branchId: z.string().uuid().nullable().optional(),
+    limit: z.number().int().min(1).max(500).optional(),
+  })
+  .default({});
+
+export const listReminderDeliveries = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ListRemindersInput.parse(d))
+  .handler(async ({ data, context }): Promise<ReminderDelivery[]> => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureStaff(roles);
+    let q = context.supabase
+      .from("notifications")
+      .select(
+        "id, appointment_id, kind, audience, channel, send_status, title, body, created_at, sent_at, last_error, metadata",
+      )
+      .like("kind", "reminder_%")
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 200);
+    if (data.appointmentId) q = q.eq("appointment_id", data.appointmentId);
+    if (data.channel) q = q.eq("channel", data.channel);
+    if (data.audience) q = q.eq("audience", data.audience);
+    if (data.status) q = q.eq("send_status", data.status);
+    if (data.branchId) q = q.eq("branch_id", data.branchId);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const apptIds = Array.from(
+      new Set((rows ?? []).map((r) => r.appointment_id).filter((v): v is string => !!v)),
+    );
+    const apptMap = new Map<string, ReminderDelivery["appointment"]>();
+    if (apptIds.length > 0) {
+      const { data: appts, error: aErr } = await context.supabase
+        .from("appointments")
+        .select("id, patient_name, patient_phone, appointment_date, appointment_time, status, branch_id")
+        .in("id", apptIds);
+      if (aErr) throw new Error(aErr.message);
+      for (const a of appts ?? []) {
+        apptMap.set(a.id, {
+          id: a.id,
+          patient_name: a.patient_name ?? null,
+          patient_phone: a.patient_phone ?? null,
+          appointment_date: a.appointment_date ?? null,
+          appointment_time: a.appointment_time ?? null,
+          status: (a.status as string | null) ?? null,
+          branch_id: a.branch_id ?? null,
+        });
+      }
+    }
+    return (rows ?? []).map((r) => ({
+      ...r,
+      appointment: r.appointment_id ? apptMap.get(r.appointment_id) ?? null : null,
+    })) as unknown as ReminderDelivery[];
+  });
+
 /* -------- Per-user notifications (bell) -------- */
 
 const ListMyInput = z
