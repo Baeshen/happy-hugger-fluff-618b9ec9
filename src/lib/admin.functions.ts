@@ -326,8 +326,14 @@ export const toggleDoctorActive = createServerFn({ method: "POST" })
 
 const doctorInput = z.object({
   specialty_id: z.string().uuid().nullable().optional(),
+  branch_id: z.string().uuid().nullable().optional(),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/i, "slug lowercase, digits, dashes")
+    .nullable()
+    .optional(),
   name_ar: z.string().min(1),
-  name_en: z.string().nullable().optional(),
+  name_en: z.string().min(1),
   title_ar: z.string().nullable().optional(),
   title_en: z.string().nullable().optional(),
   photo_url: z.string().url().nullable().optional().or(z.literal("")),
