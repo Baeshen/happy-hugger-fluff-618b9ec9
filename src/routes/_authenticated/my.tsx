@@ -874,7 +874,15 @@ function DownloadFileButton({
           إعادة المحاولة
         </button>
         <span className="text-xs text-destructive">{error}</span>
-        {validityHint ? (
+        {countdownLabel ? (
+          <span
+            className="text-[11px] font-medium text-primary tabular-nums"
+            aria-live="polite"
+            role="status"
+          >
+            {countdownLabel}
+          </span>
+        ) : validityHint ? (
           <span className="text-[11px] text-muted-foreground">{validityHint} بعد الإنشاء</span>
         ) : null}
       </div>
