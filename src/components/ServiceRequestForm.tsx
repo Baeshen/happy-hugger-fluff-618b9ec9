@@ -415,7 +415,9 @@ export function ServiceRequestForm({
               placeholder={extraPlaceholder}
               value={form.extra}
               onChange={update("extra")}
+              onBlur={onBlur("extra")}
               aria-invalid={!!errors.extra}
+              aria-describedby={errors.extra ? "srf-extra-err" : undefined}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
             />
           </Field>
