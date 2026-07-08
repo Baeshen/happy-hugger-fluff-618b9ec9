@@ -11,7 +11,7 @@ const storyQuery = (slug: string) =>
 
 export const Route = createFileRoute("/media/stories/$slug")({
   head: ({ loaderData }) => {
-    const s = loaderData as PatientStory | null;
+    const s = (loaderData ?? null) as PatientStory | null;
     if (!s) {
       return {
         meta: [

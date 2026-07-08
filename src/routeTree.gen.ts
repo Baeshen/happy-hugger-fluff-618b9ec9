@@ -68,6 +68,7 @@ import { Route as AuthenticatedAuditExportRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAppointmentsQueueRouteImport } from './routes/_authenticated/appointments-queue'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
+import { Route as MediaStoriesSlugRouteImport } from './routes/media.stories.$slug'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 import { Route as ApiPublicBookTrackRouteImport } from './routes/api/public/book/track'
@@ -378,6 +379,11 @@ const AuthenticatedPatientsIndexRoute =
     path: '/patients/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const MediaStoriesSlugRoute = MediaStoriesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => MediaStoriesRoute,
+} as any)
 const AuthenticatedPatientsPatientIdRoute =
   AuthenticatedPatientsPatientIdRouteImport.update({
     id: '/patients/$patientId',
@@ -454,12 +460,13 @@ export interface FileRoutesByFullPath {
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
-  '/media/stories': typeof MediaStoriesRoute
+  '/media/stories': typeof MediaStoriesRouteWithChildren
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
+  '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
@@ -518,12 +525,13 @@ export interface FileRoutesByTo {
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
-  '/media/stories': typeof MediaStoriesRoute
+  '/media/stories': typeof MediaStoriesRouteWithChildren
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors': typeof DoctorsIndexRoute
   '/health': typeof HealthIndexRoute
   '/specialties': typeof SpecialtiesIndexRoute
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
+  '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/patients': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
@@ -584,12 +592,13 @@ export interface FileRoutesById {
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
-  '/media/stories': typeof MediaStoriesRoute
+  '/media/stories': typeof MediaStoriesRouteWithChildren
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
   '/_authenticated/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
+  '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/_authenticated/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
@@ -656,6 +665,7 @@ export interface FileRouteTypes {
     | '/health/'
     | '/specialties/'
     | '/patients/$patientId'
+    | '/media/stories/$slug'
     | '/patients/'
     | '/api/public/book/create'
     | '/api/public/book/track'
@@ -720,6 +730,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/specialties'
     | '/patients/$patientId'
+    | '/media/stories/$slug'
     | '/patients'
     | '/api/public/book/create'
     | '/api/public/book/track'
@@ -785,6 +796,7 @@ export interface FileRouteTypes {
     | '/health/'
     | '/specialties/'
     | '/_authenticated/patients/$patientId'
+    | '/media/stories/$slug'
     | '/_authenticated/patients/'
     | '/api/public/book/create'
     | '/api/public/book/track'
@@ -823,7 +835,7 @@ export interface RootRouteChildren {
   HealthSlugRoute: typeof HealthSlugRoute
   HealthSearchRoute: typeof HealthSearchRoute
   MediaNewsRoute: typeof MediaNewsRoute
-  MediaStoriesRoute: typeof MediaStoriesRoute
+  MediaStoriesRoute: typeof MediaStoriesRouteWithChildren
   SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
   HealthIndexRoute: typeof HealthIndexRoute
@@ -1248,6 +1260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPatientsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/media/stories/$slug': {
+      id: '/media/stories/$slug'
+      path: '/$slug'
+      fullPath: '/media/stories/$slug'
+      preLoaderRoute: typeof MediaStoriesSlugRouteImport
+      parentRoute: typeof MediaStoriesRoute
+    }
     '/_authenticated/patients/$patientId': {
       id: '/_authenticated/patients/$patientId'
       path: '/patients/$patientId'
@@ -1356,6 +1375,18 @@ const ExcellenceRouteWithChildren = ExcellenceRoute._addFileChildren(
   ExcellenceRouteChildren,
 )
 
+interface MediaStoriesRouteChildren {
+  MediaStoriesSlugRoute: typeof MediaStoriesSlugRoute
+}
+
+const MediaStoriesRouteChildren: MediaStoriesRouteChildren = {
+  MediaStoriesSlugRoute: MediaStoriesSlugRoute,
+}
+
+const MediaStoriesRouteWithChildren = MediaStoriesRoute._addFileChildren(
+  MediaStoriesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -1388,7 +1419,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthSlugRoute: HealthSlugRoute,
   HealthSearchRoute: HealthSearchRoute,
   MediaNewsRoute: MediaNewsRoute,
-  MediaStoriesRoute: MediaStoriesRoute,
+  MediaStoriesRoute: MediaStoriesRouteWithChildren,
   SpecialtiesSlugRoute: SpecialtiesSlugRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
   HealthIndexRoute: HealthIndexRoute,
