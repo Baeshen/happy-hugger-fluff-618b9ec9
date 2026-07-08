@@ -23,6 +23,7 @@ import { Route as HomeCareRouteImport } from './routes/home-care'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as ExcellenceRouteImport } from './routes/excellence'
 import { Route as EmergencyRouteImport } from './routes/emergency'
+import { Route as CorporateRouteImport } from './routes/corporate'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ComplexRouteImport } from './routes/complex'
 import { Route as ComplaintsRouteImport } from './routes/complaints'
@@ -139,6 +140,11 @@ const ExcellenceRoute = ExcellenceRouteImport.update({
 const EmergencyRoute = EmergencyRouteImport.update({
   id: '/emergency',
   path: '/emergency',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorporateRoute = CorporateRouteImport.update({
+  id: '/corporate',
+  path: '/corporate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -401,6 +407,7 @@ export interface FileRoutesByFullPath {
   '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
+  '/corporate': typeof CorporateRoute
   '/emergency': typeof EmergencyRoute
   '/excellence': typeof ExcellenceRouteWithChildren
   '/faq': typeof FaqRoute
@@ -463,6 +470,7 @@ export interface FileRoutesByTo {
   '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
+  '/corporate': typeof CorporateRoute
   '/emergency': typeof EmergencyRoute
   '/excellence': typeof ExcellenceRouteWithChildren
   '/faq': typeof FaqRoute
@@ -527,6 +535,7 @@ export interface FileRoutesById {
   '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
+  '/corporate': typeof CorporateRoute
   '/emergency': typeof EmergencyRoute
   '/excellence': typeof ExcellenceRouteWithChildren
   '/faq': typeof FaqRoute
@@ -591,6 +600,7 @@ export interface FileRouteTypes {
     | '/complaints'
     | '/complex'
     | '/contact'
+    | '/corporate'
     | '/emergency'
     | '/excellence'
     | '/faq'
@@ -653,6 +663,7 @@ export interface FileRouteTypes {
     | '/complaints'
     | '/complex'
     | '/contact'
+    | '/corporate'
     | '/emergency'
     | '/excellence'
     | '/faq'
@@ -716,6 +727,7 @@ export interface FileRouteTypes {
     | '/complaints'
     | '/complex'
     | '/contact'
+    | '/corporate'
     | '/emergency'
     | '/excellence'
     | '/faq'
@@ -780,6 +792,7 @@ export interface RootRouteChildren {
   ComplaintsRoute: typeof ComplaintsRoute
   ComplexRoute: typeof ComplexRoute
   ContactRoute: typeof ContactRoute
+  CorporateRoute: typeof CorporateRoute
   EmergencyRoute: typeof EmergencyRoute
   ExcellenceRoute: typeof ExcellenceRouteWithChildren
   FaqRoute: typeof FaqRoute
@@ -905,6 +918,13 @@ declare module '@tanstack/react-router' {
       path: '/emergency'
       fullPath: '/emergency'
       preLoaderRoute: typeof EmergencyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corporate': {
+      id: '/corporate'
+      path: '/corporate'
+      fullPath: '/corporate'
+      preLoaderRoute: typeof CorporateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -1329,6 +1349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComplaintsRoute: ComplaintsRoute,
   ComplexRoute: ComplexRoute,
   ContactRoute: ContactRoute,
+  CorporateRoute: CorporateRoute,
   EmergencyRoute: EmergencyRoute,
   ExcellenceRoute: ExcellenceRouteWithChildren,
   FaqRoute: FaqRoute,
