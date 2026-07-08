@@ -314,8 +314,10 @@ function TrackPage() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {loading ? "جاري البحث..." : "عرض حالة الطلب"}
           </button>
+          </fieldset>
 
           <p className="text-xs text-muted-foreground text-center pt-2">
+
             هل نسيت رقم الطلب؟{" "}
             <Link to="/lookup" className="text-primary font-semibold hover:underline">
               ابحث برقم الجوال بدلاً من ذلك
