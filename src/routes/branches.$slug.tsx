@@ -145,6 +145,8 @@ function formatHours(hours: PublicBranch["working_hours"]) {
 function BranchDetailPage() {
   const { slug } = Route.useParams();
   const { data } = useSuspenseQuery(branchQuery(slug));
+  const [preselectedSpecialtyId, setPreselectedSpecialtyId] = useState<string | null>(null);
+  const [preselectToken, setPreselectToken] = useState(0);
   if (!data) return null;
   const { branch: b, centers, specialties } = data;
   const hours = formatHours(b.working_hours);
@@ -152,6 +154,13 @@ function BranchDetailPage() {
     b.lat != null && b.lng != null
       ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}`
       : null;
+
+  const handleBookService = (payload: { specialtyId: string | null; label: string }) => {
+    if (!payload.specialtyId) return;
+    setPreselectedSpecialtyId(payload.specialtyId);
+    setPreselectToken((n) => n + 1);
+  };
+
 
 
   return (
