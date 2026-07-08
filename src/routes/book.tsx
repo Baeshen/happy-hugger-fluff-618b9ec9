@@ -5,9 +5,8 @@ import { useI18n } from "@/lib/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Check, ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User } from "lucide-react";
 import { friendlyInsertError } from "@/lib/insert-errors";
-import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 
 const search = z.object({
   specialty: z.string().optional(),
