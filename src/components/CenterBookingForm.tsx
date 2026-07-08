@@ -119,6 +119,10 @@ export function CenterBookingForm({
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<
+    { kind: Exclude<BookingSubmitKind, "success">; message: string } | null
+  >(null);
+  const lastPayloadRef = useRef<FormState | null>(null);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -127,7 +131,46 @@ export function CenterBookingForm({
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setForm((s) => ({ ...s, [k]: e.target.value }));
       if (errors[k]) setErrors((prev) => ({ ...prev, [k]: undefined }));
+      if (submitError) setSubmitError(null);
     };
+
+  async function doSubmit(data: FormState) {
+    setSubmitting(true);
+    setSubmitError(null);
+    const toastId = toast.loading("جاري إرسال طلب الحجز...");
+    try {
+      const reason = [`[${centerName}]`, `الخدمة: ${data.service}`, data.reason?.trim()]
+        .filter(Boolean)
+        .join(" — ");
+      const result = await submitBooking({
+        patient_name: data.patient_name,
+        patient_phone: data.patient_phone,
+        appointment_date: data.appointment_date,
+        appointment_time: data.appointment_time,
+        reason,
+      });
+      if (!result.ok) {
+        setSubmitError({ kind: result.kind, message: result.message });
+        toast.error(result.message, { id: toastId });
+        return;
+      }
+      setConfirmation({
+        reference: result.reference ?? shortReference(),
+        centerName,
+        service: data.service,
+        patient_name: data.patient_name,
+        patient_phone: data.patient_phone,
+        appointment_date: data.appointment_date,
+        appointment_time: data.appointment_time,
+      });
+      setForm(EMPTY);
+      setErrors({});
+      lastPayloadRef.current = null;
+      toast.success("تم استلام طلبك، سنرسل تأكيدًا برسالة قريبًا", { id: toastId });
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -141,53 +184,20 @@ export function CenterBookingForm({
         if (key && !fe[key]) fe[key] = issue.message;
       }
       setErrors(fe);
-      toast.error(parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول");
+      const first = parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول";
+      setSubmitError({ kind: "validation", message: first });
+      toast.error(first);
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const data = parsed.data;
-      const reason = [`[${centerName}]`, `الخدمة: ${data.service}`, data.reason?.trim()]
-        .filter(Boolean)
-        .join(" — ");
-      const res = await fetch("/api/public/book/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patient_name: data.patient_name,
-          patient_phone: data.patient_phone,
-          appointment_date: data.appointment_date,
-          appointment_time: data.appointment_time,
-          reason,
-        }),
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        message?: string;
-        reference?: string | null;
-      };
-      if (!res.ok || !body.ok) {
-        toast.error(body.message ?? "تعذّر إرسال الطلب");
-        return;
-      }
-      setConfirmation({
-        reference: body.reference ?? shortReference(),
-        centerName,
-        service: data.service,
-        patient_name: data.patient_name,
-        patient_phone: data.patient_phone,
-        appointment_date: data.appointment_date,
-        appointment_time: data.appointment_time,
-      });
-      setForm(EMPTY);
-      setErrors({});
-      toast.success("تم استلام طلبك، سنرسل تأكيدًا برسالة قريبًا");
-    } catch {
-      toast.error("تعذّر الاتصال بالخادم");
-    } finally {
-      setSubmitting(false);
-    }
+    lastPayloadRef.current = parsed.data;
+    await doSubmit(parsed.data);
+  }
+
+  function onRetry() {
+    if (submitting) return;
+    const last = lastPayloadRef.current;
+    if (last) void doSubmit(last);
   }
 
   if (confirmation) {
