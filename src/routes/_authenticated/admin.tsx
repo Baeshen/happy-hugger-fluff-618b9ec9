@@ -2425,6 +2425,28 @@ function RemindersDeliveryStatsTab() {
       ? `${new Date(data.from).toLocaleString("ar-EG")} — ${new Date(data.to).toLocaleString("ar-EG")}`
       : PRESET_LABELS[preset];
 
+  const rangeYmd = data
+    ? { from: toYmd(new Date(data.from)), to: toYmd(new Date(data.to)) }
+    : { from: "", to: "" };
+
+  function openLog(params: {
+    channel?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+  }) {
+    navigate({
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
+        tab: "reminders-log",
+        logChannel: params.channel ?? "",
+        logStatus: params.status ?? "",
+        logFrom: params.from ?? rangeYmd.from,
+        logTo: params.to ?? rangeYmd.to,
+      }),
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
