@@ -54,6 +54,7 @@ import { Route as AuthenticatedSecondOpinionAdminRouteImport } from './routes/_a
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
 import { Route as AuthenticatedRatingsRouteImport } from './routes/_authenticated/ratings'
+import { Route as AuthenticatedQuickAddRouteImport } from './routes/_authenticated/quick-add'
 import { Route as AuthenticatedQrCardsRouteImport } from './routes/_authenticated/qr-cards'
 import { Route as AuthenticatedPatientsManagementRouteImport } from './routes/_authenticated/patients-management'
 import { Route as AuthenticatedPatientsAnalyticsRouteImport } from './routes/_authenticated/patients-analytics'
@@ -305,6 +306,11 @@ const AuthenticatedRatingsRoute = AuthenticatedRatingsRouteImport.update({
   path: '/ratings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedQuickAddRoute = AuthenticatedQuickAddRouteImport.update({
+  id: '/quick-add',
+  path: '/quick-add',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedQrCardsRoute = AuthenticatedQrCardsRouteImport.update({
   id: '/qr-cards',
   path: '/qr-cards',
@@ -478,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/qr-cards': typeof AuthenticatedQrCardsRoute
+  '/quick-add': typeof AuthenticatedQuickAddRoute
   '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -547,6 +554,7 @@ export interface FileRoutesByTo {
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/qr-cards': typeof AuthenticatedQrCardsRoute
+  '/quick-add': typeof AuthenticatedQuickAddRoute
   '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -618,6 +626,7 @@ export interface FileRoutesById {
   '/_authenticated/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/_authenticated/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/_authenticated/qr-cards': typeof AuthenticatedQrCardsRoute
+  '/_authenticated/quick-add': typeof AuthenticatedQuickAddRoute
   '/_authenticated/ratings': typeof AuthenticatedRatingsRoute
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
@@ -689,6 +698,7 @@ export interface FileRouteTypes {
     | '/patients-analytics'
     | '/patients-management'
     | '/qr-cards'
+    | '/quick-add'
     | '/ratings'
     | '/rbac'
     | '/reports'
@@ -758,6 +768,7 @@ export interface FileRouteTypes {
     | '/patients-analytics'
     | '/patients-management'
     | '/qr-cards'
+    | '/quick-add'
     | '/ratings'
     | '/rbac'
     | '/reports'
@@ -828,6 +839,7 @@ export interface FileRouteTypes {
     | '/_authenticated/patients-analytics'
     | '/_authenticated/patients-management'
     | '/_authenticated/qr-cards'
+    | '/_authenticated/quick-add'
     | '/_authenticated/ratings'
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
@@ -1215,6 +1227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRatingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/quick-add': {
+      id: '/_authenticated/quick-add'
+      path: '/quick-add'
+      fullPath: '/quick-add'
+      preLoaderRoute: typeof AuthenticatedQuickAddRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/qr-cards': {
       id: '/_authenticated/qr-cards'
       path: '/qr-cards'
@@ -1396,6 +1415,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPatientsAnalyticsRoute: typeof AuthenticatedPatientsAnalyticsRoute
   AuthenticatedPatientsManagementRoute: typeof AuthenticatedPatientsManagementRoute
   AuthenticatedQrCardsRoute: typeof AuthenticatedQrCardsRoute
+  AuthenticatedQuickAddRoute: typeof AuthenticatedQuickAddRoute
   AuthenticatedRatingsRoute: typeof AuthenticatedRatingsRoute
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
@@ -1424,6 +1444,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPatientsAnalyticsRoute: AuthenticatedPatientsAnalyticsRoute,
   AuthenticatedPatientsManagementRoute: AuthenticatedPatientsManagementRoute,
   AuthenticatedQrCardsRoute: AuthenticatedQrCardsRoute,
+  AuthenticatedQuickAddRoute: AuthenticatedQuickAddRoute,
   AuthenticatedRatingsRoute: AuthenticatedRatingsRoute,
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
