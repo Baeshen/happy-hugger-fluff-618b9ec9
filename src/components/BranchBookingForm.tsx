@@ -843,6 +843,47 @@ export function BranchBookingForm({
               )}
             </div>
 
+            {/* Reminder times chooser */}
+            <fieldset className="rounded-lg border border-border p-3">
+              <legend className="px-1 text-xs font-semibold text-muted-foreground">
+                أوقات التذكير قبل الموعد
+              </legend>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {REMINDER_PRESETS.map((p) => {
+                  const active = reminderOffsets.includes(p.minutes);
+                  return (
+                    <button
+                      key={p.minutes}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() =>
+                        setReminderOffsets((prev) =>
+                          prev.includes(p.minutes)
+                            ? prev.filter((n) => n !== p.minutes)
+                            : [...prev, p.minutes].sort((a, b) => b - a),
+                        )
+                      }
+                      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                        active
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {active && <Check className="h-3 w-3" />}
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {reminderOffsets.length === 0
+                  ? "لن يتم إرسال أي تذكير — يفضّل اختيار وقت واحد على الأقل."
+                  : `سنرسل ${reminderOffsets.length} ${
+                      reminderOffsets.length === 1 ? "تذكيرًا" : "تذكيرات"
+                    } قبل الموعد.`}
+              </p>
+            </fieldset>
+
             {submitError && (
               <div
                 role="alert"
