@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -14,9 +14,59 @@ import {
   Loader2,
   ArrowRight,
   Download,
+  WifiOff,
+  ServerCrash,
+  ShieldAlert,
+  RefreshCw,
+  SearchX,
 } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
 import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
+
+type LookupErrorKind = "validation" | "not_found" | "network" | "timeout" | "server" | "unknown";
+type LookupError = { kind: LookupErrorKind; message: string };
+
+const ERROR_META: Record<
+  LookupErrorKind,
+  { title: string; icon: React.ReactNode; hint: string; canRetry: boolean }
+> = {
+  validation: {
+    title: "بيانات غير صالحة",
+    icon: <ShieldAlert className="h-10 w-10 text-destructive" />,
+    hint: "تأكّد من صيغة رقم الطلب (BAA- ثم 8 خانات) وأنّ آخر 4 أرقام من الجوال مكوّنة من أربع خانات رقمية.",
+    canRetry: false,
+  },
+  not_found: {
+    title: "لم نعثر على طلب مطابق",
+    icon: <SearchX className="h-10 w-10 text-amber-600" />,
+    hint: "راجع رقم الطلب في رسالة التأكيد وتأكّد أنّ آخر 4 أرقام تعود لنفس الجوال المستخدم عند الحجز.",
+    canRetry: true,
+  },
+  network: {
+    title: "لا يوجد اتصال",
+    icon: <WifiOff className="h-10 w-10 text-destructive" />,
+    hint: "تحقّق من اتصال الإنترنت ثم أعد المحاولة.",
+    canRetry: true,
+  },
+  timeout: {
+    title: "انتهت مهلة الاتصال",
+    icon: <Clock3 className="h-10 w-10 text-destructive" />,
+    hint: "استغرقت العملية وقتًا أطول من المعتاد. حاول مرة أخرى.",
+    canRetry: true,
+  },
+  server: {
+    title: "خطأ مؤقت في الخادم",
+    icon: <ServerCrash className="h-10 w-10 text-destructive" />,
+    hint: "نعمل على حل المشكلة — يُرجى المحاولة بعد قليل أو التواصل مع الاستقبال.",
+    canRetry: true,
+  },
+  unknown: {
+    title: "حدث خطأ غير متوقع",
+    icon: <AlertCircle className="h-10 w-10 text-destructive" />,
+    hint: "أعد المحاولة، وإن استمرّت المشكلة تواصل مع فريقنا.",
+    canRetry: true,
+  },
+};
 
 export const Route = createFileRoute("/track")({
   head: () => ({
@@ -111,46 +161,94 @@ function TrackPage() {
   const [phone4, setPhone4] = useState("");
   const [loading, setLoading] = useState(false);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LookupError | null>(null);
+  const lastQueryRef = useRef<{ reference: string; phone_last4: string } | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function runLookup(payload: { reference: string; phone_last4: string }) {
+    setLoading(true);
     setError(null);
     setAppointment(null);
-
-    const parsed = schema.safeParse({ reference, phone_last4: phone4 });
-    if (!parsed.success) {
-      const msg = parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    setLoading(true);
+    const toastId = toast.loading("جاري البحث عن حالة طلبك...");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
     try {
-      const res = await fetch("/api/public/book/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        appointment?: Appointment;
-        message?: string;
-      };
-      if (!res.ok || !body.ok || !body.appointment) {
-        setError(body.message ?? "لم نعثر على طلب مطابق.");
+      let res: Response;
+      try {
+        res = await fetch("/api/public/book/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        const isAbort =
+          (err instanceof DOMException && err.name === "AbortError") ||
+          (err as { name?: string } | null)?.name === "AbortError";
+        const kind: LookupErrorKind = isAbort ? "timeout" : "network";
+        const msg = ERROR_META[kind].title;
+        setError({ kind, message: msg });
+        toast.error(msg, { id: toastId });
         return;
       }
-      setAppointment(body.appointment);
-    } catch {
-      setError("تعذّر الاتصال بالخادم. حاول مجددًا.");
+
+      let body: { ok?: boolean; appointment?: Appointment; message?: string } = {};
+      try {
+        body = await res.json();
+      } catch {
+        const kind: LookupErrorKind = res.status >= 500 ? "server" : "unknown";
+        setError({ kind, message: ERROR_META[kind].title });
+        toast.error(ERROR_META[kind].title, { id: toastId });
+        return;
+      }
+
+      if (res.ok && body.ok && body.appointment) {
+        setAppointment(body.appointment);
+        toast.success("تم العثور على طلبك", { id: toastId });
+        return;
+      }
+
+      const kind: LookupErrorKind =
+        res.status === 404
+          ? "not_found"
+          : res.status === 400
+            ? "validation"
+            : res.status >= 500
+              ? "server"
+              : "unknown";
+      const message = body.message?.trim() || ERROR_META[kind].title;
+      setError({ kind, message });
+      toast.error(message, { id: toastId });
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }
 
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (loading) return;
+
+    const parsed = schema.safeParse({ reference, phone_last4: phone4 });
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
+      setAppointment(null);
+      setError({ kind: "validation", message: msg });
+      toast.error(msg);
+      return;
+    }
+
+    lastQueryRef.current = parsed.data;
+    await runLookup(parsed.data);
+  }
+
+  function onRetry() {
+    if (loading) return;
+    const last = lastQueryRef.current;
+    if (last) void runLookup(last);
+  }
+
   const status = appointment ? STATUS[appointment.status] ?? STATUS.new : null;
+  const errorMeta = error ? ERROR_META[error.kind] : null;
 
   return (
     <>
@@ -164,9 +262,11 @@ function TrackPage() {
         <form
           onSubmit={onSubmit}
           noValidate
+          aria-busy={loading}
           className="rounded-2xl border border-border bg-card p-6 space-y-4 h-fit"
           aria-label="نموذج تتبع طلب الحجز"
         >
+          <fieldset disabled={loading} className="space-y-4 border-0 p-0 m-0 disabled:opacity-70">
           <div>
             <label htmlFor="tr-ref" className="mb-1 block text-xs font-semibold">
               رقم الطلب
@@ -214,8 +314,10 @@ function TrackPage() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {loading ? "جاري البحث..." : "عرض حالة الطلب"}
           </button>
+          </fieldset>
 
           <p className="text-xs text-muted-foreground text-center pt-2">
+
             هل نسيت رقم الطلب؟{" "}
             <Link to="/lookup" className="text-primary font-semibold hover:underline">
               ابحث برقم الجوال بدلاً من ذلك
@@ -224,7 +326,26 @@ function TrackPage() {
         </form>
 
         <div>
-          {!appointment && !error && (
+          {loading && !appointment && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-2xl border border-border bg-card p-8 h-full"
+            >
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                جاري البحث عن حالة طلبك...
+              </div>
+              <div className="mt-6 space-y-3 animate-pulse">
+                <div className="h-16 rounded-xl bg-muted" />
+                <div className="h-24 rounded-xl bg-muted" />
+                <div className="h-4 w-3/4 rounded bg-muted" />
+                <div className="h-4 w-2/3 rounded bg-muted" />
+              </div>
+            </div>
+          )}
+
+          {!loading && !appointment && !error && (
             <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-10 text-center text-sm text-muted-foreground h-full grid place-items-center">
               <div>
                 <Search className="mx-auto h-10 w-10 text-muted-foreground/50 mb-3" />
@@ -233,18 +354,58 @@ function TrackPage() {
             </div>
           )}
 
-          {error && !appointment && (
+          {!loading && error && !appointment && errorMeta && (
             <div
               role="alert"
-              className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-8 text-center"
+              aria-live="assertive"
+              className={`rounded-2xl border-2 p-8 text-center ${
+                error.kind === "not_found"
+                  ? "border-amber-500/40 bg-amber-500/5"
+                  : "border-destructive/40 bg-destructive/5"
+              }`}
             >
-              <XCircle className="mx-auto h-10 w-10 text-destructive mb-3" />
-              <p className="text-sm font-semibold text-destructive">{error}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                تأكّد من كتابة الرقم كاملاً بصيغة BAA- ثم 8 خانات.
+              <div className="mx-auto mb-3 grid place-items-center">{errorMeta.icon}</div>
+              <p
+                className={`text-base font-bold ${
+                  error.kind === "not_found" ? "text-amber-700 dark:text-amber-300" : "text-destructive"
+                }`}
+              >
+                {errorMeta.title}
               </p>
+              <p className="mt-2 text-sm text-foreground/80 leading-6">{error.message}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{errorMeta.hint}</p>
+
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {errorMeta.canRetry && lastQueryRef.current && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                    إعادة المحاولة
+                  </button>
+                )}
+                {error.kind === "not_found" && (
+                  <Link
+                    to="/lookup"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input px-4 py-2 text-sm font-semibold hover:bg-muted"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    البحث برقم الجوال
+                  </Link>
+                )}
+                <Link
+                  to="/contact"
+                  className="inline-flex items-center rounded-md border border-input px-4 py-2 text-sm font-semibold hover:bg-muted"
+                >
+                  تواصل مع الاستقبال
+                </Link>
+              </div>
             </div>
           )}
+
 
           {appointment && status && (
             <div className="space-y-4">
