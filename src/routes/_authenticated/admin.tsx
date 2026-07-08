@@ -127,7 +127,7 @@ function AdminDashboard() {
   const tab: Tab = (ALL_TABS.includes(search.tab as Tab) ? search.tab : "overview") as Tab;
   const setTab = (t: Tab) =>
     navigate({
-      search: (prev) => ({ ...prev, tab: t }),
+      search: (prev: Record<string, unknown>) => ({ ...prev, tab: t }),
       replace: false,
     });
 
