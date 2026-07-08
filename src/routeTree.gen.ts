@@ -76,6 +76,7 @@ import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_au
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 import { Route as ApiPublicBookTrackRouteImport } from './routes/api/public/book/track'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
+import { Route as ApiPublicBookAvailabilityRouteImport } from './routes/api/public/book/availability'
 
 const TrackRoute = TrackRouteImport.update({
   id: '/track',
@@ -427,6 +428,12 @@ const ApiPublicBookCreateRoute = ApiPublicBookCreateRouteImport.update({
   path: '/api/public/book/create',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBookAvailabilityRoute =
+  ApiPublicBookAvailabilityRouteImport.update({
+    id: '/api/public/book/availability',
+    path: '/api/public/book/availability',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -492,6 +499,7 @@ export interface FileRoutesByFullPath {
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/patients/': typeof AuthenticatedPatientsIndexRoute
+  '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -560,6 +568,7 @@ export interface FileRoutesByTo {
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/patients': typeof AuthenticatedPatientsIndexRoute
+  '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -630,6 +639,7 @@ export interface FileRoutesById {
   '/_authenticated/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/_authenticated/patients/': typeof AuthenticatedPatientsIndexRoute
+  '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -700,6 +710,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/media/stories/$slug'
     | '/patients/'
+    | '/api/public/book/availability'
     | '/api/public/book/create'
     | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
@@ -768,6 +779,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/media/stories/$slug'
     | '/patients'
+    | '/api/public/book/availability'
     | '/api/public/book/create'
     | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
@@ -837,6 +849,7 @@ export interface FileRouteTypes {
     | '/_authenticated/patients/$patientId'
     | '/media/stories/$slug'
     | '/_authenticated/patients/'
+    | '/api/public/book/availability'
     | '/api/public/book/create'
     | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
@@ -879,6 +892,7 @@ export interface RootRouteChildren {
   DoctorsIndexRoute: typeof DoctorsIndexRoute
   HealthIndexRoute: typeof HealthIndexRoute
   SpecialtiesIndexRoute: typeof SpecialtiesIndexRoute
+  ApiPublicBookAvailabilityRoute: typeof ApiPublicBookAvailabilityRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
   ApiPublicBookTrackRoute: typeof ApiPublicBookTrackRoute
   ApiPublicHooksSendRemindersRoute: typeof ApiPublicHooksSendRemindersRoute
@@ -1355,6 +1369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBookCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/book/availability': {
+      id: '/api/public/book/availability'
+      path: '/api/public/book/availability'
+      fullPath: '/api/public/book/availability'
+      preLoaderRoute: typeof ApiPublicBookAvailabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1490,6 +1511,7 @@ const rootRouteChildren: RootRouteChildren = {
   DoctorsIndexRoute: DoctorsIndexRoute,
   HealthIndexRoute: HealthIndexRoute,
   SpecialtiesIndexRoute: SpecialtiesIndexRoute,
+  ApiPublicBookAvailabilityRoute: ApiPublicBookAvailabilityRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
   ApiPublicBookTrackRoute: ApiPublicBookTrackRoute,
   ApiPublicHooksSendRemindersRoute: ApiPublicHooksSendRemindersRoute,
