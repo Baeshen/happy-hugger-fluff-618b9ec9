@@ -50,8 +50,10 @@ const CHANNELS: Array<{
   { value: "email", label: "Email", Icon: Mail, color: "bg-violet-100 text-violet-900", hint: "استخدم عنوانًا واضحًا." },
 ];
 
-const CHANNEL_META: Record<MessageChannel, { label: string; Icon: any; color: string }> =
-  Object.fromEntries(CHANNELS.map((c) => [c.value, c])) as any;
+const CHANNEL_META: Record<
+  MessageChannel,
+  { value: MessageChannel; label: string; Icon: any; color: string; hint: string }
+> = Object.fromEntries(CHANNELS.map((c) => [c.value, c])) as any;
 
 type FormState = {
   id: string | null;

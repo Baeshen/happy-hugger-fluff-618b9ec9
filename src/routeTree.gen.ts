@@ -52,6 +52,7 @@ import { Route as AuthenticatedPatientsManagementRouteImport } from './routes/_a
 import { Route as AuthenticatedPatientsAnalyticsRouteImport } from './routes/_authenticated/patients-analytics'
 import { Route as AuthenticatedNotificationsQueueRouteImport } from './routes/_authenticated/notifications-queue'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
+import { Route as AuthenticatedMessageTemplatesRouteImport } from './routes/_authenticated/message-templates'
 import { Route as AuthenticatedDoctorsManagementRouteImport } from './routes/_authenticated/doctors-management'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
@@ -283,6 +284,12 @@ const AuthenticatedMyRoute = AuthenticatedMyRouteImport.update({
   path: '/my',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMessageTemplatesRoute =
+  AuthenticatedMessageTemplatesRouteImport.update({
+    id: '/message-templates',
+    path: '/message-templates',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDoctorsManagementRoute =
   AuthenticatedDoctorsManagementRouteImport.update({
     id: '/doctors-management',
@@ -375,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
+  '/message-templates': typeof AuthenticatedMessageTemplatesRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
@@ -430,6 +438,7 @@ export interface FileRoutesByTo {
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
+  '/message-templates': typeof AuthenticatedMessageTemplatesRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
@@ -487,6 +496,7 @@ export interface FileRoutesById {
   '/_authenticated/clinic-settings': typeof AuthenticatedClinicSettingsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/doctors-management': typeof AuthenticatedDoctorsManagementRoute
+  '/_authenticated/message-templates': typeof AuthenticatedMessageTemplatesRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
   '/_authenticated/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/clinic-settings'
     | '/dashboard'
     | '/doctors-management'
+    | '/message-templates'
     | '/my'
     | '/notifications-queue'
     | '/patients-analytics'
@@ -599,6 +610,7 @@ export interface FileRouteTypes {
     | '/clinic-settings'
     | '/dashboard'
     | '/doctors-management'
+    | '/message-templates'
     | '/my'
     | '/notifications-queue'
     | '/patients-analytics'
@@ -655,6 +667,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clinic-settings'
     | '/_authenticated/dashboard'
     | '/_authenticated/doctors-management'
+    | '/_authenticated/message-templates'
     | '/_authenticated/my'
     | '/_authenticated/notifications-queue'
     | '/_authenticated/patients-analytics'
@@ -1020,6 +1033,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/message-templates': {
+      id: '/_authenticated/message-templates'
+      path: '/message-templates'
+      fullPath: '/message-templates'
+      preLoaderRoute: typeof AuthenticatedMessageTemplatesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/doctors-management': {
       id: '/_authenticated/doctors-management'
       path: '/doctors-management'
@@ -1108,6 +1128,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedClinicSettingsRoute: typeof AuthenticatedClinicSettingsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDoctorsManagementRoute: typeof AuthenticatedDoctorsManagementRoute
+  AuthenticatedMessageTemplatesRoute: typeof AuthenticatedMessageTemplatesRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedNotificationsQueueRoute: typeof AuthenticatedNotificationsQueueRoute
   AuthenticatedPatientsAnalyticsRoute: typeof AuthenticatedPatientsAnalyticsRoute
@@ -1131,6 +1152,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClinicSettingsRoute: AuthenticatedClinicSettingsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDoctorsManagementRoute: AuthenticatedDoctorsManagementRoute,
+  AuthenticatedMessageTemplatesRoute: AuthenticatedMessageTemplatesRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedNotificationsQueueRoute: AuthenticatedNotificationsQueueRoute,
   AuthenticatedPatientsAnalyticsRoute: AuthenticatedPatientsAnalyticsRoute,
