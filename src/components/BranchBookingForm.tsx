@@ -448,6 +448,7 @@ export function BranchBookingForm({
     setDate("");
     setTime("");
     setForm({ name: "", phone: "", gender: "male", reason: "" });
+    setReminderOffsets([1440, 120]);
     setTouched({ name: false, phone: false, gender: false, reason: false });
     setShowAllPatientErrors(false);
     setSubmitError(null);
