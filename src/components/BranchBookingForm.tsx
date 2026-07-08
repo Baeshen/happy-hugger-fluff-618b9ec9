@@ -146,6 +146,7 @@ export function BranchBookingForm({
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
   const [form, setForm] = useState({ name: "", phone: "", gender: "male" as "male" | "female", reason: "" });
+  const [reminderOffsets, setReminderOffsets] = useState<number[]>([1440, 120]);
   const [touched, setTouched] = useState<Record<"name" | "phone" | "gender" | "reason", boolean>>({
     name: false,
     phone: false,
