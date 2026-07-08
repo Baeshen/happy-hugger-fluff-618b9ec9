@@ -21,16 +21,57 @@ import { friendlyInsertError } from "@/lib/insert-errors";
 import type { BranchSpecialty } from "@/lib/branches.functions";
 
 const NAME_MIN = 2, NAME_MAX = 120;
-const PHONE_MIN = 6, PHONE_MAX = 32;
+const PHONE_MAX = 32;
 const REASON_MAX = 500;
-const PHONE_RE = /^[+0-9\s\-()]+$/;
+const PHONE_ALLOWED_RE = /^[+0-9\s\-()]+$/;
+const NAME_RE = /^[\p{L}\s'’\-.]+$/u;
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(NAME_MIN, "الاسم قصير جدًا (حرفان على الأقل)")
+  .max(NAME_MAX, `الاسم طويل جدًا (الحد الأقصى ${NAME_MAX} حرفًا)`)
+  .regex(NAME_RE, "الاسم يجب أن يحتوي على أحرف فقط")
+  .refine((v) => v.split(/\s+/).filter(Boolean).length >= 2, "الرجاء إدخال الاسم الأول والأخير");
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, "رقم الجوال مطلوب")
+  .max(PHONE_MAX, "رقم الجوال طويل جدًا")
+  .regex(PHONE_ALLOWED_RE, "رقم غير صالح — الأرقام فقط")
+  .refine((v) => {
+    const digits = v.replace(/\D/g, "");
+    return digits.length >= 9 && digits.length <= 15;
+  }, "رقم الجوال يجب أن يتكوّن من 9 إلى 15 رقمًا");
+
+const reasonSchema = z
+  .string()
+  .trim()
+  .max(REASON_MAX, `الحد الأقصى ${REASON_MAX} حرفًا`)
+  .optional()
+  .or(z.literal(""));
 
 const schema = z.object({
-  name: z.string().trim().min(NAME_MIN, "الاسم قصير جدًا").max(NAME_MAX, "الاسم طويل جدًا"),
-  phone: z.string().trim().min(PHONE_MIN, "رقم الهاتف قصير").max(PHONE_MAX, "رقم الهاتف طويل").regex(PHONE_RE, "رقم غير صالح"),
-  gender: z.enum(["male", "female"]),
-  reason: z.string().trim().max(REASON_MAX).optional().or(z.literal("")),
+  name: nameSchema,
+  phone: phoneSchema,
+  gender: z.enum(["male", "female"], { message: "اختر الجنس" }),
+  reason: reasonSchema,
 });
+
+type FieldErrors = Partial<Record<"name" | "phone" | "gender" | "reason", string>>;
+
+function computeFieldErrors(form: { name: string; phone: string; gender: string; reason: string }): FieldErrors {
+  const errs: FieldErrors = {};
+  const n = nameSchema.safeParse(form.name);
+  if (!n.success) errs.name = n.error.issues[0]?.message;
+  const p = phoneSchema.safeParse(form.phone);
+  if (!p.success) errs.phone = p.error.issues[0]?.message;
+  if (form.gender !== "male" && form.gender !== "female") errs.gender = "اختر الجنس";
+  const r = reasonSchema.safeParse(form.reason);
+  if (!r.success) errs.reason = r.error.issues[0]?.message;
+  return errs;
+}
 
 function randomId(): string {
   const c = globalThis.crypto as Crypto | undefined;
@@ -72,8 +113,9 @@ function validateStep(
       return null;
     case "patient":
       if (!state.specialtyId || !state.doctorId || !state.date || !state.time) return " أكمل الخطوات السابقة";
-      const parsed = schema.safeParse(state.form);
-      if (!parsed.success) return parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
+      const errs = computeFieldErrors(state.form);
+      const firstKey = (["name", "phone", "gender", "reason"] as const).find((k) => errs[k]);
+      if (firstKey) return errs[firstKey] ?? "بيانات غير صالحة";
       return null;
     case "confirm":
       return null;
@@ -104,10 +146,20 @@ export function BranchBookingForm({
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
   const [form, setForm] = useState({ name: "", phone: "", gender: "male" as "male" | "female", reason: "" });
+  const [touched, setTouched] = useState<Record<"name" | "phone" | "gender" | "reason", boolean>>({
+    name: false,
+    phone: false,
+    gender: false,
+    reason: false,
+  });
+  const [showAllPatientErrors, setShowAllPatientErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const fieldErrors = useMemo(() => computeFieldErrors(form), [form]);
+  const showErr = (k: "name" | "phone" | "gender" | "reason") =>
+    (touched[k] || showAllPatientErrors) && fieldErrors[k];
 
   useEffect(() => {
     if (!preselectedSpecialtyId) return;
@@ -196,6 +248,7 @@ export function BranchBookingForm({
   const nextStep = () => {
     const err = validateStep(step, { specialtyId, doctorId, date, time, form });
     if (err) {
+      if (step === "patient") setShowAllPatientErrors(true);
       toast.error(err);
       return;
     }
@@ -287,9 +340,12 @@ export function BranchBookingForm({
     setDate("");
     setTime("");
     setForm({ name: "", phone: "", gender: "male", reason: "" });
+    setTouched({ name: false, phone: false, gender: false, reason: false });
+    setShowAllPatientErrors(false);
     setSubmitError(null);
     setStep("service");
   };
+
 
   const currentStepIdx = stepIndex(step);
   const progress = ((currentStepIdx + 1) / STEPS.length) * 100;
@@ -487,55 +543,118 @@ export function BranchBookingForm({
         {step === "patient" && (
           <div className="grid gap-3 sm:grid-cols-2 animate-in fade-in duration-200">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold mb-1">الاسم الكامل</label>
+              <label htmlFor="bk-name" className="block text-xs font-semibold mb-1">
+                الاسم الكامل <span className="text-destructive">*</span>
+              </label>
               <input
-                className={inputCls}
+                id="bk-name"
+                className={`${inputCls} ${showErr("name") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 value={form.name}
                 maxLength={NAME_MAX}
+                autoComplete="name"
+                required
+                aria-required="true"
+                aria-invalid={showErr("name") ? true : undefined}
+                aria-describedby={showErr("name") ? "bk-name-err" : "bk-name-hint"}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                placeholder="مثال: محمد أحمد"
               />
+              {showErr("name") ? (
+                <p id="bk-name-err" className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.name}
+                </p>
+              ) : (
+                <p id="bk-name-hint" className="mt-1 text-[11px] text-muted-foreground">
+                  الاسم الأول والأخير على الأقل.
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1">رقم الجوال</label>
+              <label htmlFor="bk-phone" className="block text-xs font-semibold mb-1">
+                رقم الجوال <span className="text-destructive">*</span>
+              </label>
               <input
+                id="bk-phone"
                 dir="ltr"
-                className={inputCls}
+                inputMode="tel"
+                type="tel"
+                autoComplete="tel"
+                required
+                aria-required="true"
+                aria-invalid={showErr("phone") ? true : undefined}
+                aria-describedby={showErr("phone") ? "bk-phone-err" : "bk-phone-hint"}
+                className={`${inputCls} ${showErr("phone") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 value={form.phone}
                 maxLength={PHONE_MAX}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
                 placeholder="05xxxxxxxx"
               />
+              {showErr("phone") ? (
+                <p id="bk-phone-err" className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.phone}
+                </p>
+              ) : (
+                <p id="bk-phone-hint" className="mt-1 text-[11px] text-muted-foreground">
+                  أرقام فقط، من 9 إلى 15 رقمًا.
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1">الجنس</label>
+              <label htmlFor="bk-gender" className="block text-xs font-semibold mb-1">
+                الجنس <span className="text-destructive">*</span>
+              </label>
               <select
-                className={inputCls}
+                id="bk-gender"
+                className={`${inputCls} ${showErr("gender") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 value={form.gender}
+                aria-invalid={showErr("gender") ? true : undefined}
+                aria-describedby={showErr("gender") ? "bk-gender-err" : undefined}
                 onChange={(e) => setForm({ ...form, gender: e.target.value as "male" | "female" })}
+                onBlur={() => setTouched((t) => ({ ...t, gender: true }))}
               >
                 <option value="male">ذكر</option>
                 <option value="female">أنثى</option>
               </select>
+              {showErr("gender") && (
+                <p id="bk-gender-err" className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.gender}
+                </p>
+              )}
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold mb-1">سبب الزيارة (اختياري)</label>
+              <label htmlFor="bk-reason" className="block text-xs font-semibold mb-1">
+                سبب الزيارة <span className="text-muted-foreground font-normal">(اختياري)</span>
+              </label>
               <textarea
-                className={inputCls}
+                id="bk-reason"
+                className={`${inputCls} ${showErr("reason") ? "border-destructive focus:ring-destructive/30" : ""}`}
                 rows={2}
                 maxLength={REASON_MAX}
                 value={form.reason}
+                aria-invalid={showErr("reason") ? true : undefined}
+                aria-describedby={showErr("reason") ? "bk-reason-err" : "bk-reason-count"}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                onBlur={() => setTouched((t) => ({ ...t, reason: true }))}
               />
-            </div>
-
-            {stepError && (
-              <div className="sm:col-span-2 flex items-center gap-2 text-xs text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                {stepError}
+              <div className="mt-1 flex items-center justify-between gap-2">
+                {showErr("reason") ? (
+                  <p id="bk-reason-err" className="flex items-center gap-1 text-xs text-destructive">
+                    <AlertCircle className="h-3.5 w-3.5" /> {fieldErrors.reason}
+                  </p>
+                ) : (
+                  <span />
+                )}
+                <span id="bk-reason-count" className="text-[11px] text-muted-foreground" dir="ltr">
+                  {form.reason.length}/{REASON_MAX}
+                </span>
               </div>
-            )}
+            </div>
           </div>
         )}
+
+
 
         {step === "confirm" && (
           <div className="grid gap-4 animate-in fade-in duration-200">
