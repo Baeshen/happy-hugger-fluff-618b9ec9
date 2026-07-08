@@ -2218,6 +2218,20 @@ export type Database = {
         }
         Returns: string
       }
+      track_appointment: {
+        Args: { _phone_last4: string; _ref: string }
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          cancelled_at: string
+          created_at: string
+          doctor_name_ar: string
+          patient_name: string
+          reference: string
+          specialty_name_ar: string
+          status: string
+        }[]
+      }
       update_appointment_notes: {
         Args: { _id: string; _notes: string; _reason?: string }
         Returns: undefined
