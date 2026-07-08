@@ -340,9 +340,12 @@ export function BranchBookingForm({
     setDate("");
     setTime("");
     setForm({ name: "", phone: "", gender: "male", reason: "" });
+    setTouched({ name: false, phone: false, gender: false, reason: false });
+    setShowAllPatientErrors(false);
     setSubmitError(null);
     setStep("service");
   };
+
 
   const currentStepIdx = stepIndex(step);
   const progress = ((currentStepIdx + 1) / STEPS.length) * 100;
