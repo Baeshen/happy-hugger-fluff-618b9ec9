@@ -68,14 +68,8 @@ const EMPTY: FormState = {
   extra: "",
 };
 
-function shortReference(prefix: string): string {
-  const c = globalThis.crypto as Crypto | undefined;
-  const bytes = new Uint8Array(4);
-  if (c?.getRandomValues) c.getRandomValues(bytes);
-  else for (let i = 0; i < 4; i++) bytes[i] = Math.floor(Math.random() * 256);
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-  return `${prefix}-${hex}`;
-}
+
+
 
 export function ServiceRequestForm({
   tag,
