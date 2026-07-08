@@ -201,7 +201,7 @@ function BookingConfirmationPage() {
                     <div className="text-lg font-bold">{statusLabel(appt.status)}</div>
                     <div className="text-xs opacity-80">
                       <span className="opacity-70">{t("booking_ref")}: </span>
-                      <span className="font-mono font-bold">{share.ref}</span>
+                      <span className="font-mono font-bold text-sm">BAA-{share.ref}</span>
                     </div>
                   </div>
                   <p className="mt-1 text-sm opacity-90">
