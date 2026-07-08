@@ -120,8 +120,9 @@ function countdown(dateStr: string, timeStr: string): string | null {
 
 function LookupPage() {
   const { t, lang } = useI18n();
-  const [ref, setRef] = useState("");
-  const [phone, setPhone] = useState("");
+  const routeSearch = Route.useSearch();
+  const [ref, setRef] = useState(routeSearch.ref ?? "");
+  const [phone, setPhone] = useState(routeSearch.phone ?? "");
   const [loading, setLoading] = useState(false);
   const [appt, setAppt] = useState<AppointmentRow | null>(null);
   const [searched, setSearched] = useState(false);
