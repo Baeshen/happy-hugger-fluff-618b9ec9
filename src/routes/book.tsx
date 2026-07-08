@@ -86,6 +86,7 @@ const WEEKDAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأ
 function BookPage() {
   const { specialty: initSpec, doctor: initDoc } = Route.useSearch();
   const { t, lang } = useI18n();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [specialtyId, setSpecialtyId] = useState<string | null>(null);
   const [doctorId, setDoctorId] = useState<string | null>(initDoc ?? null);
@@ -101,7 +102,6 @@ function BookPage() {
     reminder_2h: true,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [confirmed, setConfirmed] = useState<{ ref: string; share: ShareBooking } | null>(null);
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
