@@ -106,21 +106,20 @@ export const Route = createFileRoute("/api/public/book/create")({
           },
         });
 
-        const { data: inserted, error } = await supa
-          .from("appointments")
-          .insert({
-            patient_name: parsed.data.patient_name,
-            patient_phone: parsed.data.patient_phone,
-            national_id: parsed.data.national_id ?? null,
-            gender: parsed.data.gender,
-            specialty_id: parsed.data.specialty_id ?? null,
-            doctor_id: parsed.data.doctor_id ?? null,
-            appointment_date: parsed.data.appointment_date,
-            appointment_time: parsed.data.appointment_time,
-            reason: parsed.data.reason ?? null,
-          })
-          .select("id")
-          .single();
+        // Keep the anon insert path exactly as before so triggers + RLS
+        // behave identically to the /book UI. Anon has no SELECT policy, so
+        // we cannot use .select() here.
+        const { error } = await supa.from("appointments").insert({
+          patient_name: parsed.data.patient_name,
+          patient_phone: parsed.data.patient_phone,
+          national_id: parsed.data.national_id ?? null,
+          gender: parsed.data.gender,
+          specialty_id: parsed.data.specialty_id ?? null,
+          doctor_id: parsed.data.doctor_id ?? null,
+          appointment_date: parsed.data.appointment_date,
+          appointment_time: parsed.data.appointment_time,
+          reason: parsed.data.reason ?? null,
+        });
 
         if (error) {
           return json(400, {
@@ -130,12 +129,29 @@ export const Route = createFileRoute("/api/public/book/create")({
           });
         }
 
-        // Reference number derived from the appointment id (first 8 hex chars).
-        // The public tracking endpoint (/api/public/book/track) re-derives the
-        // same value from the persisted UUID, so patients can look up status.
-        const reference = inserted?.id
-          ? "BAA-" + String(inserted.id).replace(/-/g, "").slice(0, 8).toUpperCase()
-          : null;
+        // Follow-up admin read to derive the tracking reference from the
+        // just-inserted row. Filter narrowly (phone + date + time) and take
+        // the newest match. Failure here must not fail the whole request —
+        // the booking is already persisted; the reference is a convenience.
+        let reference: string | null = null;
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: found } = await supabaseAdmin
+            .from("appointments")
+            .select("id")
+            .eq("patient_phone", parsed.data.patient_phone)
+            .eq("appointment_date", parsed.data.appointment_date)
+            .eq("appointment_time", parsed.data.appointment_time)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (found?.id) {
+            reference =
+              "BAA-" + String(found.id).replace(/-/g, "").slice(0, 8).toUpperCase();
+          }
+        } catch {
+          // Ignore — booking is already saved; reference simply won't be returned.
+        }
 
         return json(200, { ok: true, reference });
       },
