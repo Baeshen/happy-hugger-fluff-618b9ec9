@@ -718,17 +718,22 @@ function DownloadFileButton({
         return;
       }
 
-      // Verify the signed URL is reachable before triggering download
-      try {
-        const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
-        if (!check.ok) {
-          const friendly = DOWNLOAD_ERROR_MESSAGES.invalidUrl;
-          setError(friendly);
-          toast.error(friendly);
-          return;
+      // Adaptive HEAD check: skip once the bucket has proven healthy, but
+      // always re-check on the first attempt or after a recent failure.
+      const decision = shouldPerformHeadCheck(getHeadCheckState(bucket));
+      if (decision.shouldCheck) {
+        try {
+          const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
+          if (!check.ok) {
+            const friendly = DOWNLOAD_ERROR_MESSAGES.invalidUrl;
+            headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
+            setError(friendly);
+            toast.error(friendly);
+            return;
+          }
+        } catch {
+          // If CORS/network check fails, still attempt direct download; browser handles it
         }
-      } catch {
-        // If CORS/network check fails, still attempt direct download; browser handles it
       }
 
       const a = document.createElement("a");
@@ -738,9 +743,11 @@ function DownloadFileButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
+      headCheckStateByBucket.set(bucket, recordDownloadSuccess(getHeadCheckState(bucket)));
       toast.success(DOWNLOAD_ERROR_MESSAGES.downloadStarted);
     } catch {
       const friendly = DOWNLOAD_ERROR_MESSAGES.unexpected;
+      headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
       setError(friendly);
       toast.error(friendly);
     } finally {
