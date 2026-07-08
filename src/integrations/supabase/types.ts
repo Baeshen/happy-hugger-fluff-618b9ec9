@@ -1729,6 +1729,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _appointment_belongs_to_me: { Args: { _phone: string }; Returns: boolean }
       _assert_branch_access: {
         Args: { _branch_id: string }
         Returns: undefined
