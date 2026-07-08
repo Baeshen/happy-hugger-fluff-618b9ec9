@@ -146,12 +146,12 @@ function BranchDetailPage() {
             </div>
 
             <div className="p-4 pt-0 flex flex-col gap-2">
-              <Link
-                to="/book"
+              <a
+                href="#book"
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95"
               >
                 <CalendarPlus className="h-4 w-4" /> احجز في هذا الفرع
-              </Link>
+              </a>
               {b.phone && (
                 <a
                   href={`tel:${b.phone}`}
