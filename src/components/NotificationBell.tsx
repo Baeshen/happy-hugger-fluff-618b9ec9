@@ -143,7 +143,39 @@ export function NotificationBell() {
               <CheckCheck className="h-3.5 w-3.5" /> تحديد الكل كمقروء
             </button>
           </div>
+          {push.state !== "unsupported" && (
+            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-muted/30">
+              <div className="flex items-center gap-2 text-xs">
+                {push.subscribed ? (
+                  <BellRing className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                <span className="text-muted-foreground">
+                  {push.subscribed
+                    ? "تذكيرات المتصفح مفعّلة"
+                    : "فعّل تذكيرات المتصفح لتصلك قبل الموعد"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={push.toggle}
+                disabled={push.busy || push.state === "denied"}
+                title={push.state === "denied" ? "الإذن مرفوض من إعدادات المتصفح" : undefined}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-muted disabled:opacity-50"
+              >
+                {push.busy ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : push.subscribed ? (
+                  "إيقاف"
+                ) : (
+                  "تفعيل"
+                )}
+              </button>
+            </div>
+          )}
           <div className="max-h-[65vh] overflow-y-auto divide-y divide-border">
+
             {listQuery.isLoading ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin inline-block me-1" />
