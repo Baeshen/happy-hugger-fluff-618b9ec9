@@ -159,13 +159,17 @@ export function CenterBookingForm({
           reason,
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        message?: string;
+        reference?: string | null;
+      };
       if (!res.ok || !body.ok) {
         toast.error(body.message ?? "تعذّر إرسال الطلب");
         return;
       }
       setConfirmation({
-        reference: shortReference(),
+        reference: body.reference ?? shortReference(),
         centerName,
         service: data.service,
         patient_name: data.patient_name,
