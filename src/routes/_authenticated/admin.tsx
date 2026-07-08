@@ -2000,6 +2000,40 @@ function RemindersDeliveryTab({
   }
 
   const rows: ReminderDelivery[] = query.data ?? [];
+  const retriableIds = rows
+    .filter((r) => r.send_status === "failed" || r.send_status === "skipped")
+    .map((r) => r.id);
+  const retriableIdSet = new Set(retriableIds);
+  const selectedRetriable = Array.from(selectedIds).filter((id) => retriableIdSet.has(id));
+  const allSelected = retriableIds.length > 0 && selectedRetriable.length === retriableIds.length;
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(retriableIds) : new Set());
+  };
+  const runBulkRetry = async () => {
+    if (selectedRetriable.length === 0) return;
+    setBulkRetrying(true);
+    try {
+      const res = await bulkRetryFn({ data: { ids: selectedRetriable } });
+      toast.success(
+        `تمت إعادة جدولة ${res.retried.toLocaleString("ar-EG")} تذكير` +
+          (res.skipped > 0 ? ` (تم تجاهل ${res.skipped.toLocaleString("ar-EG")})` : ""),
+      );
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["reminders-log"] });
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "تعذّرت إعادة الإرسال الجماعية.");
+    } finally {
+      setBulkRetrying(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
