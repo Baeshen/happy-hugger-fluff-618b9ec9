@@ -142,25 +142,17 @@ function formatHours(hours: PublicBranch["working_hours"]) {
   }));
 }
 
-function mapEmbed(b: PublicBranch): string | null {
-  if (b.map_embed_url) return b.map_embed_url;
-  if (b.lat != null && b.lng != null) {
-    return `https://www.google.com/maps?q=${b.lat},${b.lng}&hl=ar&z=15&output=embed`;
-  }
-  return null;
-}
-
 function BranchDetailPage() {
   const { slug } = Route.useParams();
   const { data } = useSuspenseQuery(branchQuery(slug));
   if (!data) return null;
   const { branch: b, centers, specialties } = data;
   const hours = formatHours(b.working_hours);
-  const embed = mapEmbed(b);
   const directions =
     b.lat != null && b.lng != null
       ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}`
       : null;
+
 
   return (
     <>
