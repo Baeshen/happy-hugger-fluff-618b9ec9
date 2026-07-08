@@ -390,7 +390,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelected(null)}
+                  onClick={() => selectItem(null)}
                   className="rounded-md p-1.5 hover:bg-muted"
                   aria-label="إلغاء التحديد"
                 >
