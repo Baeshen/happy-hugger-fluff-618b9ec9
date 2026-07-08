@@ -62,6 +62,7 @@ import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedMessageTemplatesRouteImport } from './routes/_authenticated/message-templates'
 import { Route as AuthenticatedDoctorsManagementRouteImport } from './routes/_authenticated/doctors-management'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCorporateAdminRouteImport } from './routes/_authenticated/corporate-admin'
 import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authenticated/clinic-settings'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
@@ -347,6 +348,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCorporateAdminRoute =
+  AuthenticatedCorporateAdminRouteImport.update({
+    id: '/corporate-admin',
+    path: '/corporate-admin',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedClinicSettingsRoute =
   AuthenticatedClinicSettingsRouteImport.update({
     id: '/clinic-settings',
@@ -447,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
+  '/corporate-admin': typeof AuthenticatedCorporateAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/message-templates': typeof AuthenticatedMessageTemplatesRoute
@@ -513,6 +521,7 @@ export interface FileRoutesByTo {
   '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/clinic-settings': typeof AuthenticatedClinicSettingsRoute
+  '/corporate-admin': typeof AuthenticatedCorporateAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/message-templates': typeof AuthenticatedMessageTemplatesRoute
@@ -581,6 +590,7 @@ export interface FileRoutesById {
   '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/clinic-settings': typeof AuthenticatedClinicSettingsRoute
+  '/_authenticated/corporate-admin': typeof AuthenticatedCorporateAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/doctors-management': typeof AuthenticatedDoctorsManagementRoute
   '/_authenticated/message-templates': typeof AuthenticatedMessageTemplatesRoute
@@ -649,6 +659,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
+    | '/corporate-admin'
     | '/dashboard'
     | '/doctors-management'
     | '/message-templates'
@@ -715,6 +726,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/calendar'
     | '/clinic-settings'
+    | '/corporate-admin'
     | '/dashboard'
     | '/doctors-management'
     | '/message-templates'
@@ -782,6 +794,7 @@ export interface FileRouteTypes {
     | '/_authenticated/audit-log'
     | '/_authenticated/calendar'
     | '/_authenticated/clinic-settings'
+    | '/_authenticated/corporate-admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/doctors-management'
     | '/_authenticated/message-templates'
@@ -1231,6 +1244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/corporate-admin': {
+      id: '/_authenticated/corporate-admin'
+      path: '/corporate-admin'
+      fullPath: '/corporate-admin'
+      preLoaderRoute: typeof AuthenticatedCorporateAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/clinic-settings': {
       id: '/_authenticated/clinic-settings'
       path: '/clinic-settings'
@@ -1325,6 +1345,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditLogRoute: typeof AuthenticatedAuditLogRoute
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedClinicSettingsRoute: typeof AuthenticatedClinicSettingsRoute
+  AuthenticatedCorporateAdminRoute: typeof AuthenticatedCorporateAdminRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDoctorsManagementRoute: typeof AuthenticatedDoctorsManagementRoute
   AuthenticatedMessageTemplatesRoute: typeof AuthenticatedMessageTemplatesRoute
@@ -1351,6 +1372,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditLogRoute: AuthenticatedAuditLogRoute,
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedClinicSettingsRoute: AuthenticatedClinicSettingsRoute,
+  AuthenticatedCorporateAdminRoute: AuthenticatedCorporateAdminRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDoctorsManagementRoute: AuthenticatedDoctorsManagementRoute,
   AuthenticatedMessageTemplatesRoute: AuthenticatedMessageTemplatesRoute,
