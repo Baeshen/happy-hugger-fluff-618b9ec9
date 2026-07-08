@@ -1246,18 +1246,3 @@ export const createAppointmentAdmin = createServerFn({ method: "POST" })
     if (error) throw new Error(humanizeSupabaseError(error));
     return row;
   });
-
-/* ---------------- Doctors list for wizard ---------------- */
-
-export const listDoctorsAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const roles = await getRoles(context.supabase, context.userId);
-    ensureRole(roles, ["admin", "reception"]);
-    const { data, error } = await context.supabase
-      .from("doctors")
-      .select("id, name_ar, specialty_id, branch_id, is_active")
-      .order("sort_order", { ascending: true });
-    if (error) throw new Error(humanizeSupabaseError(error));
-    return data ?? [];
-  });
