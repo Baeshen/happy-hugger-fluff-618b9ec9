@@ -490,6 +490,51 @@ export type Database = {
           },
         ]
       }
+      corporate_requests: {
+        Row: {
+          admin_notes: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string | null
+          employee_count: number | null
+          id: string
+          notes: string | null
+          phone: string
+          service_type: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          company_name: string
+          contact_name: string
+          created_at?: string
+          email?: string | null
+          employee_count?: number | null
+          id?: string
+          notes?: string | null
+          phone: string
+          service_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string | null
+          employee_count?: number | null
+          id?: string
+          notes?: string | null
+          phone?: string
+          service_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       doctor_leaves: {
         Row: {
           all_day: boolean
@@ -823,6 +868,126 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      invoices: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          invoice_number: string | null
+          issued_at: string
+          notes: string | null
+          paid_at: string | null
+          patient_id: string
+          pdf_path: string | null
+          status: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_number?: string | null
+          issued_at?: string
+          notes?: string | null
+          paid_at?: string | null
+          patient_id: string
+          pdf_path?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_number?: string | null
+          issued_at?: string
+          notes?: string | null
+          paid_at?: string | null
+          patient_id?: string
+          pdf_path?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_reports: {
+        Row: {
+          created_at: string
+          file_path: string | null
+          id: string
+          ordered_by: string | null
+          patient_id: string
+          report_date: string
+          status: string
+          summary: string | null
+          test_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          ordered_by?: string | null
+          patient_id: string
+          report_date?: string
+          status?: string
+          summary?: string | null
+          test_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          ordered_by?: string | null
+          patient_id?: string
+          report_date?: string
+          status?: string
+          summary?: string | null
+          test_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_reports_ordered_by_fkey"
+            columns: ["ordered_by"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_reports_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       medicine_orders: {
         Row: {
@@ -1307,6 +1472,62 @@ export type Database = {
           },
         ]
       }
+      patient_stories: {
+        Row: {
+          body_md: string | null
+          branch_id: string | null
+          created_at: string
+          display_order: number
+          excerpt: string | null
+          hero_image_url: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          specialty: string | null
+          title_ar: string
+          title_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          body_md?: string | null
+          branch_id?: string | null
+          created_at?: string
+          display_order?: number
+          excerpt?: string | null
+          hero_image_url?: string | null
+          id?: string
+          published_at?: string | null
+          slug: string
+          specialty?: string | null
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body_md?: string | null
+          branch_id?: string | null
+          created_at?: string
+          display_order?: number
+          excerpt?: string | null
+          hero_image_url?: string | null
+          id?: string
+          published_at?: string | null
+          slug?: string
+          specialty?: string | null
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_stories_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_surgeries: {
         Row: {
           complications: string | null
@@ -1540,6 +1761,72 @@ export type Database = {
           },
         ]
       }
+      prescriptions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          doctor_id: string | null
+          dosage: string | null
+          end_date: string | null
+          id: string
+          instructions: string | null
+          medication: string
+          notes: string | null
+          patient_id: string
+          refills_remaining: number
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          dosage?: string | null
+          end_date?: string | null
+          id?: string
+          instructions?: string | null
+          medication: string
+          notes?: string | null
+          patient_id: string
+          refills_remaining?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          dosage?: string | null
+          end_date?: string | null
+          id?: string
+          instructions?: string | null
+          medication?: string
+          notes?: string | null
+          patient_id?: string
+          refills_remaining?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescriptions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescriptions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1603,6 +1890,63 @@ export type Database = {
         }
         Relationships: []
       }
+      radiology_reports: {
+        Row: {
+          body_part: string | null
+          created_at: string
+          file_path: string | null
+          findings: string | null
+          id: string
+          modality: string
+          ordered_by: string | null
+          patient_id: string
+          report_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          body_part?: string | null
+          created_at?: string
+          file_path?: string | null
+          findings?: string | null
+          id?: string
+          modality: string
+          ordered_by?: string | null
+          patient_id: string
+          report_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          body_part?: string | null
+          created_at?: string
+          file_path?: string | null
+          findings?: string | null
+          id?: string
+          modality?: string
+          ordered_by?: string | null
+          patient_id?: string
+          report_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "radiology_reports_ordered_by_fkey"
+            columns: ["ordered_by"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "radiology_reports_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminder_preference_audit: {
         Row: {
           appointment_id: string
@@ -1646,6 +1990,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      second_opinion_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          email: string | null
+          id: string
+          patient_name: string
+          phone: string
+          specialty: string
+          status: string
+          summary: string
+          updated_at: string
+          upload_paths: string[]
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          patient_name: string
+          phone: string
+          specialty: string
+          status?: string
+          summary: string
+          updated_at?: string
+          upload_paths?: string[]
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          patient_name?: string
+          phone?: string
+          specialty?: string
+          status?: string
+          summary?: string
+          updated_at?: string
+          upload_paths?: string[]
+        }
+        Relationships: []
       }
       security_audit_log: {
         Row: {
