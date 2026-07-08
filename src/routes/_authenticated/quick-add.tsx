@@ -532,10 +532,12 @@ function Row({ children }: { children: React.ReactNode }) {
 function Field({
   label,
   required,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -543,7 +545,10 @@ function Field({
       <span className="text-muted-foreground">
         {label} {required && <span className="text-destructive">*</span>}
       </span>
-      {children}
+      <div className={error ? "[&_input]:border-destructive [&_select]:border-destructive [&_textarea]:border-destructive" : ""}>
+        {children}
+      </div>
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </label>
   );
 }
