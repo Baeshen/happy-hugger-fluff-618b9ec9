@@ -61,6 +61,7 @@ import { Route as AuthenticatedAuditExportRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
+import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 
 const TelemedicineRoute = TelemedicineRouteImport.update({
@@ -332,6 +333,12 @@ const AuthenticatedPatientsPatientIdRoute =
     path: '/patients/$patientId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicHooksSendRemindersRoute =
+  ApiPublicHooksSendRemindersRouteImport.update({
+    id: '/api/public/hooks/send-reminders',
+    path: '/api/public/hooks/send-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicBookCreateRoute = ApiPublicBookCreateRouteImport.update({
   id: '/api/public/book/create',
   path: '/api/public/book/create',
@@ -391,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -445,6 +453,7 @@ export interface FileRoutesByTo {
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/patients': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -501,6 +510,7 @@ export interface FileRoutesById {
   '/_authenticated/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/_authenticated/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -557,6 +567,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/patients/'
     | '/api/public/book/create'
+    | '/api/public/hooks/send-reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -611,6 +622,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/patients'
     | '/api/public/book/create'
+    | '/api/public/hooks/send-reminders'
   id:
     | '__root__'
     | '/'
@@ -666,6 +678,7 @@ export interface FileRouteTypes {
     | '/_authenticated/patients/$patientId'
     | '/_authenticated/patients/'
     | '/api/public/book/create'
+    | '/api/public/hooks/send-reminders'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -701,6 +714,7 @@ export interface RootRouteChildren {
   HealthIndexRoute: typeof HealthIndexRoute
   SpecialtiesIndexRoute: typeof SpecialtiesIndexRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
+  ApiPublicHooksSendRemindersRoute: typeof ApiPublicHooksSendRemindersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1069,6 +1083,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPatientsPatientIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/hooks/send-reminders': {
+      id: '/api/public/hooks/send-reminders'
+      path: '/api/public/hooks/send-reminders'
+      fullPath: '/api/public/hooks/send-reminders'
+      preLoaderRoute: typeof ApiPublicHooksSendRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/book/create': {
       id: '/api/public/book/create'
       path: '/api/public/book/create'
@@ -1173,6 +1194,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthIndexRoute: HealthIndexRoute,
   SpecialtiesIndexRoute: SpecialtiesIndexRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
+  ApiPublicHooksSendRemindersRoute: ApiPublicHooksSendRemindersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
