@@ -344,7 +344,9 @@ export function CenterBookingForm({
             required
             value={form.patient_name}
             onChange={update("patient_name")}
+            onBlur={onBlur("patient_name")}
             aria-invalid={!!errors.patient_name}
+            aria-describedby={errors.patient_name ? "ff-name-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
         </Field>
@@ -358,7 +360,9 @@ export function CenterBookingForm({
             dir="ltr"
             value={form.patient_phone}
             onChange={update("patient_phone")}
+            onBlur={onBlur("patient_phone")}
             aria-invalid={!!errors.patient_phone}
+            aria-describedby={errors.patient_phone ? "ff-phone-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
         </Field>
@@ -369,7 +373,9 @@ export function CenterBookingForm({
             required
             value={form.service}
             onChange={update("service")}
+            onBlur={onBlur("service")}
             aria-invalid={!!errors.service}
+            aria-describedby={errors.service ? "ff-service-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           >
             <option value="">— اختر الخدمة —</option>
@@ -391,7 +397,9 @@ export function CenterBookingForm({
               min={today}
               value={form.appointment_date}
               onChange={update("appointment_date")}
+              onBlur={onBlur("appointment_date")}
               aria-invalid={!!errors.appointment_date}
+              aria-describedby={errors.appointment_date ? "ff-date-err" : undefined}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
             />
           </Field>
@@ -402,7 +410,9 @@ export function CenterBookingForm({
               type="time"
               value={form.appointment_time}
               onChange={update("appointment_time")}
+              onBlur={onBlur("appointment_time")}
               aria-invalid={!!errors.appointment_time}
+              aria-describedby={errors.appointment_time ? "ff-time-err" : undefined}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
             />
           </Field>
@@ -415,7 +425,9 @@ export function CenterBookingForm({
             maxLength={REASON_MAX}
             value={form.reason}
             onChange={update("reason")}
+            onBlur={onBlur("reason")}
             aria-invalid={!!errors.reason}
+            aria-describedby={errors.reason ? "ff-reason-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
         </Field>
