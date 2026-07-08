@@ -285,6 +285,7 @@ export function CenterBookingForm({
     <form
       onSubmit={onSubmit}
       noValidate
+      aria-busy={submitting}
       className="rounded-2xl border border-border bg-card p-6 space-y-3"
       aria-label={`نموذج حجز موعد في ${centerName}`}
     >
