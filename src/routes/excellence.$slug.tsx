@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { CheckCircle2, Users, CalendarPlus, Phone } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
+import { CenterBookingForm } from "@/components/CenterBookingForm";
 import { EXCELLENCE_CENTERS, getExcellenceCenterBySlug } from "@/data/excellence-centers";
 
 export const Route = createFileRoute("/excellence/$slug")({
