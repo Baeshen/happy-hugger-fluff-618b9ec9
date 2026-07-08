@@ -1,24 +1,34 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   CalendarDays,
+  CalendarPlus,
+  Check,
   Copy,
   Filter,
+  Loader2,
   Phone,
   RefreshCw,
   Search,
   User,
+  UserX,
   X,
+  XCircle,
 } from "lucide-react";
-import { listAppointments } from "@/lib/admin.functions";
+import { listAppointments, updateAppointmentStatus } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/appointments-queue")({
   head: () => ({
     meta: [
-      { title: "قائمة طلبات الحجز — لوحة الإدارة" },
+      { title: "لوحة الحجوزات — لوحة الإدارة" },
+      {
+        name: "description",
+        content:
+          "لوحة إدارة الحجوزات القادمة والمرشّحة مع حالة كل حجز وإجراءات التأكيد والإلغاء والتعديل.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -41,6 +51,8 @@ type Row = {
   specialties?: { name_ar?: string | null } | null;
 };
 
+type Scope = "upcoming" | "pending" | "today" | "past" | "all";
+
 const STATUS_META: Record<Status, { label: string; cls: string }> = {
   new: { label: "جديد", cls: "bg-blue-500/15 text-blue-700 dark:text-blue-300" },
   confirmed: { label: "مؤكّد", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
@@ -49,10 +61,32 @@ const STATUS_META: Record<Status, { label: string; cls: string }> = {
   no_show: { label: "لم يحضر", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
 };
 
-const FILTERS: (Status | "all")[] = ["all", "new", "confirmed", "completed", "no_show", "cancelled"];
+const STATUS_FILTERS: (Status | "all")[] = [
+  "all",
+  "new",
+  "confirmed",
+  "completed",
+  "no_show",
+  "cancelled",
+];
+
+const SCOPE_META: Record<Scope, { label: string; desc: string }> = {
+  upcoming: { label: "القادمة", desc: "من اليوم فما بعد، عدا الملغاة والمكتملة." },
+  pending: { label: "المرشّحة", desc: "طلبات جديدة بانتظار التأكيد." },
+  today: { label: "اليوم", desc: "مواعيد اليوم فقط." },
+  past: { label: "المنقضية", desc: "قبل اليوم." },
+  all: { label: "الكل", desc: "جميع الطلبات دون فلترة زمنية." },
+};
+
+const SCOPES: Scope[] = ["upcoming", "pending", "today", "past", "all"];
 
 function shortRef(id: string) {
   return "BAA-" + id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatDate(iso: string) {
@@ -68,6 +102,27 @@ function formatDate(iso: string) {
   }
 }
 
+function scopePredicate(scope: Scope, r: Row): boolean {
+  const today = todayIso();
+  switch (scope) {
+    case "upcoming":
+      return (
+        r.appointment_date >= today &&
+        r.status !== "cancelled" &&
+        r.status !== "completed" &&
+        r.status !== "no_show"
+      );
+    case "pending":
+      return r.status === "new";
+    case "today":
+      return r.appointment_date === today;
+    case "past":
+      return r.appointment_date < today;
+    case "all":
+      return true;
+  }
+}
+
 function AppointmentsQueuePage() {
   const list = useServerFn(listAppointments);
   const { data, isLoading, isFetching, refetch, error } = useQuery({
@@ -76,15 +131,23 @@ function AppointmentsQueuePage() {
     staleTime: 30_000,
   });
 
+  const [scope, setScope] = useState<Scope>("upcoming");
   const [status, setStatus] = useState<Status | "all">("all");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Row | null>(null);
 
   const rows = (data ?? []) as Row[];
 
+  // Rows filtered by the current scope only — used both for the visible list
+  // (after status + query) and for the scope counters.
+  const scopedRows = useMemo(
+    () => rows.filter((r) => scopePredicate(scope, r)),
+    [rows, scope],
+  );
+
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    return rows.filter((r) => {
+    return scopedRows.filter((r) => {
       if (status !== "all" && r.status !== status) return false;
       if (!query) return true;
       return (
@@ -94,21 +157,38 @@ function AppointmentsQueuePage() {
         (r.reason ?? "").toLowerCase().includes(query)
       );
     });
-  }, [rows, status, q]);
+  }, [scopedRows, status, q]);
 
-  const counts = useMemo(() => {
-    const acc: Record<string, number> = { all: rows.length };
-    for (const r of rows) acc[r.status] = (acc[r.status] ?? 0) + 1;
+  const scopeCounts = useMemo(() => {
+    const acc: Record<Scope, number> = {
+      upcoming: 0,
+      pending: 0,
+      today: 0,
+      past: 0,
+      all: rows.length,
+    };
+    for (const r of rows) {
+      if (scopePredicate("upcoming", r)) acc.upcoming++;
+      if (scopePredicate("pending", r)) acc.pending++;
+      if (scopePredicate("today", r)) acc.today++;
+      if (scopePredicate("past", r)) acc.past++;
+    }
     return acc;
   }, [rows]);
+
+  const statusCounts = useMemo(() => {
+    const acc: Record<string, number> = { all: scopedRows.length };
+    for (const r of scopedRows) acc[r.status] = (acc[r.status] ?? 0) + 1;
+    return acc;
+  }, [scopedRows]);
 
   return (
     <div className="container-app py-8">
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black">قائمة طلبات الحجز</h1>
+          <h1 className="text-2xl md:text-3xl font-black">لوحة الحجوزات</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            آخر {rows.length} طلب — انقر على أي صف لعرض التفاصيل ورقم الطلب.
+            {SCOPE_META[scope].desc} — {filtered.length} حجز معروض من أصل {rows.length}.
           </p>
         </div>
         <div className="flex gap-2">
@@ -129,10 +209,37 @@ function AppointmentsQueuePage() {
         </div>
       </div>
 
+      {/* Scope tabs — the primary lens for the queue. */}
+      <div className="rounded-2xl border border-border bg-card p-2 mb-3 grid grid-cols-2 sm:grid-cols-5 gap-1">
+        {SCOPES.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setScope(s)}
+            className={`rounded-xl px-3 py-2 text-sm font-semibold transition text-start ${
+              scope === s
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "hover:bg-muted"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span>{SCOPE_META[s].label}</span>
+              <span
+                className={`text-xs font-mono ${
+                  scope === s ? "opacity-90" : "opacity-60"
+                }`}
+              >
+                {scopeCounts[s]}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
       <div className="rounded-2xl border border-border bg-card p-4 mb-4 space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          {FILTERS.map((f) => (
+          {STATUS_FILTERS.map((f) => (
             <button
               key={f}
               type="button"
@@ -144,7 +251,7 @@ function AppointmentsQueuePage() {
               }`}
             >
               {f === "all" ? "الكل" : STATUS_META[f].label}
-              <span className="ms-1.5 opacity-70">({counts[f] ?? 0})</span>
+              <span className="ms-1.5 opacity-70">({statusCounts[f] ?? 0})</span>
             </button>
           ))}
         </div>
@@ -171,7 +278,7 @@ function AppointmentsQueuePage() {
           <div className="p-8 text-center text-sm text-muted-foreground">جاري التحميل...</div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            لا توجد طلبات مطابقة.
+            لا توجد حجوزات مطابقة في هذا النطاق.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -195,7 +302,9 @@ function AppointmentsQueuePage() {
                   >
                     <td className="p-3 font-mono text-xs font-bold">{shortRef(r.id)}</td>
                     <td className="p-3 font-semibold">{r.patient_name}</td>
-                    <td className="p-3 font-mono text-xs" dir="ltr">{r.patient_phone}</td>
+                    <td className="p-3 font-mono text-xs" dir="ltr">
+                      {r.patient_phone}
+                    </td>
                     <td className="p-3 text-xs">
                       <div>{formatDate(r.appointment_date)}</div>
                       <div className="text-muted-foreground font-mono" dir="ltr">
@@ -222,14 +331,132 @@ function AppointmentsQueuePage() {
       </div>
 
       {selected && (
-        <DetailDrawer row={selected} onClose={() => setSelected(null)} />
+        <DetailDrawer
+          row={selected}
+          onClose={() => setSelected(null)}
+          onChanged={() => {
+            void refetch();
+          }}
+        />
       )}
     </div>
   );
 }
 
-function DetailDrawer({ row, onClose }: { row: Row; onClose: () => void }) {
+/* ============================ Detail drawer ============================ */
+
+type ActionKey = "confirm" | "cancel" | "complete" | "no_show";
+
+const ACTIONS: Record<
+  ActionKey,
+  {
+    label: string;
+    target: Status;
+    icon: typeof Check;
+    cls: string;
+    requireReason: boolean;
+    // Which current statuses this action is valid from (UI hint; server also enforces).
+    from: Status[];
+  }
+> = {
+  confirm: {
+    label: "تأكيد",
+    target: "confirmed",
+    icon: Check,
+    cls: "bg-emerald-600 text-white hover:bg-emerald-700",
+    requireReason: false,
+    from: ["new"],
+  },
+  complete: {
+    label: "إتمام",
+    target: "completed",
+    icon: Check,
+    cls: "bg-primary text-primary-foreground hover:bg-primary/90",
+    requireReason: false,
+    from: ["confirmed", "new"],
+  },
+  no_show: {
+    label: "لم يحضر",
+    target: "no_show",
+    icon: UserX,
+    cls: "bg-amber-500 text-white hover:bg-amber-600",
+    requireReason: true,
+    from: ["confirmed", "new"],
+  },
+  cancel: {
+    label: "إلغاء",
+    target: "cancelled",
+    icon: XCircle,
+    cls: "bg-rose-600 text-white hover:bg-rose-700",
+    requireReason: true,
+    from: ["new", "confirmed"],
+  },
+};
+
+function DetailDrawer({
+  row,
+  onClose,
+  onChanged,
+}: {
+  row: Row;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
   const ref = shortRef(row.id);
+  const updateStatus = useServerFn(updateAppointmentStatus);
+  const qc = useQueryClient();
+  const [pendingAction, setPendingAction] = useState<ActionKey | null>(null);
+  const [reasonText, setReasonText] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: async (input: { action: ActionKey; reason: string | null }) => {
+      const meta = ACTIONS[input.action];
+      return updateStatus({
+        data: {
+          id: row.id,
+          status: meta.target,
+          reason: input.reason,
+        },
+      });
+    },
+    onSuccess: (_res, vars) => {
+      toast.success(`تم تحديث الحجز إلى: ${STATUS_META[ACTIONS[vars.action].target].label}`);
+      setPendingAction(null);
+      setReasonText("");
+      qc.invalidateQueries({ queryKey: ["admin", "appointments-queue"] });
+      onChanged();
+      onClose();
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "تعذّر التحديث";
+      toast.error(msg);
+    },
+  });
+
+  const runAction = (key: ActionKey) => {
+    const meta = ACTIONS[key];
+    if (meta.requireReason) {
+      setPendingAction(key);
+      setReasonText("");
+    } else {
+      mutation.mutate({ action: key, reason: null });
+    }
+  };
+
+  const submitPending = () => {
+    if (!pendingAction) return;
+    const reason = reasonText.trim();
+    if (reason.length < 3) {
+      toast.error("يرجى كتابة سبب واضح (٣ أحرف على الأقل).");
+      return;
+    }
+    mutation.mutate({ action: pendingAction, reason });
+  };
+
+  const availableActions = (Object.keys(ACTIONS) as ActionKey[]).filter((k) =>
+    ACTIONS[k].from.includes(row.status),
+  );
+
   return (
     <div
       role="dialog"
@@ -242,7 +469,7 @@ function DetailDrawer({ row, onClose }: { row: Row; onClose: () => void }) {
         className="w-full md:max-w-lg rounded-t-2xl md:rounded-2xl bg-background border border-border shadow-xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-bold">تفاصيل الطلب</h2>
+          <h2 className="text-lg font-bold">تفاصيل الحجز</h2>
           <button
             onClick={onClose}
             aria-label="إغلاق"
@@ -279,15 +506,20 @@ function DetailDrawer({ row, onClose }: { row: Row; onClose: () => void }) {
           </div>
 
           <dl className="grid gap-2 text-sm">
-            <Row label="المريض" icon={<User className="h-4 w-4" />} value={row.patient_name} />
-            <Row label="الجوال" icon={<Phone className="h-4 w-4" />} value={row.patient_phone} mono />
-            <Row
+            <InfoRow label="المريض" icon={<User className="h-4 w-4" />} value={row.patient_name} />
+            <InfoRow
+              label="الجوال"
+              icon={<Phone className="h-4 w-4" />}
+              value={row.patient_phone}
+              mono
+            />
+            <InfoRow
               label="الموعد"
               icon={<CalendarDays className="h-4 w-4" />}
               value={`${formatDate(row.appointment_date)} — ${row.appointment_time?.slice(0, 5)}`}
             />
-            <Row label="التخصص" value={row.specialties?.name_ar ?? "—"} />
-            <Row label="الطبيب" value={row.doctors?.name_ar ?? "—"} />
+            <InfoRow label="التخصص" value={row.specialties?.name_ar ?? "—"} />
+            <InfoRow label="الطبيب" value={row.doctors?.name_ar ?? "—"} />
           </dl>
 
           {row.reason && (
@@ -303,27 +535,94 @@ function DetailDrawer({ row, onClose }: { row: Row; onClose: () => void }) {
             </div>
           )}
 
-          <div className="flex gap-2 pt-2">
-            <Link
-              to="/admin"
-              className="flex-1 text-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              فتح في لوحة الإدارة
-            </Link>
-            <a
-              href={`tel:${row.patient_phone}`}
-              className="rounded-md border border-input px-4 py-2 text-sm font-semibold hover:bg-muted"
-            >
-              اتصال
-            </a>
-          </div>
+          {/* Reason capture for destructive transitions. */}
+          {pendingAction && ACTIONS[pendingAction].requireReason && (
+            <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
+              <label className="text-xs font-semibold">
+                سبب {ACTIONS[pendingAction].label} (مطلوب للسجل)
+              </label>
+              <textarea
+                autoFocus
+                rows={3}
+                value={reasonText}
+                onChange={(e) => setReasonText(e.target.value)}
+                placeholder="اكتب سبباً واضحاً…"
+                className="w-full rounded-md border border-input bg-background p-2 text-sm"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingAction(null);
+                    setReasonText("");
+                  }}
+                  className="rounded-md border border-input px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={submitPending}
+                  disabled={mutation.isPending}
+                  className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold ${ACTIONS[pendingAction].cls} disabled:opacity-60`}
+                >
+                  {mutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                  تأكيد
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Action row — only shown when NOT in reason capture mode. */}
+          {!pendingAction && (
+            <div className="space-y-2 pt-1">
+              {availableActions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {availableActions.map((key) => {
+                    const meta = ACTIONS[key];
+                    const Icon = meta.icon;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => runAction(key)}
+                        disabled={mutation.isPending}
+                        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold ${meta.cls} disabled:opacity-60`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  to="/lookup"
+                  search={{ ref, phone: row.patient_phone, action: "reschedule" }}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  تعديل الموعد
+                </Link>
+                <a
+                  href={`tel:${row.patient_phone}`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-2 text-xs font-semibold hover:bg-muted"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  اتصال
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function Row({
+function InfoRow({
   label,
   value,
   icon,
