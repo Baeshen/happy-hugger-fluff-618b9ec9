@@ -151,12 +151,16 @@ export function ServiceRequestForm({
           reason,
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        message?: string;
+        reference?: string | null;
+      };
       if (!res.ok || !body.ok) {
         toast.error(body.message ?? "تعذّر إرسال الطلب");
         return;
       }
-      setReference(shortReference(refPrefix));
+      setReference(body.reference ?? shortReference(refPrefix));
       setForm(EMPTY);
       setErrors({});
       toast.success("تم استلام طلبك، سنتواصل معك للتأكيد قريبًا");
