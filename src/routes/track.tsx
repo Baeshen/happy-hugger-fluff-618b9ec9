@@ -322,7 +322,26 @@ function TrackPage() {
         </form>
 
         <div>
-          {!appointment && !error && (
+          {loading && !appointment && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-2xl border border-border bg-card p-8 h-full"
+            >
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                جاري البحث عن حالة طلبك...
+              </div>
+              <div className="mt-6 space-y-3 animate-pulse">
+                <div className="h-16 rounded-xl bg-muted" />
+                <div className="h-24 rounded-xl bg-muted" />
+                <div className="h-4 w-3/4 rounded bg-muted" />
+                <div className="h-4 w-2/3 rounded bg-muted" />
+              </div>
+            </div>
+          )}
+
+          {!loading && !appointment && !error && (
             <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-10 text-center text-sm text-muted-foreground h-full grid place-items-center">
               <div>
                 <Search className="mx-auto h-10 w-10 text-muted-foreground/50 mb-3" />
@@ -331,18 +350,58 @@ function TrackPage() {
             </div>
           )}
 
-          {error && !appointment && (
+          {!loading && error && !appointment && errorMeta && (
             <div
               role="alert"
-              className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-8 text-center"
+              aria-live="assertive"
+              className={`rounded-2xl border-2 p-8 text-center ${
+                error.kind === "not_found"
+                  ? "border-amber-500/40 bg-amber-500/5"
+                  : "border-destructive/40 bg-destructive/5"
+              }`}
             >
-              <XCircle className="mx-auto h-10 w-10 text-destructive mb-3" />
-              <p className="text-sm font-semibold text-destructive">{error}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                تأكّد من كتابة الرقم كاملاً بصيغة BAA- ثم 8 خانات.
+              <div className="mx-auto mb-3 grid place-items-center">{errorMeta.icon}</div>
+              <p
+                className={`text-base font-bold ${
+                  error.kind === "not_found" ? "text-amber-700 dark:text-amber-300" : "text-destructive"
+                }`}
+              >
+                {errorMeta.title}
               </p>
+              <p className="mt-2 text-sm text-foreground/80 leading-6">{error.message}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{errorMeta.hint}</p>
+
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {errorMeta.canRetry && lastQueryRef.current && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                    إعادة المحاولة
+                  </button>
+                )}
+                {error.kind === "not_found" && (
+                  <Link
+                    to="/lookup"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input px-4 py-2 text-sm font-semibold hover:bg-muted"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    البحث برقم الجوال
+                  </Link>
+                )}
+                <Link
+                  to="/contact"
+                  className="inline-flex items-center rounded-md border border-input px-4 py-2 text-sm font-semibold hover:bg-muted"
+                >
+                  تواصل مع الاستقبال
+                </Link>
+              </div>
             </div>
           )}
+
 
           {appointment && status && (
             <div className="space-y-4">
