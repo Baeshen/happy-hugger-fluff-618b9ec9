@@ -120,13 +120,30 @@ export function CenterBookingForm({
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
+  function validateField(k: keyof FormState, value: string): string | undefined {
+    const fieldSchema = (schema.shape as Record<string, z.ZodTypeAny>)[k];
+    if (!fieldSchema) return undefined;
+    const r = fieldSchema.safeParse(value);
+    return r.success ? undefined : r.error.issues[0]?.message;
+  }
+
   const update =
     (k: keyof FormState) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setForm((s) => ({ ...s, [k]: e.target.value }));
-      if (errors[k]) setErrors((prev) => ({ ...prev, [k]: undefined }));
-      if (submitError) setSubmitError(null);
+      const value = e.target.value;
+      setForm((s) => ({ ...s, [k]: value }));
+      // If the field already shows an error, re-validate live so it clears when fixed.
+      if (errors[k]) {
+        const msg = validateField(k, value);
+        setErrors((prev) => ({ ...prev, [k]: msg }));
+      }
+      if (submitError && submitError.kind === "validation") setSubmitError(null);
     };
+
+  const onBlur = (k: keyof FormState) => () => {
+    const msg = validateField(k, form[k]);
+    setErrors((prev) => ({ ...prev, [k]: msg }));
+  };
 
   async function doSubmit(data: FormState) {
     setSubmitting(true);
@@ -178,9 +195,19 @@ export function CenterBookingForm({
         if (key && !fe[key]) fe[key] = issue.message;
       }
       setErrors(fe);
-      const first = parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول";
-      setSubmitError({ kind: "validation", message: first });
-      toast.error(first);
+      const count = Object.keys(fe).length;
+      const summary =
+        count > 1
+          ? `يرجى تصحيح ${count} حقول قبل الإرسال — راجع الرسائل الحمراء أسفل كل حقل.`
+          : parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول";
+      setSubmitError({ kind: "validation", message: summary });
+      toast.error(summary);
+      // Focus the first invalid field for a11y.
+      const firstKey = Object.keys(fe)[0] as keyof FormState | undefined;
+      if (firstKey) {
+        const el = document.getElementById(`ff-${firstKey === "patient_name" ? "name" : firstKey === "patient_phone" ? "phone" : firstKey === "appointment_date" ? "date" : firstKey === "appointment_time" ? "time" : firstKey}`);
+        el?.focus();
+      }
       return;
     }
 
@@ -317,7 +344,9 @@ export function CenterBookingForm({
             required
             value={form.patient_name}
             onChange={update("patient_name")}
+            onBlur={onBlur("patient_name")}
             aria-invalid={!!errors.patient_name}
+            aria-describedby={errors.patient_name ? "ff-name-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
         </Field>
@@ -331,7 +360,9 @@ export function CenterBookingForm({
             dir="ltr"
             value={form.patient_phone}
             onChange={update("patient_phone")}
+            onBlur={onBlur("patient_phone")}
             aria-invalid={!!errors.patient_phone}
+            aria-describedby={errors.patient_phone ? "ff-phone-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
         </Field>
@@ -342,7 +373,9 @@ export function CenterBookingForm({
             required
             value={form.service}
             onChange={update("service")}
+            onBlur={onBlur("service")}
             aria-invalid={!!errors.service}
+            aria-describedby={errors.service ? "ff-service-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           >
             <option value="">— اختر الخدمة —</option>
@@ -364,7 +397,9 @@ export function CenterBookingForm({
               min={today}
               value={form.appointment_date}
               onChange={update("appointment_date")}
+              onBlur={onBlur("appointment_date")}
               aria-invalid={!!errors.appointment_date}
+              aria-describedby={errors.appointment_date ? "ff-date-err" : undefined}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
             />
           </Field>
@@ -375,7 +410,9 @@ export function CenterBookingForm({
               type="time"
               value={form.appointment_time}
               onChange={update("appointment_time")}
+              onBlur={onBlur("appointment_time")}
               aria-invalid={!!errors.appointment_time}
+              aria-describedby={errors.appointment_time ? "ff-time-err" : undefined}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
             />
           </Field>
@@ -388,7 +425,9 @@ export function CenterBookingForm({
             maxLength={REASON_MAX}
             value={form.reason}
             onChange={update("reason")}
+            onBlur={onBlur("reason")}
             aria-invalid={!!errors.reason}
+            aria-describedby={errors.reason ? "ff-reason-err" : undefined}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
         </Field>
@@ -419,6 +458,7 @@ function Field({
   htmlFor: string;
   children: React.ReactNode;
 }) {
+  const errId = `${htmlFor}-err`;
   return (
     <div>
       <label htmlFor={htmlFor} className="mb-1 block text-xs font-semibold">
@@ -426,7 +466,9 @@ function Field({
       </label>
       {children}
       {error ? (
-        <p className="mt-1 text-xs text-destructive">{error}</p>
+        <p id={errId} role="alert" className="mt-1 text-xs text-destructive">
+          {error}
+        </p>
       ) : hint ? (
         <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       ) : null}
