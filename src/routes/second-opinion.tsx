@@ -10,6 +10,9 @@ import {
   X,
   FileText,
   ShieldCheck,
+  ClipboardList,
+  UserCheck,
+  MessageSquareText,
 } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +30,10 @@ export const Route = createFileRoute("/second-opinion")({
       {
         property: "og:description",
         content: "تأكّد من خيارك العلاجي عبر مراجعة استشاريّ مستقلّ لتقاريرك.",
+      },
+      {
+        property: "og:url",
+        content: "https://happy-hugger-fluff.lovable.app/second-opinion",
       },
     ],
     links: [
@@ -63,6 +70,14 @@ const schema = z.object({
 
 const MAX_FILE_MB = 8;
 const MAX_FILES = 5;
+const SUMMARY_MAX = 2000;
+
+// Unified field classes — one place to tune the whole form.
+const FIELD_BASE =
+  "w-full rounded-lg border border-input bg-background px-3.5 text-sm transition-shadow " +
+  "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 " +
+  "aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20";
+const FIELD_HEIGHT = "h-11";
 
 function SecondOpinionPage() {
   const [form, setForm] = useState({
@@ -76,12 +91,15 @@ function SecondOpinionPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setForm((s) => ({ ...s, [k]: e.target.value }));
-    setErrors((prev) => ({ ...prev, [k]: undefined }));
-  };
+  const update =
+    (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      setForm((s) => ({ ...s, [k]: e.target.value }));
+      setErrors((prev) => ({ ...prev, [k]: undefined }));
+    };
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -120,7 +138,6 @@ function SecondOpinionPage() {
     setSubmitting(true);
     const toastId = toast.loading("جاري إرسال طلبك...");
     try {
-      // Upload files first into a fresh folder
       const folder = crypto.randomUUID();
       const uploaded: string[] = [];
       for (const f of files) {
@@ -165,26 +182,32 @@ function SecondOpinionPage() {
     return (
       <>
         <PageHero eyebrow="الرأي الطبي الثاني" title="تم استلام طلبك" />
-        <section className="container-app py-10">
-          <div className="max-w-2xl mx-auto rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 to-accent/5 p-8">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-10 w-10 text-primary" />
-              <div>
+        <section className="container-app py-12">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-background to-background p-8 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold">استلمنا طلبك بنجاح</h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   سيراجع الفريق الطبي تقاريرك ويتواصل معك خلال 48 ساعة عمل.
                 </p>
               </div>
             </div>
-            <div className="mt-5 rounded-xl border border-border bg-background/60 p-4 text-sm">
-              <span className="text-muted-foreground">رقم طلبك: </span>
-              <span className="font-mono font-bold tracking-wider">{done.slice(0, 8).toUpperCase()}</span>
+            <div className="mt-6 flex items-center justify-between rounded-xl border border-border bg-background/60 px-4 py-3 text-sm">
+              <span className="text-muted-foreground">رقم طلبك</span>
+              <span className="font-mono text-base font-bold tracking-widest">
+                {done.slice(0, 8).toUpperCase()}
+              </span>
             </div>
           </div>
         </section>
       </>
     );
   }
+
+  const summaryLen = form.summary.trim().length;
 
   return (
     <>
@@ -194,27 +217,61 @@ function SecondOpinionPage() {
         subtitle="قبل أي قرار جراحي أو علاجي كبير، احصل على مراجعة مستقلة من استشاريّي مجمع باعشن — نستقبل تقاريرك ونعود إليك بتوصية موثّقة خلال 48 ساعة."
       />
 
-      <section className="container-app py-10 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-        <aside className="space-y-4">
+      {/* Simple 3-step process bar — sets expectations before the form */}
+      <section className="container-app -mt-2 pt-6">
+        <ol className="mx-auto grid max-w-4xl gap-3 sm:grid-cols-3">
+          {[
+            { n: "1", icon: ClipboardList, t: "أرسِل تقاريرك", d: "املأ النموذج وأرفق التقارير." },
+            { n: "2", icon: UserCheck, t: "مراجعة استشاريّ", d: "استشاريّ التخصص يدرس حالتك." },
+            { n: "3", icon: MessageSquareText, t: "توصية موثّقة", d: "نعود إليك خلال 48 ساعة." },
+          ].map((s) => (
+            <li
+              key={s.n}
+              className="flex items-start gap-3 rounded-xl border border-border/70 bg-card/60 p-4"
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <s.icon className="h-4.5 w-4.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-bold">
+                  <span className="text-xs text-muted-foreground">{s.n}.</span>
+                  <span className="truncate">{s.t}</span>
+                </div>
+                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{s.d}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="container-app grid gap-6 py-10 lg:grid-cols-[1fr_1.5fr] lg:items-start">
+        <aside className="space-y-4 lg:sticky lg:top-24">
           <div className="rounded-2xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2 font-bold">
+            <div className="flex items-center gap-2.5 text-sm font-bold">
               <ShieldCheck className="h-5 w-5 text-primary" />
               خصوصية تامّة
             </div>
-            <p className="mt-2 text-sm text-muted-foreground leading-6">
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
               تُعامَل تقاريرك بسريّة تامة ولا يُطّلع عليها إلا الاستشاري المعنيّ.
             </p>
           </div>
           <div className="rounded-2xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2 font-bold">
+            <div className="flex items-center gap-2.5 text-sm font-bold">
               <Stethoscope className="h-5 w-5 text-primary" />
               متى تحتاجه؟
             </div>
-            <ul className="mt-2 text-sm text-muted-foreground list-disc pr-5 space-y-1">
-              <li>قبل جراحة كبرى</li>
-              <li>تشخيص غير قاطع</li>
-              <li>خطة علاجية طويلة</li>
-              <li>حالة أورام أو مزمنة</li>
+            <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+              {[
+                "قبل جراحة كبرى",
+                "تشخيص غير قاطع",
+                "خطة علاجية طويلة",
+                "حالة أورام أو مزمنة",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
+                  {item}
+                </li>
+              ))}
             </ul>
           </div>
         </aside>
@@ -223,17 +280,18 @@ function SecondOpinionPage() {
           onSubmit={onSubmit}
           noValidate
           aria-busy={submitting}
-          className="rounded-2xl border border-border bg-card p-6 space-y-4"
+          className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-7"
           aria-label="نموذج طلب رأي طبي ثانٍ"
         >
-          <fieldset disabled={submitting} className="space-y-4 border-0 p-0 m-0 disabled:opacity-70">
-            <div className="grid gap-3 sm:grid-cols-2">
+          <fieldset disabled={submitting} className="m-0 space-y-5 border-0 p-0 disabled:opacity-70">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="الاسم الكامل" error={errors.patient_name} id="so-name">
                 <input
                   id="so-name"
                   value={form.patient_name}
                   onChange={update("patient_name")}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  aria-invalid={!!errors.patient_name}
+                  className={`${FIELD_BASE} ${FIELD_HEIGHT}`}
                 />
               </FormField>
               <FormField label="رقم الجوال" error={errors.phone} id="so-phone" hint="05XXXXXXXX">
@@ -241,9 +299,11 @@ function SecondOpinionPage() {
                   id="so-phone"
                   dir="ltr"
                   inputMode="tel"
+                  placeholder="05XXXXXXXX"
                   value={form.phone}
                   onChange={update("phone")}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  aria-invalid={!!errors.phone}
+                  className={`${FIELD_BASE} ${FIELD_HEIGHT} text-left`}
                 />
               </FormField>
               <FormField label="البريد الإلكتروني (اختياري)" error={errors.email} id="so-email">
@@ -253,7 +313,8 @@ function SecondOpinionPage() {
                   dir="ltr"
                   value={form.email}
                   onChange={update("email")}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  aria-invalid={!!errors.email}
+                  className={`${FIELD_BASE} ${FIELD_HEIGHT} text-left`}
                 />
               </FormField>
               <FormField label="التخصص" error={errors.specialty} id="so-spec">
@@ -261,7 +322,8 @@ function SecondOpinionPage() {
                   id="so-spec"
                   value={form.specialty}
                   onChange={update("specialty")}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  aria-invalid={!!errors.specialty}
+                  className={`${FIELD_BASE} ${FIELD_HEIGHT}`}
                 >
                   <option value="">— اختر التخصص —</option>
                   {SPECIALTIES.map((s) => (
@@ -273,21 +335,63 @@ function SecondOpinionPage() {
               </FormField>
             </div>
 
-            <FormField label="ملخّص الحالة" error={errors.summary} id="so-summary" hint="التشخيص السابق، العلاجات المتخذة، الأعراض الحالية">
+            <FormField
+              label="ملخّص الحالة"
+              error={errors.summary}
+              id="so-summary"
+              hint="التشخيص السابق، العلاجات المتخذة، الأعراض الحالية"
+              trailing={
+                <span
+                  className={`text-[11px] tabular-nums ${
+                    summaryLen > SUMMARY_MAX
+                      ? "text-destructive"
+                      : summaryLen >= 30
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/70"
+                  }`}
+                >
+                  {summaryLen}/{SUMMARY_MAX}
+                </span>
+              }
+            >
               <textarea
                 id="so-summary"
                 rows={5}
                 value={form.summary}
                 onChange={update("summary")}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                aria-invalid={!!errors.summary}
+                className={`${FIELD_BASE} resize-y py-2.5 leading-6`}
               />
             </FormField>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold">
-                تقارير سابقة (اختياري — PDF أو صور، حد أقصى {MAX_FILES} ملفات، {MAX_FILE_MB}MB لكل ملف)
-              </label>
-              <div className="rounded-lg border-2 border-dashed border-border p-4 text-center">
+              <div className="mb-1.5 flex items-center justify-between">
+                <label htmlFor="so-files" className="text-xs font-semibold">
+                  تقارير سابقة{" "}
+                  <span className="font-normal text-muted-foreground">(اختياري)</span>
+                </label>
+                <span className="text-[11px] text-muted-foreground">
+                  {files.length}/{MAX_FILES} · {MAX_FILE_MB}MB لكل ملف
+                </span>
+              </div>
+              <label
+                htmlFor="so-files"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  addFiles(e.dataTransfer.files);
+                }}
+                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+                  dragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50 hover:bg-muted/40"
+                }`}
+              >
                 <input
                   ref={fileInputRef}
                   id="so-files"
@@ -297,35 +401,34 @@ function SecondOpinionPage() {
                   onChange={(e) => addFiles(e.target.files)}
                   className="hidden"
                 />
-                <label
-                  htmlFor="so-files"
-                  className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold cursor-pointer hover:bg-muted"
-                >
-                  <Upload className="h-4 w-4" />
-                  اختر الملفات
-                </label>
-              </div>
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
+                  <Upload className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-semibold">اسحب الملفات هنا أو اضغط للاختيار</div>
+                <div className="text-[11px] text-muted-foreground">PDF أو صور</div>
+              </label>
+
               {files.length > 0 && (
                 <ul className="mt-3 space-y-1.5">
                   {files.map((f, i) => (
                     <li
                       key={i}
-                      className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs"
                     >
-                      <span className="flex items-center gap-2 truncate">
-                        <FileText className="h-3.5 w-3.5" />
+                      <span className="flex min-w-0 items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         <span className="truncate">{f.name}</span>
-                        <span className="text-muted-foreground">
-                          ({(f.size / 1024 / 1024).toFixed(1)}MB)
+                        <span className="shrink-0 text-muted-foreground">
+                          {(f.size / 1024 / 1024).toFixed(1)}MB
                         </span>
                       </span>
                       <button
                         type="button"
                         onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                        className="p-1 hover:bg-destructive/10 rounded"
-                        aria-label="إزالة الملف"
+                        className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        aria-label={`إزالة ${f.name}`}
                       >
-                        <X className="h-3.5 w-3.5 text-destructive" />
+                        <X className="h-3.5 w-3.5" />
                       </button>
                     </li>
                   ))}
@@ -334,14 +437,23 @@ function SecondOpinionPage() {
             </div>
           </fieldset>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-          >
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Stethoscope className="h-4 w-4" />}
-            {submitting ? "جاري الإرسال..." : "إرسال الطلب"}
-          </button>
+          <div className="mt-6 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[11px] leading-5 text-muted-foreground">
+              بإرسال الطلب فإنك توافق على مراجعة تقاريرك من قِبل الاستشاري المختصّ فقط.
+            </p>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 sm:min-w-[180px]"
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Stethoscope className="h-4 w-4" />
+              )}
+              {submitting ? "جاري الإرسال..." : "إرسال الطلب"}
+            </button>
+          </div>
         </form>
       </section>
     </>
@@ -354,23 +466,28 @@ function FormField({
   hint,
   id,
   children,
+  trailing,
 }: {
   label: string;
   error?: string;
   hint?: string;
   id: string;
   children: React.ReactNode;
+  trailing?: React.ReactNode;
 }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-xs font-semibold">
-        {label}
-      </label>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <label htmlFor={id} className="text-xs font-semibold">
+          {label}
+        </label>
+        {trailing}
+      </div>
       {children}
       {error ? (
-        <p className="mt-1 text-xs text-destructive">{error}</p>
+        <p className="mt-1.5 text-xs text-destructive">{error}</p>
       ) : hint ? (
-        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   );
