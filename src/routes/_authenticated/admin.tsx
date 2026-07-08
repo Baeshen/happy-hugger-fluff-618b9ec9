@@ -45,7 +45,9 @@ import {
   listReminderDeliveries,
   exportReminderDeliveriesCsv,
   retryReminderDelivery,
+  getReminderDeliveryStats,
   type ReminderDelivery,
+  type DeliveryStats,
 } from "@/lib/notifications.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
@@ -81,7 +83,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-log" | "reminders-audit" | "reminders-stats" | "security-audit" | "content";
+type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-log" | "reminders-delivery-stats" | "reminders-audit" | "reminders-stats" | "security-audit" | "content";
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -176,6 +178,12 @@ function AdminDashboard() {
       id: "reminders-log" as Tab,
       label: "سجل التذكيرات المُرسلة",
       icon: Bell,
+      show: canSeeAppts,
+    },
+    {
+      id: "reminders-delivery-stats" as Tab,
+      label: "إحصائيات الإرسال",
+      icon: BarChart3,
       show: canSeeAppts,
     },
     {
@@ -374,6 +382,7 @@ function AdminDashboard() {
       {tab === "specialties" && isAdmin && <SpecialtiesTab />}
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
       {tab === "reminders-log" && canSeeAppts && <RemindersDeliveryTab />}
+      {tab === "reminders-delivery-stats" && canSeeAppts && <RemindersDeliveryStatsTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
       {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
       {tab === "security-audit" && isAdmin && <SecurityAuditTab />}
@@ -2233,6 +2242,241 @@ function RemindersDeliveryTab() {
     </div>
   );
 }
+
+// ============================================================================
+// Reminders Delivery Stats Tab (success/failure by channel & day)
+// ============================================================================
+
+const CHANNEL_COLORS: Record<string, string> = {
+  in_app: "#6366f1",
+  web_push: "#0ea5e9",
+  sms: "#10b981",
+  whatsapp: "#22c55e",
+  email: "#f59e0b",
+};
+
+function RemindersDeliveryStatsTab() {
+  const fn = useServerFn(getReminderDeliveryStats);
+  const [days, setDays] = useState<7 | 30 | 90>(30);
+  const { data, isLoading, error, refetch, isFetching } = useQuery<DeliveryStats>({
+    queryKey: ["reminders-delivery-stats", days],
+    queryFn: () => fn({ data: { days } }),
+    refetchInterval: 60_000,
+    placeholderData: (prev) => prev,
+  });
+
+  if (isLoading && !data)
+    return <div className="text-muted-foreground">جارٍ تحميل الإحصائيات…</div>;
+  if (error && !data)
+    return (
+      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        تعذّر تحميل الإحصائيات: {(error as Error).message}
+      </div>
+    );
+  if (!data) return null;
+
+  const totalAll =
+    data.totals.sent + data.totals.failed + data.totals.pending + data.totals.skipped + data.totals.queued;
+  const attempted = data.totals.sent + data.totals.failed;
+  const successRate = attempted > 0 ? Math.round((data.totals.sent / attempted) * 1000) / 10 : 0;
+  const failureRate = attempted > 0 ? Math.round((data.totals.failed / attempted) * 1000) / 10 : 0;
+
+  const maxDay = Math.max(1, ...data.byDay.map((d) => d.sent + d.failed));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">إحصائيات إرسال التذكيرات</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            معدلات النجاح والفشل حسب القناة والفترة الزمنية.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex overflow-hidden rounded-md border border-input">
+            {([7, 30, 90] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDays(d)}
+                className={`px-3 py-1.5 text-sm ${
+                  days === d
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background hover:bg-muted"
+                }`}
+              >
+                {d === 7 ? "٧ أيام" : d === 30 ? "٣٠ يومًا" : "٩٠ يومًا"}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-60"
+          >
+            {isFetching ? "…" : "تحديث"}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="إجمالي التذكيرات" value={totalAll} icon={Bell} />
+        <StatCard label="مُرسلة بنجاح" value={data.totals.sent} icon={CalendarDays} />
+        <StatCard label="فشلت" value={data.totals.failed} icon={ShieldAlert} />
+        <StatCard label="قيد الانتظار" value={data.totals.pending + data.totals.queued} icon={Clock} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="mb-4 text-base font-semibold">معدل النجاح الإجمالي</h3>
+          <div className="flex items-baseline gap-3">
+            <span className="text-4xl font-bold text-emerald-600 tabular-nums">{successRate}%</span>
+            <span className="text-sm text-muted-foreground">
+              ({data.totals.sent.toLocaleString("ar-EG")} من أصل {attempted.toLocaleString("ar-EG")} محاولة)
+            </span>
+          </div>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.min(100, successRate)}%` }}
+            />
+          </div>
+          <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+            <span>معدل الفشل: {failureRate}%</span>
+            <span>الإجمالي: {totalAll.toLocaleString("ar-EG")}</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="mb-4 text-base font-semibold">توزيع الحالات</h3>
+          <div className="space-y-3">
+            <StatBar label="مُرسلة" value={data.totals.sent} total={totalAll} tone="emerald" />
+            <StatBar label="فشلت" value={data.totals.failed} total={totalAll} tone="destructive" />
+            <StatBar
+              label="قيد الانتظار"
+              value={data.totals.pending + data.totals.queued}
+              total={totalAll}
+              tone="sky"
+            />
+            <StatBar label="متجاوزة" value={data.totals.skipped} total={totalAll} tone="amber" />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="mb-4 text-base font-semibold">حسب القناة</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-2 py-2 text-start">القناة</th>
+                <th className="px-2 py-2 text-end">مُرسلة</th>
+                <th className="px-2 py-2 text-end">فشلت</th>
+                <th className="px-2 py-2 text-end">قيد الانتظار</th>
+                <th className="px-2 py-2 text-end">متجاوزة</th>
+                <th className="px-2 py-2 text-end">معدل النجاح</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.byChannel.map((c) => {
+                const att = c.sent + c.failed;
+                const rate = att > 0 ? Math.round((c.sent / att) * 1000) / 10 : 0;
+                const total = c.sent + c.failed + c.pending + c.skipped + c.queued;
+                return (
+                  <tr key={c.channel} className="border-t border-border">
+                    <td className="px-2 py-2">
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: CHANNEL_COLORS[c.channel] }}
+                        />
+                        {CHANNEL_LABEL_AR[c.channel] ?? c.channel}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-end tabular-nums">{c.sent.toLocaleString("ar-EG")}</td>
+                    <td className="px-2 py-2 text-end tabular-nums text-destructive">
+                      {c.failed.toLocaleString("ar-EG")}
+                    </td>
+                    <td className="px-2 py-2 text-end tabular-nums">
+                      {(c.pending + c.queued).toLocaleString("ar-EG")}
+                    </td>
+                    <td className="px-2 py-2 text-end tabular-nums">{c.skipped.toLocaleString("ar-EG")}</td>
+                    <td className="px-2 py-2 text-end">
+                      {total === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full bg-emerald-500"
+                              style={{ width: `${Math.min(100, rate)}%` }}
+                            />
+                          </div>
+                          <span className="tabular-nums text-xs">{rate}%</span>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="mb-4 flex items-baseline justify-between">
+          <h3 className="text-base font-semibold">
+            التذكيرات اليومية آخر {days === 7 ? "٧ أيام" : days === 30 ? "٣٠ يومًا" : "٩٠ يومًا"}
+          </h3>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> مُرسلة
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-destructive" /> فشلت
+            </span>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <div
+            className="flex items-end gap-1 min-w-full"
+            style={{ height: 180, minWidth: Math.max(320, data.byDay.length * 14) }}
+            dir="ltr"
+          >
+            {data.byDay.map((d) => {
+              const totalH = ((d.sent + d.failed) / maxDay) * 160;
+              const sentH = ((d.sent) / maxDay) * 160;
+              const failH = ((d.failed) / maxDay) * 160;
+              return (
+                <div
+                  key={d.date}
+                  className="group relative flex flex-1 flex-col items-center justify-end"
+                  title={`${d.date}\nمُرسلة: ${d.sent}\nفشلت: ${d.failed}`}
+                >
+                  <div className="flex w-full flex-col justify-end" style={{ height: totalH || 1 }}>
+                    {d.failed > 0 && (
+                      <div className="w-full bg-destructive" style={{ height: failH }} />
+                    )}
+                    {d.sent > 0 && (
+                      <div className="w-full bg-emerald-500" style={{ height: sentH }} />
+                    )}
+                    {totalH === 0 && <div className="w-full bg-muted/40" style={{ height: 1 }} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex justify-between text-[10px] text-muted-foreground" dir="ltr">
+            <span>{data.byDay[0]?.date ?? ""}</span>
+            <span>{data.byDay[data.byDay.length - 1]?.date ?? ""}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 // ============================================================================
 // Reminders Audit Tab

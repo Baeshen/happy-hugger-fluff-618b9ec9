@@ -376,6 +376,88 @@ function buildFilename() {
   return `reminder-deliveries-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
 }
 
+/* -------- Delivery stats (success/failure by channel and day) -------- */
+
+export type DeliveryStats = {
+  rangeDays: number;
+  since: string;
+  totals: { sent: number; failed: number; pending: number; skipped: number; queued: number };
+  byChannel: Array<{
+    channel: "in_app" | "web_push" | "sms" | "whatsapp" | "email";
+    sent: number;
+    failed: number;
+    pending: number;
+    skipped: number;
+    queued: number;
+  }>;
+  byDay: Array<{ date: string; sent: number; failed: number }>;
+};
+
+const CHANNELS = ["in_app", "web_push", "sms", "whatsapp", "email"] as const;
+
+export const getReminderDeliveryStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ days: z.number().int().min(1).max(365).optional() })
+      .default({})
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<DeliveryStats> => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureStaff(roles);
+
+    const rangeDays = data.days ?? 30;
+    const since = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000);
+    const sinceIso = since.toISOString();
+
+    // Pull minimal columns for aggregation. Reminder rows only.
+    const { data: rows, error } = await context.supabase
+      .from("notifications")
+      .select("channel, send_status, created_at")
+      .like("kind", "reminder_%")
+      .gte("created_at", sinceIso)
+      .limit(20000);
+    if (error) throw new Error(error.message);
+
+    const totals = { sent: 0, failed: 0, pending: 0, skipped: 0, queued: 0 };
+    const byChannelMap = new Map<
+      string,
+      { sent: number; failed: number; pending: number; skipped: number; queued: number }
+    >();
+    for (const c of CHANNELS)
+      byChannelMap.set(c, { sent: 0, failed: 0, pending: 0, skipped: 0, queued: 0 });
+
+    const byDayMap = new Map<string, { sent: number; failed: number }>();
+    // Seed each day so the chart shows continuous bars
+    for (let i = 0; i < rangeDays; i++) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().slice(0, 10);
+      byDayMap.set(key, { sent: 0, failed: 0 });
+    }
+
+    for (const r of rows ?? []) {
+      const st = r.send_status as keyof typeof totals;
+      if (st in totals) totals[st]++;
+      const ch = byChannelMap.get(r.channel as string);
+      if (ch && st in ch) (ch as any)[st]++;
+      const day = String(r.created_at).slice(0, 10);
+      const bucket = byDayMap.get(day);
+      if (bucket) {
+        if (st === "sent") bucket.sent++;
+        else if (st === "failed") bucket.failed++;
+      }
+    }
+
+    const byChannel = CHANNELS.map((c) => ({ channel: c, ...(byChannelMap.get(c) as any) }));
+    const byDay = Array.from(byDayMap.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([date, v]) => ({ date, ...v }));
+
+    return { rangeDays, since: sinceIso, totals, byChannel, byDay };
+  });
+
+
 /* -------- Per-user notifications (bell) -------- */
 
 const ListMyInput = z
