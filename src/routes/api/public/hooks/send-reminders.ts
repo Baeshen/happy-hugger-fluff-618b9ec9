@@ -66,13 +66,12 @@ async function sendPushRun(): Promise<{
     console.error("enqueue_appointment_reminders failed:", enqueueError);
   }
 
-  // 2) Fetch pending web_push rows
+  // 2) Fetch pending web_push rows (user + staff)
   const { data: pending, error: pendErr } = await admin
     .from("notifications")
-    .select("id, user_id, title, body, kind, metadata, appointment_id")
+    .select("id, user_id, title, body, kind, audience, metadata, appointment_id")
     .eq("channel", "web_push")
     .eq("send_status", "pending")
-    .not("user_id", "is", null)
     .order("created_at", { ascending: true })
     .limit(MAX_PENDING_PER_RUN);
   if (pendErr) throw new Error(pendErr.message);
@@ -83,13 +82,53 @@ async function sendPushRun(): Promise<{
   let expired = 0;
   let noSub = 0;
 
+  // Cache: staff-roles key -> user ids
+  const staffUsersCache = new Map<string, string[]>();
+  async function resolveStaffUserIds(roles: string[]): Promise<string[]> {
+    const key = [...roles].sort().join(",");
+    const cached = staffUsersCache.get(key);
+    if (cached) return cached;
+    const { data, error } = await admin
+      .from("user_roles")
+      .select("user_id")
+      .in("role", roles);
+    if (error) {
+      console.error("staff role lookup failed:", error);
+      staffUsersCache.set(key, []);
+      return [];
+    }
+    const ids = Array.from(new Set((data ?? []).map((r) => r.user_id as string)));
+    staffUsersCache.set(key, ids);
+    return ids;
+  }
+
   for (const row of rows) {
-    if (!row.user_id) continue;
+    // Resolve target user id list
+    let targetUserIds: string[] = [];
+    if (row.audience === "staff") {
+      const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      const rolesRaw = Array.isArray(meta.staff_roles) ? (meta.staff_roles as unknown[]) : [];
+      const roles = rolesRaw.filter((r): r is string => typeof r === "string");
+      targetUserIds = await resolveStaffUserIds(
+        roles.length > 0 ? roles : [...DEFAULT_STAFF_ROLES],
+      );
+    } else if (row.user_id) {
+      targetUserIds = [row.user_id];
+    }
+
+    if (targetUserIds.length === 0) {
+      await admin
+        .from("notifications")
+        .update({ send_status: "skipped", last_error: "no target user" })
+        .eq("id", row.id);
+      noSub++;
+      continue;
+    }
 
     const { data: subs, error: subsErr } = await admin
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth, user_id, failure_count")
-      .eq("user_id", row.user_id);
+      .in("user_id", targetUserIds);
     if (subsErr) {
       await admin
         .from("notifications")
