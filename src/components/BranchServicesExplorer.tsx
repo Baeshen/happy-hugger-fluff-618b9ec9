@@ -1,5 +1,6 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Search, MapPin, Stethoscope, X, CalendarPlus, Loader2, SearchX } from "lucide-react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { BranchSpecialty, ExcellenceCenter, PublicBranch } from "@/lib/branches.functions";
 
 type Props = {
@@ -28,19 +29,21 @@ function serviceMapEmbed(b: PublicBranch, serviceLabel: string): string | null {
 }
 
 export function BranchServicesExplorer({ branch, specialties, centers, onBookService }: Props) {
+  const search = useSearch({ from: "/branches/$slug" });
+  const navigate = useNavigate({ from: "/branches/$slug" });
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "specialty" | "center">("all");
   const deferredQuery = useDeferredValue(query);
   const isFiltering = query !== deferredQuery;
-  const [selected, setSelected] = useState<
-    | {
-        id: string;
-        label: string;
-        kind: "specialty" | "center";
-        specialtyId: string | null;
-      }
-    | null
-  >(null);
+  type SelectedItem = {
+    id: string;
+    label: string;
+    kind: "specialty" | "center";
+    specialtyId: string | null;
+  };
+  const [selected, setSelected] = useState<SelectedItem | null>(null);
+  const [mapLoading, setMapLoading] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const totalCount = specialties.length + centers.length;
 
@@ -93,6 +96,51 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
     setQuery("");
     setTab("all");
   };
+
+  // Hydrate selection from URL (?service=) — runs when the URL param or the
+  // dataset changes, so back/forward navigation and reload restore selection.
+  useEffect(() => {
+    const paramId = search.service ?? null;
+    if (paramId === (selected?.id ?? null)) return;
+    if (!paramId) {
+      setSelected(null);
+      return;
+    }
+    const match = allItems.find((it) => it.id === paramId);
+    if (match) {
+      setSelected({ id: match.id, label: match.label, kind: match.kind, specialtyId: match.specialtyId });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.service, allItems]);
+
+  const selectItem = (it: SelectedItem | null) => {
+    setSelected(it);
+    setMapLoading(!!it);
+    navigate({
+      search: (prev: Record<string, unknown>) => ({ ...prev, service: it?.id }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
+
+  // Smoothly update the map iframe location without remounting or reloading
+  // the page. Setting src via contentWindow.location.replace() keeps a single
+  // history entry per user click while still triggering the tile fetch.
+  useEffect(() => {
+    if (!embed || !iframeRef.current) return;
+    const doc = iframeRef.current.contentWindow;
+    if (!doc) {
+      iframeRef.current.src = embed;
+      return;
+    }
+    try {
+      doc.location.replace(embed);
+    } catch {
+      iframeRef.current.src = embed;
+    }
+    setMapLoading(true);
+  }, [embed]);
+
 
   return (
     <section className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -235,7 +283,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
                     <button
                       type="button"
                       onClick={() =>
-                        setSelected(
+                        selectItem(
                           active
                             ? null
                             : { id: it.id, label: it.label, kind: it.kind, specialtyId: it.specialtyId },
@@ -275,19 +323,34 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
         {/* Map panel */}
         <div className="relative bg-muted min-h-[360px]">
           {embed ? (
-            <iframe
-              key={embed}
-              title={selected ? `خريطة ${selected.label} - ${branch.name_ar}` : `خريطة ${branch.name_ar}`}
-              src={embed}
-              className="w-full h-full min-h-[360px]"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
+            <>
+              <iframe
+                ref={iframeRef}
+                title={selected ? `خريطة ${selected.label} - ${branch.name_ar}` : `خريطة ${branch.name_ar}`}
+                src={embed}
+                onLoad={() => setMapLoading(false)}
+                className={`w-full h-full min-h-[360px] transition-opacity duration-300 ${
+                  mapLoading ? "opacity-70" : "opacity-100"
+                }`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              {mapLoading && (
+                <div
+                  className="pointer-events-none absolute top-3 end-3 rounded-full bg-background/95 backdrop-blur border border-border shadow px-2.5 py-1 text-xs text-muted-foreground flex items-center gap-1.5"
+                  aria-live="polite"
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden />
+                  جاري تحديث الخريطة...
+                </div>
+              )}
+            </>
           ) : (
             <div className="h-full min-h-[360px] grid place-items-center text-sm text-muted-foreground">
               لا يوجد موقع محدد على الخريطة لهذا الفرع.
             </div>
           )}
+
 
           {selected && (
             <div className="absolute top-3 start-3 end-3 rounded-lg bg-background/95 backdrop-blur border border-border shadow-lg p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -327,7 +390,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelected(null)}
+                  onClick={() => selectItem(null)}
                   className="rounded-md p-1.5 hover:bg-muted"
                   aria-label="إلغاء التحديد"
                 >
