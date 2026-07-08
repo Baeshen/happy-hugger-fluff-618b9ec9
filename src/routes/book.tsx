@@ -185,50 +185,56 @@ function BookPage() {
     return out;
   }, [availability]);
 
-  const availableTimes = useMemo(() => {
-    if (!date || !availability) return [];
-    const wd = new Date(date).getDay();
-    const slots = new Set<string>();
-    availability
-      .filter((a) => a.weekday === wd)
-      .forEach((a) => {
-        const [sh, sm] = a.start_time.split(":").map(Number);
-        const [eh, em] = a.end_time.split(":").map(Number);
-        let mins = sh * 60 + sm;
-        const end = eh * 60 + em;
-        while (mins + a.slot_minutes <= end) {
-          slots.add(
-            `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`,
-          );
-          mins += a.slot_minutes;
-        }
-      });
-    return Array.from(slots).sort();
-  }, [date, availability]);
+  // Authoritative slot resolver — GET /api/public/book/availability.
+  // The server owns weekday expansion, all-day leave subtraction, past-time
+  // filtering (Asia/Riyadh), and cross-doctor aggregation when the patient
+  // picks a specialty without a specific doctor. The client just renders.
+  const branchId = (selectedDoctor as { branch_id?: string | null } | null)
+    ?.branch_id ?? null;
 
-  // Booked slots for the chosen (doctor, date) — used to grey out taken
-  // times BEFORE submit. Only meaningful when a specific doctor is chosen;
-  // "any_available" bookings can't be pre-checked so we skip the query.
-  const { data: bookedTimes } = useQuery<string[]>({
-    queryKey: ["booked_times", doctorId, date],
-    enabled: !!doctorId && !!date,
+  const { data: slotResp, isFetching: slotsFetching } = useQuery<{
+    times: string[];
+    booked: string[];
+    doctors_considered: number;
+  }>({
+    queryKey: ["slots", doctorId, specialtyId, branchId, date],
+    enabled: !!date && !!(doctorId || specialtyId),
     queryFn: async () => {
-      const url = `/api/public/book/availability?doctor_id=${encodeURIComponent(
-        doctorId!,
-      )}&date=${encodeURIComponent(date)}`;
-      const res = await fetch(url);
-      if (!res.ok) return [];
-      const body = (await res.json()) as { ok?: boolean; booked?: string[] };
-      return body.ok && Array.isArray(body.booked) ? body.booked : [];
+      const params = new URLSearchParams({ date });
+      if (doctorId) params.set("doctor_id", doctorId);
+      else if (specialtyId) params.set("specialty_id", specialtyId);
+      if (branchId) params.set("branch_id", branchId);
+      const res = await fetch(`/api/public/book/availability?${params.toString()}`);
+      if (!res.ok) return { times: [], booked: [], doctors_considered: 0 };
+      const body = (await res.json()) as {
+        ok?: boolean;
+        times?: string[];
+        booked?: string[];
+        doctors_considered?: number;
+      };
+      return {
+        times: body.ok && Array.isArray(body.times) ? body.times : [],
+        booked: body.ok && Array.isArray(body.booked) ? body.booked : [],
+        doctors_considered: body.doctors_considered ?? 0,
+      };
     },
-    staleTime: 30_000,
+    staleTime: 15_000, // matches the endpoint's short shared cache
+    refetchOnWindowFocus: true, // slots go stale fast — refresh on tab return
   });
-  const bookedSet = useMemo(() => new Set(bookedTimes ?? []), [bookedTimes]);
 
-  // If the currently-selected time becomes booked (query refresh), clear it.
+  const availableTimes = slotResp?.times ?? [];
+  const bookedSet = useMemo(
+    () => new Set(slotResp?.booked ?? []),
+    [slotResp?.booked],
+  );
+
+  // If the currently-selected time disappears from the available list
+  // (someone else booked it, or the doctor went on leave), clear it so the
+  // user is forced to pick again instead of submitting a stale value.
   useEffect(() => {
-    if (time && bookedSet.has(time)) setTime("");
-  }, [bookedSet, time]);
+    if (!time) return;
+    if (!availableTimes.includes(time)) setTime("");
+  }, [availableTimes, time]);
 
   const morningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) < 12);
   const eveningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) >= 12);
