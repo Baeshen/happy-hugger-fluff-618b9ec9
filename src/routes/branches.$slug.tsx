@@ -1,8 +1,9 @@
 import { createFileRoute, Link, notFound, ErrorComponent, type ErrorComponentProps, useRouter } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { MapPin, Phone, Clock, Siren, Building2, Stethoscope, Award, ArrowLeft, CalendarPlus } from "lucide-react";
+import { MapPin, Phone, Clock, Siren, Building2, ArrowLeft, CalendarPlus } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
 import { BranchBookingForm } from "@/components/BranchBookingForm";
+import { BranchServicesExplorer } from "@/components/BranchServicesExplorer";
 import { getBranchDetail, type PublicBranch } from "@/lib/branches.functions";
 
 const branchQuery = (slug: string) =>
@@ -141,25 +142,17 @@ function formatHours(hours: PublicBranch["working_hours"]) {
   }));
 }
 
-function mapEmbed(b: PublicBranch): string | null {
-  if (b.map_embed_url) return b.map_embed_url;
-  if (b.lat != null && b.lng != null) {
-    return `https://www.google.com/maps?q=${b.lat},${b.lng}&hl=ar&z=15&output=embed`;
-  }
-  return null;
-}
-
 function BranchDetailPage() {
   const { slug } = Route.useParams();
   const { data } = useSuspenseQuery(branchQuery(slug));
   if (!data) return null;
   const { branch: b, centers, specialties } = data;
   const hours = formatHours(b.working_hours);
-  const embed = mapEmbed(b);
   const directions =
     b.lat != null && b.lng != null
       ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}`
       : null;
+
 
   return (
     <>
@@ -250,63 +243,16 @@ function BranchDetailPage() {
           )}
         </aside>
 
-        {/* Main: map + centers + specialties */}
+        {/* Main: services explorer with filter + map */}
         <div className="lg:col-span-2 space-y-6">
-          {embed && (
-            <div className="rounded-2xl border border-border overflow-hidden">
-              <iframe
-                title={`خريطة ${b.name_ar}`}
-                src={embed}
-                className="w-full h-[360px]"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-          )}
-
-          {centers.length > 0 && (
-            <section>
-              <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
-                <Award className="h-5 w-5 text-primary" /> مراكز التميز في هذا الفرع
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {centers.map((c) => (
-                  <article key={c.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                    {c.hero_image_url && (
-                      <div className="aspect-[16/9] overflow-hidden">
-                        <img src={c.hero_image_url} alt={c.name_ar} className="h-full w-full object-cover" loading="lazy" />
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h3 className="font-bold">{c.name_ar}</h3>
-                      {c.short_ar && <p className="mt-1 text-sm text-muted-foreground line-clamp-3">{c.short_ar}</p>}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {specialties.length > 0 && (
-            <section>
-              <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
-                <Stethoscope className="h-5 w-5 text-primary" /> التخصصات المتوفرة
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {specialties.map((s) => (
-                  <span key={s.id} className="rounded-full bg-muted px-3 py-1.5 text-sm text-foreground/80">
-                    {s.name_ar}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {centers.length === 0 && specialties.length === 0 && (
+          {specialties.length === 0 && centers.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
               لم يتم إضافة خدمات أو مراكز تميز لهذا الفرع بعد.
             </div>
+          ) : (
+            <BranchServicesExplorer branch={b} specialties={specialties} centers={centers} />
           )}
+
 
           <section id="book">
             <BranchBookingForm branchId={b.id} branchNameAr={b.name_ar} specialties={specialties} />
