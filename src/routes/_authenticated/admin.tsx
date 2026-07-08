@@ -1,4 +1,6 @@
-import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
+import { createFileRoute, useRouter, useNavigate, Link } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
@@ -76,14 +78,24 @@ import {
   Info,
 } from "lucide-react";
 
+const adminSearchSchema = z.object({
+  tab: fallback(z.string(), "overview").default("overview"),
+  logChannel: fallback(z.string(), "").default(""),
+  logStatus: fallback(z.string(), "").default(""),
+  logFrom: fallback(z.string(), "").default(""),
+  logTo: fallback(z.string(), "").default(""),
+});
+
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [{ title: "لوحة التحكم | مجمع باعشن الطبي" }, { name: "robots", content: "noindex" }],
   }),
+  validateSearch: zodValidator(adminSearchSchema),
   component: AdminDashboard,
 });
 
 type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-log" | "reminders-delivery-stats" | "reminders-audit" | "reminders-stats" | "security-audit" | "content";
+const ALL_TABS: Tab[] = ["overview","appointments","orders","doctors","specialties","availability","reminders-log","reminders-delivery-stats","reminders-audit","reminders-stats","security-audit","content"];
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -110,7 +122,14 @@ const ORDER_STATUS: {
 
 function AdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("overview");
+  const navigate = useNavigate({ from: "/admin" });
+  const search = Route.useSearch();
+  const tab: Tab = (ALL_TABS.includes(search.tab as Tab) ? search.tab : "overview") as Tab;
+  const setTab = (t: Tab) =>
+    navigate({
+      search: (prev: Record<string, unknown>) => ({ ...prev, tab: t }),
+      replace: false,
+    });
 
   const myRolesFn = useServerFn(getMyRoles);
   const rolesQuery = useQuery({ queryKey: ["my-roles"], queryFn: () => myRolesFn() });
@@ -389,7 +408,14 @@ function AdminDashboard() {
       {tab === "doctors" && isAdmin && <DoctorsTab />}
       {tab === "specialties" && isAdmin && <SpecialtiesTab />}
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
-      {tab === "reminders-log" && canSeeAppts && <RemindersDeliveryTab />}
+      {tab === "reminders-log" && canSeeAppts && (
+        <RemindersDeliveryTab
+          initialChannel={search.logChannel}
+          initialStatus={search.logStatus}
+          initialDateFrom={search.logFrom}
+          initialDateTo={search.logTo}
+        />
+      )}
       {tab === "reminders-delivery-stats" && canSeeAppts && <RemindersDeliveryStatsTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
       {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
@@ -1831,22 +1857,46 @@ function reminderKindLabel(kind: string): string {
   return kind;
 }
 
-function RemindersDeliveryTab() {
+type LogChannel = "" | "in_app" | "web_push" | "sms" | "whatsapp" | "email";
+type LogStatus = "" | "pending" | "queued" | "sent" | "failed" | "skipped";
+const LOG_CHANNELS: LogChannel[] = ["", "in_app", "web_push", "sms", "whatsapp", "email"];
+const LOG_STATUSES: LogStatus[] = ["", "pending", "queued", "sent", "failed", "skipped"];
+const isDateStr = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+function RemindersDeliveryTab({
+  initialChannel = "",
+  initialStatus = "",
+  initialDateFrom = "",
+  initialDateTo = "",
+}: {
+  initialChannel?: string;
+  initialStatus?: string;
+  initialDateFrom?: string;
+  initialDateTo?: string;
+} = {}) {
   const listFn = useServerFn(listReminderDeliveries);
   const exportFn = useServerFn(exportReminderDeliveriesCsv);
   const retryFn = useServerFn(retryReminderDelivery);
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const safeCh: LogChannel = (LOG_CHANNELS.includes(initialChannel as LogChannel)
+    ? (initialChannel as LogChannel)
+    : "");
+  const safeSt: LogStatus = (LOG_STATUSES.includes(initialStatus as LogStatus)
+    ? (initialStatus as LogStatus)
+    : "");
+  const safeFrom = isDateStr(initialDateFrom) ? initialDateFrom : "";
+  const safeTo = isDateStr(initialDateTo) ? initialDateTo : "";
   const [appointmentIdInput, setAppointmentIdInput] = useState("");
   const [patientQuery, setPatientQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(safeFrom);
+  const [dateTo, setDateTo] = useState(safeTo);
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
-  const [channel, setChannel] = useState<"" | "in_app" | "web_push" | "sms" | "whatsapp" | "email">("");
+  const [channel, setChannel] = useState<LogChannel>(safeCh);
   const [audience, setAudience] = useState<"" | "user" | "staff">("");
-  const [status, setStatus] = useState<"" | "pending" | "queued" | "sent" | "failed" | "skipped">("");
+  const [status, setStatus] = useState<LogStatus>(safeSt);
   const [applied, setApplied] = useState<{
     appointmentId: string;
     patientQuery: string;
@@ -1860,13 +1910,13 @@ function RemindersDeliveryTab() {
   }>({
     appointmentId: "",
     patientQuery: "",
-    dateFrom: "",
-    dateTo: "",
+    dateFrom: safeFrom,
+    dateTo: safeTo,
     timeFrom: "",
     timeTo: "",
-    channel: "",
+    channel: safeCh,
     audience: "",
-    status: "",
+    status: safeSt,
   });
   const [uuidError, setUuidError] = useState<string | null>(null);
   const [rangeError, setRangeError] = useState<string | null>(null);
@@ -2284,7 +2334,13 @@ function toLocalInputValue(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function toYmd(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function RemindersDeliveryStatsTab() {
+  const navigate = useNavigate({ from: "/admin" });
   const fn = useServerFn(getReminderDeliveryStats);
   const [preset, setPreset] = useState<PresetKey>("30d");
   const now = useMemo(() => new Date(), []);
@@ -2368,6 +2424,28 @@ function RemindersDeliveryStatsTab() {
     preset === "custom" && data
       ? `${new Date(data.from).toLocaleString("ar-EG")} — ${new Date(data.to).toLocaleString("ar-EG")}`
       : PRESET_LABELS[preset];
+
+  const rangeYmd = data
+    ? { from: toYmd(new Date(data.from)), to: toYmd(new Date(data.to)) }
+    : { from: "", to: "" };
+
+  function openLog(params: {
+    channel?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+  }) {
+    navigate({
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
+        tab: "reminders-log",
+        logChannel: params.channel ?? "",
+        logStatus: params.status ?? "",
+        logFrom: params.from ?? rangeYmd.from,
+        logTo: params.to ?? rangeYmd.to,
+      }),
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -2469,13 +2547,15 @@ function RemindersDeliveryStatsTab() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="إجمالي التذكيرات" value={totalAll} icon={Bell} />
-            <StatCard label="مُرسلة بنجاح" value={data.totals.sent} icon={CalendarDays} />
-            <StatCard label="فشلت" value={data.totals.failed} icon={ShieldAlert} />
-            <StatCard
+            <ClickableStatCard label="إجمالي التذكيرات" value={totalAll} icon={Bell} onClick={() => openLog({})} hint="عرض كل التذكيرات في هذه الفترة" />
+            <ClickableStatCard label="مُرسلة بنجاح" value={data.totals.sent} icon={CalendarDays} onClick={() => openLog({ status: "sent" })} hint="عرض التذكيرات المُرسلة" />
+            <ClickableStatCard label="فشلت" value={data.totals.failed} icon={ShieldAlert} onClick={() => openLog({ status: "failed" })} hint="عرض التذكيرات الفاشلة" />
+            <ClickableStatCard
               label="قيد الانتظار"
               value={data.totals.pending + data.totals.queued}
               icon={Clock}
+              onClick={() => openLog({ status: "pending" })}
+              hint="عرض التذكيرات المعلّقة"
             />
           </div>
 
@@ -2506,16 +2586,25 @@ function RemindersDeliveryStatsTab() {
             <div className="rounded-xl border border-border bg-card p-5">
               <h3 className="mb-4 text-base font-semibold">توزيع الحالات</h3>
               <div className="space-y-3">
-                <StatBar label="مُرسلة" value={data.totals.sent} total={totalAll} tone="emerald" />
-                <StatBar label="فشلت" value={data.totals.failed} total={totalAll} tone="destructive" />
-                <StatBar
-                  label="قيد الانتظار"
-                  value={data.totals.pending + data.totals.queued}
-                  total={totalAll}
-                  tone="sky"
-                />
-                <StatBar label="متجاوزة" value={data.totals.skipped} total={totalAll} tone="amber" />
+                <button type="button" onClick={() => openLog({ status: "sent" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض المُرسلة في السجل">
+                  <StatBar label="مُرسلة" value={data.totals.sent} total={totalAll} tone="emerald" />
+                </button>
+                <button type="button" onClick={() => openLog({ status: "failed" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض الفاشلة في السجل">
+                  <StatBar label="فشلت" value={data.totals.failed} total={totalAll} tone="destructive" />
+                </button>
+                <button type="button" onClick={() => openLog({ status: "pending" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض المعلّقة في السجل">
+                  <StatBar
+                    label="قيد الانتظار"
+                    value={data.totals.pending + data.totals.queued}
+                    total={totalAll}
+                    tone="sky"
+                  />
+                </button>
+                <button type="button" onClick={() => openLog({ status: "skipped" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض المتجاوزة في السجل">
+                  <StatBar label="متجاوزة" value={data.totals.skipped} total={totalAll} tone="amber" />
+                </button>
               </div>
+              <p className="mt-3 text-xs text-muted-foreground">اضغط على أي شريط للانتقال إلى السجل بنفس الفلاتر.</p>
             </div>
           </div>
 
@@ -2539,7 +2628,20 @@ function RemindersDeliveryStatsTab() {
                     const rate = att > 0 ? Math.round((c.sent / att) * 1000) / 10 : 0;
                     const total = c.sent + c.failed + c.pending + c.skipped + c.queued;
                     return (
-                      <tr key={c.channel} className="border-t border-border">
+                      <tr
+                        key={c.channel}
+                        onClick={() => openLog({ channel: c.channel })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openLog({ channel: c.channel });
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        title="عرض تذكيرات هذه القناة في السجل"
+                        className="cursor-pointer border-t border-border transition-colors hover:bg-muted/40 focus:bg-muted/60 focus:outline-none"
+                      >
                         <td className="px-2 py-2">
                           <span className="inline-flex items-center gap-2">
                             <span
@@ -2582,11 +2684,17 @@ function RemindersDeliveryStatsTab() {
                 </tbody>
               </table>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">اضغط على أي صف قناة للانتقال إلى السجل مع الفلاتر المطابقة.</p>
           </div>
 
           <DeliveryTrendChart
             buckets={data.byBucket}
             bucket={data.bucket}
+            onBucketClick={(bucketLabel) => {
+              // Convert bucket label to a yyyy-MM-dd range
+              const day = bucketLabel.slice(0, 10);
+              openLog({ from: day, to: day });
+            }}
           />
         </>
       )}
@@ -2597,6 +2705,44 @@ function RemindersDeliveryStatsTab() {
 // ============================================================================
 // Delivery Trend Chart — hover tooltip + horizontal scroll + success-rate overlay
 // ============================================================================
+
+function ClickableStatCard({
+  label,
+  value,
+  icon: Icon,
+  onClick,
+  hint,
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  onClick: () => void;
+  hint?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint ?? "افتح السجل مع هذا الفلتر"}
+      className="group rounded-xl border border-border bg-card p-5 text-start transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/40"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums">
+            {value.toLocaleString("ar-EG")}
+          </div>
+        </div>
+        <div className="rounded-lg bg-primary/10 p-2 text-primary transition-colors group-hover:bg-primary/20">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <div className="mt-2 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+        اضغط للانتقال إلى السجل ←
+      </div>
+    </button>
+  );
+}
 
 function formatBucketLabel(label: string, bucket: "hour" | "day"): string {
   // label is ISO prefix: "yyyy-MM-dd" (day) or "yyyy-MM-ddTHH" (hour)
@@ -2621,9 +2767,11 @@ function formatBucketLabel(label: string, bucket: "hour" | "day"): string {
 function DeliveryTrendChart({
   buckets,
   bucket,
+  onBucketClick,
 }: {
   buckets: Array<{ label: string; sent: number; failed: number }>;
   bucket: "hour" | "day";
+  onBucketClick?: (label: string) => void;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const maxBucket = Math.max(1, ...buckets.map((b) => b.sent + b.failed));
@@ -2722,10 +2870,14 @@ function DeliveryTrendChart({
                     type="button"
                     onMouseEnter={() => setHover(i)}
                     onFocus={() => setHover(i)}
-                    onClick={() => setHover(i)}
-                    className="group relative flex shrink-0 flex-col items-center justify-end outline-none"
+                    onClick={() => {
+                      setHover(i);
+                      if (onBucketClick) onBucketClick(b.label);
+                    }}
+                    className={`group relative flex shrink-0 flex-col items-center justify-end outline-none ${onBucketClick ? "cursor-pointer" : ""}`}
                     style={{ width: BAR_W, height: BAR_H }}
-                    aria-label={`${formatBucketLabel(b.label, bucket)}: مُرسلة ${b.sent}, فشلت ${b.failed}`}
+                    title={onBucketClick ? "افتح السجل لهذه الفترة" : undefined}
+                    aria-label={`${formatBucketLabel(b.label, bucket)}: مُرسلة ${b.sent}, فشلت ${b.failed}${onBucketClick ? " — اضغط للانتقال إلى السجل" : ""}`}
                   >
                     <div
                       className={`flex w-full flex-col justify-end overflow-hidden rounded-t-sm transition-opacity ${
@@ -2835,7 +2987,7 @@ function DeliveryTrendChart({
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        مرّر أفقيًا لعرض جميع الفترات، ومرّر الفأرة (أو المس) على أي عمود لعرض القيم التفصيلية.
+        مرّر أفقيًا لعرض جميع الفترات، ومرّر الفأرة (أو المس) على أي عمود لعرض القيم التفصيلية.{onBucketClick ? " اضغط على أي عمود للانتقال إلى السجل بنفس اليوم." : ""}
       </p>
     </div>
   );
