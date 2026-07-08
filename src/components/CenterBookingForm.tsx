@@ -68,7 +68,7 @@ type FormState = {
 type FieldErrors = Partial<Record<keyof FormState, string>>;
 
 type Confirmation = {
-  reference: string;
+  reference: string | null;
   centerName: string;
   service: string;
   patient_name: string;
