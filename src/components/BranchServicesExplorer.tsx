@@ -133,7 +133,11 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
                     <button
                       type="button"
                       onClick={() =>
-                        setSelected(active ? null : { id: it.id, label: it.label, kind: it.kind })
+                        setSelected(
+                          active
+                            ? null
+                            : { id: it.id, label: it.label, kind: it.kind, specialtyId: it.specialtyId },
+                        )
                       }
                       className={`w-full text-start rounded-lg border px-3 py-2.5 text-sm transition-all flex items-center justify-between gap-2 ${
                         active
