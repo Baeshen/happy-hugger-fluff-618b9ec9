@@ -96,7 +96,9 @@ export async function submitBooking(payload: BookingSubmitPayload): Promise<Book
   }
 
   const kind: Exclude<BookingSubmitKind, "success"> =
-    body.kind === "validation" || body.kind === "db"
+    body.kind === "validation" ||
+    body.kind === "db" ||
+    body.kind === "conflict"
       ? body.kind
       : res.status >= 500
         ? "server"
