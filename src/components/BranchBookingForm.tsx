@@ -248,6 +248,7 @@ export function BranchBookingForm({
   const nextStep = () => {
     const err = validateStep(step, { specialtyId, doctorId, date, time, form });
     if (err) {
+      if (step === "patient") setShowAllPatientErrors(true);
       toast.error(err);
       return;
     }
