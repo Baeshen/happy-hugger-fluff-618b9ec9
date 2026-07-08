@@ -103,15 +103,25 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="ابحث عن خدمة أو تخصص..."
-              className="w-full ps-9 pe-3 py-2.5 rounded-lg border border-input bg-background text-sm outline-none focus:border-primary"
+              className="w-full ps-9 pe-9 py-2.5 rounded-lg border border-input bg-background text-sm outline-none focus:border-primary"
               aria-label="ابحث في خدمات الفرع"
             />
+            {hasQuery && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute top-1/2 -translate-y-1/2 end-2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="مسح البحث"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           <div role="tablist" aria-label="تصفية الخدمات" className="flex gap-1 rounded-lg bg-muted p-1 text-xs">
             {(
               [
-                { k: "all", label: `الكل (${specialties.length + centers.length})` },
+                { k: "all", label: `الكل (${totalCount})` },
                 { k: "center", label: `مراكز التميز (${centers.length})` },
                 { k: "specialty", label: `التخصصات (${specialties.length})` },
               ] as const
@@ -130,9 +140,57 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
             ))}
           </div>
 
-          <ul className="max-h-[420px] overflow-y-auto space-y-1.5 pr-1" role="list">
-            {items.length === 0 ? (
-              <li className="text-sm text-muted-foreground text-center py-8">لا توجد نتائج مطابقة.</li>
+          <ul
+            className={`max-h-[420px] overflow-y-auto space-y-1.5 pr-1 transition-opacity ${
+              isFiltering ? "opacity-60" : "opacity-100"
+            }`}
+            role="list"
+            aria-busy={isFiltering}
+          >
+            {isEmpty ? (
+              <li>
+                <div className="flex flex-col items-center text-center gap-3 py-10 px-4 rounded-lg border border-dashed border-border bg-muted/30">
+                  <div className="h-11 w-11 rounded-full bg-muted grid place-items-center text-muted-foreground">
+                    <SearchX className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      {hasQuery
+                        ? `لا توجد نتائج لـ "${query.trim()}"`
+                        : tab === "center"
+                        ? "لا توجد مراكز تميز في هذا الفرع"
+                        : tab === "specialty"
+                        ? "لا توجد تخصصات في هذا الفرع"
+                        : "لا توجد خدمات لعرضها"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {hasQuery
+                        ? "جرّب كلمات أخرى أو أزل الفلاتر لعرض كل الخدمات."
+                        : "جرّب تغيير الفلتر لعرض قائمة مختلفة."}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {hasQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setQuery("")}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                      >
+                        <X className="h-3.5 w-3.5" /> مسح البحث
+                      </button>
+                    )}
+                    {(tab !== "all" || hasQuery) && (
+                      <button
+                        type="button"
+                        onClick={resetAll}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:opacity-95"
+                      >
+                        عرض كل الخدمات
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </li>
             ) : (
               items.map((it) => {
                 const active = selected?.id === it.id;
@@ -175,6 +233,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
               })
             )}
           </ul>
+
         </div>
 
         {/* Map panel */}
