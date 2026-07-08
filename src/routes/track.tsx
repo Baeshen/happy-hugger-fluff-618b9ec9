@@ -13,8 +13,10 @@ import {
   User,
   Loader2,
   ArrowRight,
+  Download,
 } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
+import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
