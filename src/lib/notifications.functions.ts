@@ -376,11 +376,13 @@ function buildFilename() {
   return `reminder-deliveries-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
 }
 
-/* -------- Delivery stats (success/failure by channel and day) -------- */
+/* -------- Delivery stats (success/failure by channel and time bucket) -------- */
 
 export type DeliveryStats = {
-  rangeDays: number;
-  since: string;
+  rangeMs: number;
+  from: string;
+  to: string;
+  bucket: "hour" | "day";
   totals: { sent: number; failed: number; pending: number; skipped: number; queued: number };
   byChannel: Array<{
     channel: "in_app" | "web_push" | "sms" | "whatsapp" | "email";
@@ -390,33 +392,73 @@ export type DeliveryStats = {
     skipped: number;
     queued: number;
   }>;
-  byDay: Array<{ date: string; sent: number; failed: number }>;
+  byBucket: Array<{ label: string; sent: number; failed: number }>;
 };
 
 const CHANNELS = ["in_app", "web_push", "sms", "whatsapp", "email"] as const;
 
+const MAX_RANGE_MS = 366 * 24 * 60 * 60 * 1000; // 1 year hard cap
+const MIN_RANGE_MS = 5 * 60 * 1000; // 5 minutes min
+
+const DeliveryStatsInput = z
+  .object({
+    // Preset in hours, OR custom from/to ISO datetime strings
+    hours: z.number().int().min(1).max(366 * 24).optional(),
+    from: z.string().datetime({ offset: true }).optional(),
+    to: z.string().datetime({ offset: true }).optional(),
+  })
+  .default({})
+  .refine(
+    (v) => {
+      // If either from or to is provided, both must be present
+      if ((v.from && !v.to) || (v.to && !v.from)) return false;
+      return true;
+    },
+    { message: "الرجاء تحديد بداية ونهاية الفترة معًا." },
+  )
+  .refine(
+    (v) => {
+      if (v.from && v.to) {
+        const f = Date.parse(v.from);
+        const t = Date.parse(v.to);
+        if (!Number.isFinite(f) || !Number.isFinite(t)) return false;
+        if (t <= f) return false;
+        const range = t - f;
+        if (range < MIN_RANGE_MS) return false;
+        if (range > MAX_RANGE_MS) return false;
+      }
+      return true;
+    },
+    { message: "الفترة الزمنية غير صالحة (٥ دقائق حد أدنى، سنة واحدة حد أقصى، ويجب أن تسبق البداية النهاية)." },
+  );
+
 export const getReminderDeliveryStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({ days: z.number().int().min(1).max(365).optional() })
-      .default({})
-      .parse(d),
-  )
+  .inputValidator((d: unknown) => DeliveryStatsInput.parse(d))
   .handler(async ({ data, context }): Promise<DeliveryStats> => {
     const roles = await getRoles(context.supabase, context.userId);
     ensureStaff(roles);
 
-    const rangeDays = data.days ?? 30;
-    const since = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000);
-    const sinceIso = since.toISOString();
+    const nowMs = Date.now();
+    let toMs: number;
+    let fromMs: number;
+    if (data.from && data.to) {
+      fromMs = Date.parse(data.from);
+      toMs = Date.parse(data.to);
+    } else {
+      const hours = data.hours ?? 24 * 30; // default 30 days
+      toMs = nowMs;
+      fromMs = nowMs - hours * 60 * 60 * 1000;
+    }
+    const rangeMs = toMs - fromMs;
+    const bucket: "hour" | "day" = rangeMs <= 48 * 60 * 60 * 1000 ? "hour" : "day";
 
-    // Pull minimal columns for aggregation. Reminder rows only.
     const { data: rows, error } = await context.supabase
       .from("notifications")
       .select("channel, send_status, created_at")
       .like("kind", "reminder_%")
-      .gte("created_at", sinceIso)
+      .gte("created_at", new Date(fromMs).toISOString())
+      .lte("created_at", new Date(toMs).toISOString())
       .limit(20000);
     if (error) throw new Error(error.message);
 
@@ -428,12 +470,20 @@ export const getReminderDeliveryStats = createServerFn({ method: "POST" })
     for (const c of CHANNELS)
       byChannelMap.set(c, { sent: 0, failed: 0, pending: 0, skipped: 0, queued: 0 });
 
-    const byDayMap = new Map<string, { sent: number; failed: number }>();
-    // Seed each day so the chart shows continuous bars
-    for (let i = 0; i < rangeDays; i++) {
-      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-      const key = d.toISOString().slice(0, 10);
-      byDayMap.set(key, { sent: 0, failed: 0 });
+    // Seed continuous buckets
+    const bucketMap = new Map<string, { sent: number; failed: number }>();
+    if (bucket === "hour") {
+      const startHour = new Date(fromMs);
+      startHour.setUTCMinutes(0, 0, 0);
+      for (let t = startHour.getTime(); t <= toMs; t += 60 * 60 * 1000) {
+        bucketMap.set(new Date(t).toISOString().slice(0, 13), { sent: 0, failed: 0 });
+      }
+    } else {
+      const startDay = new Date(fromMs);
+      startDay.setUTCHours(0, 0, 0, 0);
+      for (let t = startDay.getTime(); t <= toMs; t += 24 * 60 * 60 * 1000) {
+        bucketMap.set(new Date(t).toISOString().slice(0, 10), { sent: 0, failed: 0 });
+      }
     }
 
     for (const r of rows ?? []) {
@@ -441,20 +491,31 @@ export const getReminderDeliveryStats = createServerFn({ method: "POST" })
       if (st in totals) totals[st]++;
       const ch = byChannelMap.get(r.channel as string);
       if (ch && st in ch) (ch as any)[st]++;
-      const day = String(r.created_at).slice(0, 10);
-      const bucket = byDayMap.get(day);
-      if (bucket) {
-        if (st === "sent") bucket.sent++;
-        else if (st === "failed") bucket.failed++;
+      const key =
+        bucket === "hour"
+          ? String(r.created_at).slice(0, 13)
+          : String(r.created_at).slice(0, 10);
+      const b = bucketMap.get(key);
+      if (b) {
+        if (st === "sent") b.sent++;
+        else if (st === "failed") b.failed++;
       }
     }
 
     const byChannel = CHANNELS.map((c) => ({ channel: c, ...(byChannelMap.get(c) as any) }));
-    const byDay = Array.from(byDayMap.entries())
+    const byBucket = Array.from(bucketMap.entries())
       .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([date, v]) => ({ date, ...v }));
+      .map(([label, v]) => ({ label, ...v }));
 
-    return { rangeDays, since: sinceIso, totals, byChannel, byDay };
+    return {
+      rangeMs,
+      from: new Date(fromMs).toISOString(),
+      to: new Date(toMs).toISOString(),
+      bucket,
+      totals,
+      byChannel,
+      byBucket,
+    };
   });
 
 
