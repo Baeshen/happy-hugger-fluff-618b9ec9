@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -14,9 +14,59 @@ import {
   Loader2,
   ArrowRight,
   Download,
+  WifiOff,
+  ServerCrash,
+  ShieldAlert,
+  RefreshCw,
+  SearchX,
 } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
 import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
+
+type LookupErrorKind = "validation" | "not_found" | "network" | "timeout" | "server" | "unknown";
+type LookupError = { kind: LookupErrorKind; message: string };
+
+const ERROR_META: Record<
+  LookupErrorKind,
+  { title: string; icon: React.ReactNode; hint: string; canRetry: boolean }
+> = {
+  validation: {
+    title: "بيانات غير صالحة",
+    icon: <ShieldAlert className="h-10 w-10 text-destructive" />,
+    hint: "تأكّد من صيغة رقم الطلب (BAA- ثم 8 خانات) وأنّ آخر 4 أرقام من الجوال مكوّنة من أربع خانات رقمية.",
+    canRetry: false,
+  },
+  not_found: {
+    title: "لم نعثر على طلب مطابق",
+    icon: <SearchX className="h-10 w-10 text-amber-600" />,
+    hint: "راجع رقم الطلب في رسالة التأكيد وتأكّد أنّ آخر 4 أرقام تعود لنفس الجوال المستخدم عند الحجز.",
+    canRetry: true,
+  },
+  network: {
+    title: "لا يوجد اتصال",
+    icon: <WifiOff className="h-10 w-10 text-destructive" />,
+    hint: "تحقّق من اتصال الإنترنت ثم أعد المحاولة.",
+    canRetry: true,
+  },
+  timeout: {
+    title: "انتهت مهلة الاتصال",
+    icon: <Clock3 className="h-10 w-10 text-destructive" />,
+    hint: "استغرقت العملية وقتًا أطول من المعتاد. حاول مرة أخرى.",
+    canRetry: true,
+  },
+  server: {
+    title: "خطأ مؤقت في الخادم",
+    icon: <ServerCrash className="h-10 w-10 text-destructive" />,
+    hint: "نعمل على حل المشكلة — يُرجى المحاولة بعد قليل أو التواصل مع الاستقبال.",
+    canRetry: true,
+  },
+  unknown: {
+    title: "حدث خطأ غير متوقع",
+    icon: <AlertCircle className="h-10 w-10 text-destructive" />,
+    hint: "أعد المحاولة، وإن استمرّت المشكلة تواصل مع فريقنا.",
+    canRetry: true,
+  },
+};
 
 export const Route = createFileRoute("/track")({
   head: () => ({
