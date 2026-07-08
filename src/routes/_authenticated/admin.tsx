@@ -2628,7 +2628,20 @@ function RemindersDeliveryStatsTab() {
                     const rate = att > 0 ? Math.round((c.sent / att) * 1000) / 10 : 0;
                     const total = c.sent + c.failed + c.pending + c.skipped + c.queued;
                     return (
-                      <tr key={c.channel} className="border-t border-border">
+                      <tr
+                        key={c.channel}
+                        onClick={() => openLog({ channel: c.channel })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openLog({ channel: c.channel });
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        title="عرض تذكيرات هذه القناة في السجل"
+                        className="cursor-pointer border-t border-border transition-colors hover:bg-muted/40 focus:bg-muted/60 focus:outline-none"
+                      >
                         <td className="px-2 py-2">
                           <span className="inline-flex items-center gap-2">
                             <span
@@ -2671,11 +2684,17 @@ function RemindersDeliveryStatsTab() {
                 </tbody>
               </table>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">اضغط على أي صف قناة للانتقال إلى السجل مع الفلاتر المطابقة.</p>
           </div>
 
           <DeliveryTrendChart
             buckets={data.byBucket}
             bucket={data.bucket}
+            onBucketClick={(bucketLabel) => {
+              // Convert bucket label to a yyyy-MM-dd range
+              const day = bucketLabel.slice(0, 10);
+              openLog({ from: day, to: day });
+            }}
           />
         </>
       )}
