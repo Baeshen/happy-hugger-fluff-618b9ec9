@@ -47,6 +47,7 @@ import {
   listReminderDeliveries,
   exportReminderDeliveriesCsv,
   retryReminderDelivery,
+  retryReminderDeliveriesBulk,
   getReminderDeliveryStats,
   type ReminderDelivery,
   type DeliveryStats,
@@ -1877,9 +1878,12 @@ function RemindersDeliveryTab({
   const listFn = useServerFn(listReminderDeliveries);
   const exportFn = useServerFn(exportReminderDeliveriesCsv);
   const retryFn = useServerFn(retryReminderDelivery);
+  const bulkRetryFn = useServerFn(retryReminderDeliveriesBulk);
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRetrying, setBulkRetrying] = useState(false);
   const safeCh: LogChannel = (LOG_CHANNELS.includes(initialChannel as LogChannel)
     ? (initialChannel as LogChannel)
     : "");
@@ -1996,6 +2000,40 @@ function RemindersDeliveryTab({
   }
 
   const rows: ReminderDelivery[] = query.data ?? [];
+  const retriableIds = rows
+    .filter((r) => r.send_status === "failed" || r.send_status === "skipped")
+    .map((r) => r.id);
+  const retriableIdSet = new Set(retriableIds);
+  const selectedRetriable = Array.from(selectedIds).filter((id) => retriableIdSet.has(id));
+  const allSelected = retriableIds.length > 0 && selectedRetriable.length === retriableIds.length;
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(retriableIds) : new Set());
+  };
+  const runBulkRetry = async () => {
+    if (selectedRetriable.length === 0) return;
+    setBulkRetrying(true);
+    try {
+      const res = await bulkRetryFn({ data: { ids: selectedRetriable } });
+      toast.success(
+        `تمت إعادة جدولة ${res.retried.toLocaleString("ar-EG")} تذكير` +
+          (res.skipped > 0 ? ` (تم تجاهل ${res.skipped.toLocaleString("ar-EG")})` : ""),
+      );
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["reminders-log"] });
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "تعذّرت إعادة الإرسال الجماعية.");
+    } finally {
+      setBulkRetrying(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -2174,6 +2212,33 @@ function RemindersDeliveryTab({
       </div>
 
 
+      {retriableIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-2">
+          <div className="text-xs text-muted-foreground">
+            {selectedRetriable.length > 0
+              ? `تم تحديد ${selectedRetriable.length.toLocaleString("ar-EG")} من ${retriableIds.length.toLocaleString("ar-EG")} تذكير قابل لإعادة الإرسال`
+              : `${retriableIds.length.toLocaleString("ar-EG")} تذكير فاشل/متجاوز قابل لإعادة الإرسال في هذه الصفحة`}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => toggleAll(!allSelected)}
+              className="rounded-md border border-input px-3 py-1 text-xs hover:bg-muted"
+            >
+              {allSelected ? "إلغاء تحديد الكل" : "تحديد كل الفاشلة"}
+            </button>
+            <button
+              onClick={runBulkRetry}
+              disabled={bulkRetrying || selectedRetriable.length === 0}
+              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              {bulkRetrying
+                ? "جارٍ إعادة الإرسال…"
+                : `إعادة إرسال المحدد (${selectedRetriable.length.toLocaleString("ar-EG")})`}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-border bg-card">
         {query.isLoading ? (
           <p className="p-8 text-center text-sm text-muted-foreground">جارٍ التحميل…</p>
@@ -2190,6 +2255,15 @@ function RemindersDeliveryTab({
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                 <tr>
+                  <th className="px-3 py-2 text-start w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="تحديد كل التذكيرات الفاشلة"
+                      checked={allSelected}
+                      disabled={retriableIds.length === 0}
+                      onChange={(e) => toggleAll(e.target.checked)}
+                    />
+                  </th>
                   <th className="px-3 py-2 text-start">الحجز</th>
                   <th className="px-3 py-2 text-start">الموعد</th>
                   <th className="px-3 py-2 text-start">نوع التذكير</th>
@@ -2206,8 +2280,19 @@ function RemindersDeliveryTab({
                     label: r.send_status,
                     cls: "bg-muted text-muted-foreground",
                   };
+                  const canRetry = retriableIdSet.has(r.id);
                   return (
                     <tr key={r.id} className="border-t border-border align-top">
+                      <td className="px-3 py-2">
+                        {canRetry ? (
+                          <input
+                            type="checkbox"
+                            aria-label="تحديد التذكير لإعادة الإرسال"
+                            checked={selectedIds.has(r.id)}
+                            onChange={(e) => toggleOne(r.id, e.target.checked)}
+                          />
+                        ) : null}
+                      </td>
                       <td className="px-3 py-2">
                         <div className="font-medium">{r.appointment?.patient_name ?? "—"}</div>
                         <div className="text-xs text-muted-foreground" dir="ltr">
