@@ -170,7 +170,7 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
   const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
+    <div ref={rootRef} className="rounded-2xl border border-border bg-card p-5 md:p-6">
       <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
         <CalendarPlus className="h-5 w-5 text-primary" /> احجز موعد في {branchNameAr}
       </h3>
