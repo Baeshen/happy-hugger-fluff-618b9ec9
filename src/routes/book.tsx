@@ -19,8 +19,9 @@ import {
   User,
   UserCircle2,
 } from "lucide-react";
-import { friendlyInsertError } from "@/lib/insert-errors";
 import { PageHero } from "@/components/PageShell";
+import { submitBooking, type BookingSubmitResult } from "@/lib/booking-submit";
+import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
 
 const search = z.object({
   specialty: z.string().optional(),
