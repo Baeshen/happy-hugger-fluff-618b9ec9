@@ -458,6 +458,7 @@ function Field({
   htmlFor: string;
   children: React.ReactNode;
 }) {
+  const errId = `${htmlFor}-err`;
   return (
     <div>
       <label htmlFor={htmlFor} className="mb-1 block text-xs font-semibold">
@@ -465,7 +466,9 @@ function Field({
       </label>
       {children}
       {error ? (
-        <p className="mt-1 text-xs text-destructive">{error}</p>
+        <p id={errId} role="alert" className="mt-1 text-xs text-destructive">
+          {error}
+        </p>
       ) : hint ? (
         <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       ) : null}
