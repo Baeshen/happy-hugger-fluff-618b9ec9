@@ -192,19 +192,50 @@ function BookPage() {
   const branchId = (selectedDoctor as { branch_id?: string | null } | null)
     ?.branch_id ?? null;
 
+  // Debounce scope changes so rapid clicks on date/specialty/doctor don't
+  // fire a burst of overlapping requests. React Query still cancels the
+  // previous in-flight fetch when the key changes (via `signal` below).
+  const [debouncedScope, setDebouncedScope] = useState({
+    doctorId,
+    specialtyId,
+    branchId,
+    date,
+  });
+  useEffect(() => {
+    const t = setTimeout(
+      () => setDebouncedScope({ doctorId, specialtyId, branchId, date }),
+      250,
+    );
+    return () => clearTimeout(t);
+  }, [doctorId, specialtyId, branchId, date]);
+
   const { data: slotResp, isFetching: slotsFetching } = useQuery<{
     times: string[];
     booked: string[];
     doctors_considered: number;
   }>({
-    queryKey: ["slots", doctorId, specialtyId, branchId, date],
-    enabled: !!date && !!(doctorId || specialtyId),
-    queryFn: async () => {
-      const params = new URLSearchParams({ date });
-      if (doctorId) params.set("doctor_id", doctorId);
-      else if (specialtyId) params.set("specialty_id", specialtyId);
-      if (branchId) params.set("branch_id", branchId);
-      const res = await fetch(`/api/public/book/availability?${params.toString()}`);
+    queryKey: [
+      "slots",
+      debouncedScope.doctorId,
+      debouncedScope.specialtyId,
+      debouncedScope.branchId,
+      debouncedScope.date,
+    ],
+    enabled:
+      !!debouncedScope.date &&
+      !!(debouncedScope.doctorId || debouncedScope.specialtyId),
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({ date: debouncedScope.date });
+      if (debouncedScope.doctorId)
+        params.set("doctor_id", debouncedScope.doctorId);
+      else if (debouncedScope.specialtyId)
+        params.set("specialty_id", debouncedScope.specialtyId);
+      if (debouncedScope.branchId)
+        params.set("branch_id", debouncedScope.branchId);
+      const res = await fetch(
+        `/api/public/book/availability?${params.toString()}`,
+        { signal }, // abort stale request when the query key changes
+      );
       if (!res.ok) return { times: [], booked: [], doctors_considered: 0 };
       const body = (await res.json()) as {
         ok?: boolean;
