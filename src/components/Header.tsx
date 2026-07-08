@@ -1,15 +1,35 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X, Globe, Phone, LayoutDashboard, LogIn, User, Settings } from "lucide-react";
+import {
+  Menu,
+  X,
+  Globe,
+  Phone,
+  LayoutDashboard,
+  LogIn,
+  User,
+  Settings,
+  ChevronDown,
+  Siren,
+  MapPin,
+  Clock,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
 
+type NavItem = {
+  to: string;
+  label: string;
+  children?: { to: string; label: string; desc?: string }[];
+};
+
 export function Header() {
   const { t, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
@@ -19,66 +39,141 @@ export function Header() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const nav = [
+  const isAr = lang === "ar";
+
+  const nav: NavItem[] = [
     { to: "/", label: t("nav_home") },
-    { to: "/complex", label: t("nav_complex") },
+    { to: "/about", label: t("nav_about") },
+    { to: "/branches", label: isAr ? "مستشفياتنا" : "Our Hospitals" },
+    { to: "/excellence", label: isAr ? "مراكز التميز" : "Excellence Centers" },
     { to: "/specialties", label: t("nav_specialties") },
     { to: "/doctors", label: t("nav_doctors") },
-    { to: "/book", label: t("nav_book") },
-    { to: "/pharmacy", label: t("nav_pharmacy") },
-    { to: "/lookup", label: t("nav_lookup") },
-    { to: "/about", label: t("nav_about") },
-    { to: "/health", label: t("nav_health") },
+    {
+      to: "/packages",
+      label: isAr ? "الخدمات" : "Services",
+      children: [
+        { to: "/packages", label: isAr ? "الباقات والفحوصات" : "Checkup Packages", desc: isAr ? "باقات فحص شاملة" : "Comprehensive packages" },
+        { to: "/telemedicine", label: isAr ? "استشارة عن بُعد" : "Telemedicine", desc: isAr ? "طبيبك أونلاين" : "Doctor online" },
+        { to: "/home-care", label: isAr ? "الرعاية المنزلية" : "Home Care", desc: isAr ? "خدمات طبية بالمنزل" : "Medical at home" },
+        { to: "/pharmacy", label: t("nav_pharmacy"), desc: isAr ? "توصيل دواء" : "Delivery" },
+        { to: "/insurance", label: isAr ? "شركات التأمين" : "Insurance", desc: isAr ? "التغطيات المعتمدة" : "Approved networks" },
+        { to: "/international-patients", label: isAr ? "المرضى الدوليون" : "International Patients" },
+      ],
+    },
+    {
+      to: "/media/news",
+      label: isAr ? "المركز الإعلامي" : "Media Center",
+      children: [
+        { to: "/media/news", label: isAr ? "الأخبار" : "News" },
+        { to: "/health", label: t("nav_health"), desc: isAr ? "مقالات صحية" : "Health articles" },
+        { to: "/faq", label: t("nav_faq") },
+        { to: "/careers", label: isAr ? "الوظائف" : "Careers" },
+      ],
+    },
     { to: "/contact", label: t("nav_contact") },
-  ] as const;
+  ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur">
+    <header className="sticky top-0 z-40 bg-background/90 backdrop-blur border-b border-border/60">
+      {/* Top bar */}
+      <div className="hidden md:block bg-[color:var(--primary)] text-primary-foreground text-xs">
+        <div className="container-app flex h-9 items-center justify-between gap-4">
+          <div className="flex items-center gap-4 opacity-95">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {isAr ? "السبت–الأربعاء 9ص–9م" : "Sat–Wed 9am–9pm"}
+            </span>
+            <span className="hidden lg:inline-flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5" />
+              {isAr ? SITE.addressAr : SITE.addressEn}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <a
+              href="/emergency"
+              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 font-semibold hover:bg-white/25"
+            >
+              <Siren className="h-3.5 w-3.5" />
+              {isAr ? "الطوارئ" : "Emergency"}
+            </a>
+            <a href={`tel:${SITE.phone}`} className="inline-flex items-center gap-1 hover:underline">
+              <Phone className="h-3.5 w-3.5" /> {SITE.phoneDisplay}
+            </a>
+            <button
+              onClick={() => setLang(isAr ? "en" : "ar")}
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              <Globe className="h-3.5 w-3.5" /> {t("lang_switch")}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main bar */}
       <div className="container-app flex h-16 items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">
+        <Link to="/" className="flex items-center gap-2 group shrink-0">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground font-black text-lg shadow-sm">
             ب
           </div>
           <div className="leading-tight">
             <div className="text-sm font-bold text-foreground">
-              {lang === "ar" ? SITE.nameAr : SITE.nameEn}
+              {isAr ? SITE.nameAr : SITE.nameEn}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              {lang === "ar" ? "صبيا – جازان" : "Sabya – Jazan"}
+              {isAr ? "صبيا – جازان" : "Sabya – Jazan"}
             </div>
           </div>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-1">
-          {nav.map((n) => (
-            <Link
-              key={n.to}
-              to={n.to}
-              className="px-3 py-2 text-sm font-medium text-foreground/80 rounded-md hover:text-primary hover:bg-primary/5 transition"
-              activeProps={{ className: "text-primary bg-primary/10" }}
-              activeOptions={{ exact: n.to === "/" }}
-            >
-              {n.label}
-            </Link>
-          ))}
+        <nav className="hidden xl:flex items-center gap-0.5">
+          {nav.map((n) =>
+            n.children ? (
+              <div
+                key={n.to}
+                className="relative"
+                onMouseEnter={() => setOpenMenu(n.to)}
+                onMouseLeave={() => setOpenMenu(null)}
+              >
+                <Link
+                  to={n.to}
+                  className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-foreground/85 rounded-md hover:text-primary hover:bg-primary/5"
+                >
+                  {n.label}
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Link>
+                {openMenu === n.to && (
+                  <div className="absolute top-full start-0 mt-1 w-72 rounded-xl border border-border bg-popover shadow-lg p-2 grid gap-1">
+                    {n.children.map((c) => (
+                      <Link
+                        key={c.to}
+                        to={c.to}
+                        className="rounded-lg px-3 py-2 hover:bg-muted"
+                      >
+                        <div className="text-sm font-semibold text-foreground">{c.label}</div>
+                        {c.desc && <div className="text-xs text-muted-foreground">{c.desc}</div>}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                key={n.to}
+                to={n.to}
+                className="px-3 py-2 text-sm font-medium text-foreground/85 rounded-md hover:text-primary hover:bg-primary/5 transition"
+                activeProps={{ className: "text-primary bg-primary/10" }}
+                activeOptions={{ exact: n.to === "/" }}
+              >
+                {n.label}
+              </Link>
+            ),
+          )}
         </nav>
 
-        <div className="hidden md:flex items-center gap-2">
-          <a
-            href={`tel:${SITE.phone}`}
-            className="hidden xl:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
-          >
-            <Phone className="h-4 w-4" /> {SITE.phoneDisplay}
-          </a>
-          <button
-            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-          >
-            <Globe className="h-3.5 w-3.5" /> {t("lang_switch")}
-          </button>
+        <div className="hidden md:flex items-center gap-2 shrink-0">
           <Link
             to="/book"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            className="inline-flex items-center rounded-md bg-gradient-to-r from-primary to-accent px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-95"
           >
             {t("cta_book")}
           </Link>
@@ -88,23 +183,21 @@ export function Header() {
               <Link
                 to="/my"
                 className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-                title={t("nav_my")}
               >
                 <User className="h-3.5 w-3.5" /> {t("nav_my")}
               </Link>
               <Link
                 to="/settings"
-                className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
                 title="الإعدادات"
               >
-                <Settings className="h-3.5 w-3.5" /> إعدادات
+                <Settings className="h-3.5 w-3.5" />
               </Link>
               <Link
                 to="/admin"
-                className="hidden xl:inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-                title="لوحة التحكم"
+                className="hidden 2xl:inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
               >
-                <LayoutDashboard className="h-3.5 w-3.5" /> لوحة
+                <LayoutDashboard className="h-3.5 w-3.5" /> {isAr ? "لوحة" : "Admin"}
               </Link>
             </>
           ) : (
@@ -112,13 +205,13 @@ export function Header() {
               to="/auth"
               className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
             >
-              <LogIn className="h-3.5 w-3.5" /> دخول
+              <LogIn className="h-3.5 w-3.5" /> {isAr ? "دخول" : "Sign in"}
             </Link>
           )}
         </div>
 
         <button
-          className="lg:hidden inline-flex items-center justify-center rounded-md p-2 text-foreground"
+          className="xl:hidden inline-flex items-center justify-center rounded-md p-2 text-foreground"
           onClick={() => setOpen((v) => !v)}
           aria-label="menu"
         >
@@ -127,21 +220,36 @@ export function Header() {
       </div>
 
       {open && (
-        <div className="lg:hidden border-t border-border bg-background">
-          <div className="container-app py-3 flex flex-col gap-1">
+        <div className="xl:hidden border-t border-border bg-background max-h-[calc(100vh-4rem)] overflow-auto">
+          <div className="container-app py-3 flex flex-col gap-0.5">
             {nav.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                className="px-3 py-2 rounded-md text-sm font-medium text-foreground/90 hover:bg-primary/5"
-                onClick={() => setOpen(false)}
-              >
-                {n.label}
-              </Link>
+              <div key={n.to}>
+                <Link
+                  to={n.to}
+                  className="block px-3 py-2 rounded-md text-sm font-semibold text-foreground/90 hover:bg-primary/5"
+                  onClick={() => setOpen(false)}
+                >
+                  {n.label}
+                </Link>
+                {n.children && (
+                  <div className="ps-4 mt-0.5 mb-1 flex flex-col gap-0.5">
+                    {n.children.map((c) => (
+                      <Link
+                        key={c.to}
+                        to={c.to}
+                        onClick={() => setOpen(false)}
+                        className="px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-primary hover:bg-primary/5"
+                      >
+                        {c.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2">
               <button
-                onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+                onClick={() => setLang(isAr ? "en" : "ar")}
                 className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-xs font-medium"
               >
                 <Globe className="h-3.5 w-3.5" /> {t("lang_switch")}
@@ -149,7 +257,7 @@ export function Header() {
               <Link
                 to="/book"
                 onClick={() => setOpen(false)}
-                className="flex-1 text-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                className="flex-1 text-center rounded-md bg-gradient-to-r from-primary to-accent px-4 py-2 text-sm font-semibold text-primary-foreground"
               >
                 {t("cta_book")}
               </Link>
