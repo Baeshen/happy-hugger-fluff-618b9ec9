@@ -338,6 +338,14 @@ function AdminDashboard() {
               طلبات الرأي الطبي الثاني
             </Link>
           )}
+          {roles.includes("admin") && (
+            <Link
+              to="/corporate-admin"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              طلبات الشركات
+            </Link>
+          )}
           {(roles.includes("admin") || roles.includes("reception")) && (
             <Link
               to="/qr-cards"
