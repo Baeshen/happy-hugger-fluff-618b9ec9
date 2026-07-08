@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { CheckCircle2, Users, CalendarPlus, Phone } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
+import { CenterBookingForm } from "@/components/CenterBookingForm";
 import { EXCELLENCE_CENTERS, getExcellenceCenterBySlug } from "@/data/excellence-centers";
 
 export const Route = createFileRoute("/excellence/$slug")({
@@ -118,18 +119,7 @@ function CenterPage() {
             </Link>
           </div>
 
-          <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-accent/5 p-6">
-            <h3 className="text-lg font-bold">هل تحتاج استشارة سريعة؟</h3>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              فريقنا جاهز لمساعدتك في اختيار الطبيب المناسب وحجز موعدك.
-            </p>
-            <Link
-              to="/book"
-              className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              احجز الآن
-            </Link>
-          </div>
+          <CenterBookingForm centerName={center.name} />
         </aside>
       </section>
 
