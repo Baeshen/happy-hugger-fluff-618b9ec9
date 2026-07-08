@@ -97,6 +97,51 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
     setTab("all");
   };
 
+  // Hydrate selection from URL (?service=) — runs when the URL param or the
+  // dataset changes, so back/forward navigation and reload restore selection.
+  useEffect(() => {
+    const paramId = search.service ?? null;
+    if (paramId === (selected?.id ?? null)) return;
+    if (!paramId) {
+      setSelected(null);
+      return;
+    }
+    const match = allItems.find((it) => it.id === paramId);
+    if (match) {
+      setSelected({ id: match.id, label: match.label, kind: match.kind, specialtyId: match.specialtyId });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.service, allItems]);
+
+  const selectItem = (it: SelectedItem | null) => {
+    setSelected(it);
+    setMapLoading(!!it);
+    navigate({
+      search: (prev) => ({ ...prev, service: it?.id }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
+
+  // Smoothly update the map iframe location without remounting or reloading
+  // the page. Setting src via contentWindow.location.replace() keeps a single
+  // history entry per user click while still triggering the tile fetch.
+  useEffect(() => {
+    if (!embed || !iframeRef.current) return;
+    const doc = iframeRef.current.contentWindow;
+    if (!doc) {
+      iframeRef.current.src = embed;
+      return;
+    }
+    try {
+      doc.location.replace(embed);
+    } catch {
+      iframeRef.current.src = embed;
+    }
+    setMapLoading(true);
+  }, [embed]);
+
+
   return (
     <section className="rounded-2xl border border-border bg-card overflow-hidden">
       <header className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
