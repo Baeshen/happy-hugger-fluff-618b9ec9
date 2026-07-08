@@ -106,17 +106,21 @@ export const Route = createFileRoute("/api/public/book/create")({
           },
         });
 
-        const { error } = await supa.from("appointments").insert({
-          patient_name: parsed.data.patient_name,
-          patient_phone: parsed.data.patient_phone,
-          national_id: parsed.data.national_id ?? null,
-          gender: parsed.data.gender,
-          specialty_id: parsed.data.specialty_id ?? null,
-          doctor_id: parsed.data.doctor_id ?? null,
-          appointment_date: parsed.data.appointment_date,
-          appointment_time: parsed.data.appointment_time,
-          reason: parsed.data.reason ?? null,
-        });
+        const { data: inserted, error } = await supa
+          .from("appointments")
+          .insert({
+            patient_name: parsed.data.patient_name,
+            patient_phone: parsed.data.patient_phone,
+            national_id: parsed.data.national_id ?? null,
+            gender: parsed.data.gender,
+            specialty_id: parsed.data.specialty_id ?? null,
+            doctor_id: parsed.data.doctor_id ?? null,
+            appointment_date: parsed.data.appointment_date,
+            appointment_time: parsed.data.appointment_time,
+            reason: parsed.data.reason ?? null,
+          })
+          .select("id")
+          .single();
 
         if (error) {
           return json(400, {
@@ -126,7 +130,14 @@ export const Route = createFileRoute("/api/public/book/create")({
           });
         }
 
-        return json(200, { ok: true });
+        // Reference number derived from the appointment id (first 8 hex chars).
+        // The public tracking endpoint (/api/public/book/track) re-derives the
+        // same value from the persisted UUID, so patients can look up status.
+        const reference = inserted?.id
+          ? "BAA-" + String(inserted.id).replace(/-/g, "").slice(0, 8).toUpperCase()
+          : null;
+
+        return json(200, { ok: true, reference });
       },
     },
   },
