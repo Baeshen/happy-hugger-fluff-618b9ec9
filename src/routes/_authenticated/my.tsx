@@ -693,13 +693,16 @@ function DownloadFileButton({
         .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
       if (signError || !data?.signedUrl) {
         const msg = signError?.message ?? "";
+        let friendly = "تعذّر إنشاء رابط التنزيل";
         if (/not.?found|404/i.test(msg)) {
-          setError("الملف غير متاح حاليًا، الرجاء التواصل مع الاستقبال");
+          friendly = "الملف غير متاح حاليًا، الرجاء التواصل مع الاستقبال";
         } else if (/expired|انتهت/i.test(msg)) {
-          setError("انتهت صلاحية الرابط، اضغط إعادة المحاولة");
-        } else {
-          setError(msg || "تعذّر إنشاء رابط التنزيل");
+          friendly = "انتهت صلاحية رابط التنزيل";
+        } else if (msg) {
+          friendly = msg;
         }
+        setError(friendly);
+        toast.error(friendly);
         return;
       }
 
@@ -707,7 +710,9 @@ function DownloadFileButton({
       try {
         const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
         if (!check.ok) {
-          setError("رابط التنزيل غير صالح أو انتهت صلاحيته، اضغط إعادة المحاولة");
+          const friendly = "رابط التنزيل غير صالح أو انتهت صلاحيته";
+          setError(friendly);
+          toast.error(friendly);
           return;
         }
       } catch {
@@ -721,8 +726,11 @@ function DownloadFileButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
+      toast.success("تم بدء تنزيل الملف بنجاح");
     } catch (e) {
-      setError("حدث خطأ غير متوقع، اضغط إعادة المحاولة");
+      const friendly = "حدث خطأ غير متوقع أثناء التنزيل";
+      setError(friendly);
+      toast.error(friendly);
     } finally {
       setLoading(false);
     }
