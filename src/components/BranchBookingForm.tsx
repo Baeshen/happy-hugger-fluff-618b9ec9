@@ -113,8 +113,9 @@ function validateStep(
       return null;
     case "patient":
       if (!state.specialtyId || !state.doctorId || !state.date || !state.time) return " أكمل الخطوات السابقة";
-      const parsed = schema.safeParse(state.form);
-      if (!parsed.success) return parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
+      const errs = computeFieldErrors(state.form);
+      const firstKey = (["name", "phone", "gender", "reason"] as const).find((k) => errs[k]);
+      if (firstKey) return errs[firstKey] ?? "بيانات غير صالحة";
       return null;
     case "confirm":
       return null;
