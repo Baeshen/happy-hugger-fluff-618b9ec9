@@ -215,6 +215,12 @@ export function BranchBookingForm({
         }));
         if (d.form.name || d.form.phone || d.form.reason) restored = true;
       }
+      if (Array.isArray(d.reminderOffsets)) {
+        const cleaned = Array.from(
+          new Set(d.reminderOffsets.filter((n) => Number.isFinite(n) && n >= 1 && n <= 10080)),
+        ).sort((a, b) => b - a);
+        if (cleaned.length > 0) setReminderOffsets(cleaned);
+      }
       if (d.step && STEPS.some((s) => s.id === d.step)) {
         setStep(d.step);
       }
