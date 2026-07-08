@@ -21,16 +21,57 @@ import { friendlyInsertError } from "@/lib/insert-errors";
 import type { BranchSpecialty } from "@/lib/branches.functions";
 
 const NAME_MIN = 2, NAME_MAX = 120;
-const PHONE_MIN = 6, PHONE_MAX = 32;
+const PHONE_MAX = 32;
 const REASON_MAX = 500;
-const PHONE_RE = /^[+0-9\s\-()]+$/;
+const PHONE_ALLOWED_RE = /^[+0-9\s\-()]+$/;
+const NAME_RE = /^[\p{L}\s'’\-.]+$/u;
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(NAME_MIN, "الاسم قصير جدًا (حرفان على الأقل)")
+  .max(NAME_MAX, `الاسم طويل جدًا (الحد الأقصى ${NAME_MAX} حرفًا)`)
+  .regex(NAME_RE, "الاسم يجب أن يحتوي على أحرف فقط")
+  .refine((v) => v.split(/\s+/).filter(Boolean).length >= 2, "الرجاء إدخال الاسم الأول والأخير");
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, "رقم الجوال مطلوب")
+  .max(PHONE_MAX, "رقم الجوال طويل جدًا")
+  .regex(PHONE_ALLOWED_RE, "رقم غير صالح — الأرقام فقط")
+  .refine((v) => {
+    const digits = v.replace(/\D/g, "");
+    return digits.length >= 9 && digits.length <= 15;
+  }, "رقم الجوال يجب أن يتكوّن من 9 إلى 15 رقمًا");
+
+const reasonSchema = z
+  .string()
+  .trim()
+  .max(REASON_MAX, `الحد الأقصى ${REASON_MAX} حرفًا`)
+  .optional()
+  .or(z.literal(""));
 
 const schema = z.object({
-  name: z.string().trim().min(NAME_MIN, "الاسم قصير جدًا").max(NAME_MAX, "الاسم طويل جدًا"),
-  phone: z.string().trim().min(PHONE_MIN, "رقم الهاتف قصير").max(PHONE_MAX, "رقم الهاتف طويل").regex(PHONE_RE, "رقم غير صالح"),
-  gender: z.enum(["male", "female"]),
-  reason: z.string().trim().max(REASON_MAX).optional().or(z.literal("")),
+  name: nameSchema,
+  phone: phoneSchema,
+  gender: z.enum(["male", "female"], { message: "اختر الجنس" }),
+  reason: reasonSchema,
 });
+
+type FieldErrors = Partial<Record<"name" | "phone" | "gender" | "reason", string>>;
+
+function computeFieldErrors(form: { name: string; phone: string; gender: string; reason: string }): FieldErrors {
+  const errs: FieldErrors = {};
+  const n = nameSchema.safeParse(form.name);
+  if (!n.success) errs.name = n.error.issues[0]?.message;
+  const p = phoneSchema.safeParse(form.phone);
+  if (!p.success) errs.phone = p.error.issues[0]?.message;
+  if (form.gender !== "male" && form.gender !== "female") errs.gender = "اختر الجنس";
+  const r = reasonSchema.safeParse(form.reason);
+  if (!r.success) errs.reason = r.error.issues[0]?.message;
+  return errs;
+}
 
 function randomId(): string {
   const c = globalThis.crypto as Crypto | undefined;
