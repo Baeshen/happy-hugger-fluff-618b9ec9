@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -31,6 +31,29 @@ import {
   type HeadCheckState,
   type DownloadBucket,
 } from "@/lib/download-error";
+import { logDownloadError } from "@/lib/download-error.functions";
+
+/**
+ * Fire-and-forget: log download failures both to the browser console and to
+ * the server. Never throws — logging must not block the retry UI.
+ */
+function reportDownloadError(report: {
+  bucket: DownloadBucket;
+  path: string;
+  stage: "sign" | "head" | "download" | "unexpected";
+  message?: string | null;
+  httpStatus?: number | null;
+  durationMs?: number | null;
+  headCheckSkipped?: boolean;
+  attempt?: number;
+}) {
+  const clientTimestamp = new Date().toISOString();
+  // eslint-disable-next-line no-console
+  console.error("[download-error]", { ...report, clientTimestamp });
+  void logDownloadError({ data: { ...report, clientTimestamp } }).catch(() => {
+    /* swallow — logging must never break the download UI */
+  });
+}
 
 /**
  * Per-bucket adaptive HEAD-check state, shared across DownloadFileButton
@@ -702,18 +725,32 @@ function DownloadFileButton({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const attemptRef = useRef(0);
 
   async function generateAndDownload() {
     if (loading) return;
     setLoading(true);
     setError(null);
+    attemptRef.current += 1;
+    const attempt = attemptRef.current;
+    const startedAt = performance.now();
     try {
+      const signStartedAt = performance.now();
       const { data, error: signError } = await supabase.storage
         .from(bucket)
         .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
       if (signError || !data?.signedUrl) {
         const friendly = getFriendlyDownloadError(signError?.message);
         headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
+        reportDownloadError({
+          bucket,
+          path,
+          stage: "sign",
+          message: signError?.message ?? "no signedUrl returned",
+          httpStatus: null,
+          durationMs: Math.round(performance.now() - signStartedAt),
+          attempt,
+        });
         setError(friendly);
         toast.error(friendly);
         return;
@@ -722,18 +759,40 @@ function DownloadFileButton({
       // Adaptive HEAD check: skip once the bucket has proven healthy, but
       // always re-check on the first attempt or after a recent failure.
       const decision = shouldPerformHeadCheck(getHeadCheckState(bucket));
+      const headCheckSkipped = !decision.shouldCheck;
       if (decision.shouldCheck) {
+        const headStartedAt = performance.now();
         try {
           const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
           if (!check.ok) {
             const friendly = DOWNLOAD_ERROR_MESSAGES.invalidUrl;
             headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
+            reportDownloadError({
+              bucket,
+              path,
+              stage: "head",
+              message: `HEAD returned ${check.status} ${check.statusText}`,
+              httpStatus: check.status,
+              durationMs: Math.round(performance.now() - headStartedAt),
+              headCheckSkipped: false,
+              attempt,
+            });
             setError(friendly);
             toast.error(friendly);
             return;
           }
-        } catch {
-          // If CORS/network check fails, still attempt direct download; browser handles it
+        } catch (headErr) {
+          // If CORS/network check fails, still attempt direct download; log for visibility.
+          reportDownloadError({
+            bucket,
+            path,
+            stage: "head",
+            message: headErr instanceof Error ? headErr.message : "HEAD network/CORS error",
+            httpStatus: null,
+            durationMs: Math.round(performance.now() - headStartedAt),
+            headCheckSkipped: false,
+            attempt,
+          });
         }
       }
 
@@ -745,10 +804,23 @@ function DownloadFileButton({
       a.click();
       a.remove();
       headCheckStateByBucket.set(bucket, recordDownloadSuccess(getHeadCheckState(bucket)));
+      // Reset per-button attempt counter after a fully successful download.
+      attemptRef.current = 0;
+      // Retain the `headCheckSkipped` flag on success paths in debug logs
+      void headCheckSkipped;
       toast.success(DOWNLOAD_ERROR_MESSAGES.downloadStarted);
-    } catch {
+    } catch (unexpected) {
       const friendly = DOWNLOAD_ERROR_MESSAGES.unexpected;
       headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
+      reportDownloadError({
+        bucket,
+        path,
+        stage: "unexpected",
+        message: unexpected instanceof Error ? unexpected.message : String(unexpected),
+        httpStatus: null,
+        durationMs: Math.round(performance.now() - startedAt),
+        attempt,
+      });
       setError(friendly);
       toast.error(friendly);
     } finally {
