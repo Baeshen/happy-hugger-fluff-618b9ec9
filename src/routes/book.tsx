@@ -249,8 +249,13 @@ function BookPage() {
         doctors_considered: body.doctors_considered ?? 0,
       };
     },
-    staleTime: 15_000, // matches the endpoint's short shared cache
+    // Matches the endpoint's `s-maxage=30, stale-while-revalidate=60` window
+    // so bouncing between dates/doctors reuses cached results without a
+    // network round-trip; falls back to background refresh after.
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
     refetchOnWindowFocus: true, // slots go stale fast — refresh on tab return
+    placeholderData: (prev) => prev, // keep previous slots visible while refetching
   });
 
   const availableTimes = slotResp?.times ?? [];
