@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { CalendarPlus, CheckCircle2, Loader2, Copy } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Loader2, Copy, Download } from "lucide-react";
+import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
 
 /**
  * Compact booking form embedded on excellence center detail pages.
