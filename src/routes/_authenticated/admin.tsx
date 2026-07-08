@@ -181,6 +181,12 @@ function AdminDashboard() {
       show: canSeeAppts,
     },
     {
+      id: "reminders-delivery-stats" as Tab,
+      label: "إحصائيات الإرسال",
+      icon: BarChart3,
+      show: canSeeAppts,
+    },
+    {
       id: "reminders-audit" as Tab,
       label: "سجل تفضيلات التذكير",
       icon: History,
