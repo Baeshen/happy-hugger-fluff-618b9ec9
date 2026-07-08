@@ -330,6 +330,14 @@ function AdminDashboard() {
               تقييمات المرضى
             </Link>
           )}
+          {roles.includes("admin") && (
+            <Link
+              to="/second-opinion-admin"
+              className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              طلبات الرأي الطبي الثاني
+            </Link>
+          )}
           {(roles.includes("admin") || roles.includes("reception")) && (
             <Link
               to="/qr-cards"
