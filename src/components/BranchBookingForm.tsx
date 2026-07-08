@@ -97,6 +97,7 @@ export function BranchBookingForm({
   preselectedSpecialtyId,
   preselectToken,
 }: Props) {
+  const navigate = useNavigate();
   const [step, setStep] = useState<StepId>("service");
   const [specialtyId, setSpecialtyId] = useState<string>("");
   const [doctorId, setDoctorId] = useState<string>("");
