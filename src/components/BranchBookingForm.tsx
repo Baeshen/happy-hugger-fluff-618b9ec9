@@ -181,6 +181,7 @@ export function BranchBookingForm({
         date?: string;
         time?: string;
         form?: { name?: string; phone?: string; gender?: "male" | "female"; reason?: string };
+        reminderOffsets?: number[];
         savedAt?: number;
       };
       // expire drafts older than 7 days
