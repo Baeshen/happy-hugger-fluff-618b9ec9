@@ -1,17 +1,38 @@
 /**
- * Public API — GET /api/public/book/availability?doctor_id=UUID&date=YYYY-MM-DD
+ * Public API — GET /api/public/book/availability
+ *   ?date=YYYY-MM-DD
+ *   &doctor_id=UUID            (optional)
+ *   &specialty_id=UUID         (optional — used when no doctor is chosen)
+ *   &branch_id=UUID            (optional — narrows availability to a clinic)
  *
- * Returns the list of appointment_time slots that are ALREADY booked for a
- * given doctor on a given date (statuses other than cancelled / no_show).
- * The public /book UI uses this to disable already-taken time buttons
- * before submit so users get instant feedback instead of hitting the
- * server-side conflict check.
+ * Authoritative slot resolver used by /book to render the time picker. The
+ * server owns the rules so a single change ripples across the UI, admin
+ * flows, and any future integrations:
  *
- * Response shape: { ok: true, booked: string[] } where each string is
- * "HH:MM" (24h). Times are trimmed to HH:MM to match the client picker.
+ *   1. Load `availability` rows for the target weekday, filtered by
+ *      doctor / specialty / branch as provided.
+ *   2. Expand every row into HH:MM slots using its `slot_minutes` step.
+ *   3. Subtract slots where the doctor is on leave for that date
+ *      (`doctor_leaves`, all-day only — partial-day leaves currently drop
+ *      the whole day for simplicity).
+ *   4. Subtract slots earlier than "now + 30min" when the date is today
+ *      (never surface a slot the patient physically cannot make).
+ *   5. Compute per-slot capacity across the matching doctor pool; a slot
+ *      is `booked` (unavailable) only when every candidate doctor is taken.
+ *      For a single-doctor request this collapses to the classic "already
+ *      taken" check the client used to do on its own.
  *
- * Uses the admin client to bypass the RLS block on public SELECT of
- * appointments; only the time-of-day is exposed, never any PII.
+ * Response:
+ *   { ok: true,
+ *     times:  string[]   // bookable "HH:MM" (sorted)
+ *     booked: string[]   // fully-booked "HH:MM" (subset of "generated" — kept
+ *                        //  separate so the UI can grey them out instead of
+ *                        //  hiding them entirely when helpful)
+ *     doctors_considered: number
+ *   }
+ *
+ * Uses the admin client so the public /book UI can see availability and
+ * bookings that RLS would otherwise hide from anon; no PII is returned.
  */
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -20,54 +41,192 @@ function json(status: number, body: Record<string, unknown>) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      // 30s micro-cache is enough to smooth typing/step navigation without
+      // ever showing a stale "free" slot for more than one refresh cycle.
+      "Cache-Control": "public, max-age=0, s-maxage=30, must-revalidate",
     },
   });
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+function hhmm(mins: number) {
+  return `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}`;
+}
+function parseHHMM(s: string): number {
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + (m ?? 0);
+}
+
+/**
+ * Weekday index for a `YYYY-MM-DD` string that matches what Postgres /
+ * JS `Date` return (0 = Sunday). Using UTC construction avoids the
+ * Worker-runtime "local timezone might be UTC" surprise where DST rounds
+ * a midnight date backward one day.
+ */
+function weekdayOf(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/**
+ * Today in Asia/Riyadh (UTC+3), returned as `YYYY-MM-DD`. The booking UI
+ * always displays Riyadh time, so slot filtering must use the same zone.
+ */
+function riyadhTodayIso(): string {
+  const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())}`;
+}
+function riyadhNowMinutes(): number {
+  const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return now.getUTCHours() * 60 + now.getUTCMinutes();
+}
 
 export const Route = createFileRoute("/api/public/book/availability")({
   server: {
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const doctorId = url.searchParams.get("doctor_id");
         const date = url.searchParams.get("date");
+        const doctorId = url.searchParams.get("doctor_id");
+        const specialtyId = url.searchParams.get("specialty_id");
+        const branchId = url.searchParams.get("branch_id");
 
-        if (!doctorId || !UUID_RE.test(doctorId)) {
-          return json(400, { ok: false, error: "invalid_doctor_id" });
-        }
         if (!date || !DATE_RE.test(date)) {
           return json(400, { ok: false, error: "invalid_date" });
         }
+        if (doctorId && !UUID_RE.test(doctorId)) {
+          return json(400, { ok: false, error: "invalid_doctor_id" });
+        }
+        if (specialtyId && !UUID_RE.test(specialtyId)) {
+          return json(400, { ok: false, error: "invalid_specialty_id" });
+        }
+        if (branchId && !UUID_RE.test(branchId)) {
+          return json(400, { ok: false, error: "invalid_branch_id" });
+        }
+        // At least one narrowing dimension is required, otherwise we would
+        // aggregate the entire clinic and return a meaningless union.
+        if (!doctorId && !specialtyId) {
+          return json(400, { ok: false, error: "missing_scope" });
+        }
+
+        const empty = { ok: true, times: [], booked: [], doctors_considered: 0 };
 
         try {
           const { supabaseAdmin } = await import(
             "@/integrations/supabase/client.server"
           );
-          const { data, error } = await supabaseAdmin
-            .from("appointments")
-            .select("appointment_time,status")
-            .eq("doctor_id", doctorId)
-            .eq("appointment_date", date);
-          if (error) {
-            return json(200, { ok: true, booked: [] });
+
+          // 1) Resolve candidate doctors. A specific doctor short-circuits;
+          //    otherwise pull all active doctors in the specialty (+ branch).
+          let candidateDoctorIds: string[] = [];
+          if (doctorId) {
+            candidateDoctorIds = [doctorId];
+          } else {
+            let q = supabaseAdmin
+              .from("doctors")
+              .select("id,is_active,branch_id,specialty_id")
+              .eq("is_active", true)
+              .eq("specialty_id", specialtyId!);
+            if (branchId) q = q.eq("branch_id", branchId);
+            const { data: docs, error } = await q;
+            if (error) return json(200, empty);
+            candidateDoctorIds = (docs ?? []).map((d) => d.id as string);
           }
-          const booked = Array.from(
-            new Set(
-              (data ?? [])
-                .filter(
-                  (r) => r.status !== "cancelled" && r.status !== "no_show",
-                )
-                .map((r) => String(r.appointment_time).slice(0, 5)),
-            ),
+          if (candidateDoctorIds.length === 0) {
+            return json(200, empty);
+          }
+
+          const weekday = weekdayOf(date);
+
+          // 2) Availability rows for those doctors on this weekday.
+          let availQ = supabaseAdmin
+            .from("availability")
+            .select("doctor_id,weekday,start_time,end_time,slot_minutes,branch_id")
+            .in("doctor_id", candidateDoctorIds)
+            .eq("weekday", weekday);
+          if (branchId) availQ = availQ.eq("branch_id", branchId);
+          const { data: availability, error: availErr } = await availQ;
+          if (availErr) return json(200, empty);
+
+          // 3) All-day leaves that cover this date for any candidate.
+          const { data: leaves } = await supabaseAdmin
+            .from("doctor_leaves")
+            .select("doctor_id,start_date,end_date,all_day")
+            .in("doctor_id", candidateDoctorIds)
+            .lte("start_date", date)
+            .gte("end_date", date);
+          const doctorsOnLeave = new Set(
+            (leaves ?? [])
+              .filter((l) => l.all_day)
+              .map((l) => l.doctor_id as string),
           );
-          return json(200, { ok: true, booked });
+
+          // 4) Existing appointments for those doctors on this date (any
+          //    non-terminal status counts as occupied).
+          const { data: appts } = await supabaseAdmin
+            .from("appointments")
+            .select("doctor_id,appointment_time,status")
+            .in("doctor_id", candidateDoctorIds)
+            .eq("appointment_date", date);
+          const busyByDoctor = new Map<string, Set<string>>();
+          for (const a of appts ?? []) {
+            if (a.status === "cancelled" || a.status === "no_show") continue;
+            const key = String(a.doctor_id);
+            const t = String(a.appointment_time).slice(0, 5);
+            if (!busyByDoctor.has(key)) busyByDoctor.set(key, new Set());
+            busyByDoctor.get(key)!.add(t);
+          }
+
+          // 5) Expand availability into per-doctor slot sets and aggregate.
+          //    We track two things per slot: how many doctors CAN work it,
+          //    and how many of those are free right now. A slot is offered
+          //    to the UI when generated, and marked "booked" only when all
+          //    who could work it are busy or on leave.
+          const generatedBy = new Map<string, Set<string>>(); // slot -> doctor set
+          for (const row of availability ?? []) {
+            const start = parseHHMM(String(row.start_time));
+            const end = parseHHMM(String(row.end_time));
+            const step = Number(row.slot_minutes) || 30;
+            for (let m = start; m + step <= end; m += step) {
+              const slot = hhmm(m);
+              if (!generatedBy.has(slot)) generatedBy.set(slot, new Set());
+              generatedBy.get(slot)!.add(String(row.doctor_id));
+            }
+          }
+
+          // Same-day: hide slots earlier than "now + 30 min" (Asia/Riyadh).
+          const isToday = date === riyadhTodayIso();
+          const cutoff = isToday ? riyadhNowMinutes() + 30 : -1;
+
+          const times: string[] = [];
+          const booked: string[] = [];
+          for (const [slot, doctorSet] of Array.from(generatedBy.entries()).sort()) {
+            if (parseHHMM(slot) < cutoff) continue;
+            const freeDoctors = Array.from(doctorSet).filter(
+              (id) =>
+                !doctorsOnLeave.has(id) && !busyByDoctor.get(id)?.has(slot),
+            );
+            if (freeDoctors.length > 0) {
+              times.push(slot);
+            } else {
+              // Every doctor who could work this slot is unavailable.
+              booked.push(slot);
+            }
+          }
+
+          return json(200, {
+            ok: true,
+            times,
+            booked,
+            doctors_considered: candidateDoctorIds.length,
+          });
         } catch {
-          return json(200, { ok: true, booked: [] });
+          return json(200, empty);
         }
       },
     },
