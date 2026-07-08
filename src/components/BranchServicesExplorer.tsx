@@ -323,19 +323,34 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
         {/* Map panel */}
         <div className="relative bg-muted min-h-[360px]">
           {embed ? (
-            <iframe
-              key={embed}
-              title={selected ? `خريطة ${selected.label} - ${branch.name_ar}` : `خريطة ${branch.name_ar}`}
-              src={embed}
-              className="w-full h-full min-h-[360px]"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
+            <>
+              <iframe
+                ref={iframeRef}
+                title={selected ? `خريطة ${selected.label} - ${branch.name_ar}` : `خريطة ${branch.name_ar}`}
+                src={embed}
+                onLoad={() => setMapLoading(false)}
+                className={`w-full h-full min-h-[360px] transition-opacity duration-300 ${
+                  mapLoading ? "opacity-70" : "opacity-100"
+                }`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              {mapLoading && (
+                <div
+                  className="pointer-events-none absolute top-3 end-3 rounded-full bg-background/95 backdrop-blur border border-border shadow px-2.5 py-1 text-xs text-muted-foreground flex items-center gap-1.5"
+                  aria-live="polite"
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden />
+                  جاري تحديث الخريطة...
+                </div>
+              )}
+            </>
           ) : (
             <div className="h-full min-h-[360px] grid place-items-center text-sm text-muted-foreground">
               لا يوجد موقع محدد على الخريطة لهذا الفرع.
             </div>
           )}
+
 
           {selected && (
             <div className="absolute top-3 start-3 end-3 rounded-lg bg-background/95 backdrop-blur border border-border shadow-lg p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
