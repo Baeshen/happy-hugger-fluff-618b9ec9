@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound, ErrorComponent, type ErrorComponentPro
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { MapPin, Phone, Clock, Siren, Building2, Stethoscope, Award, ArrowLeft, CalendarPlus } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
+import { BranchBookingForm } from "@/components/BranchBookingForm";
 import { getBranchDetail, type PublicBranch } from "@/lib/branches.functions";
 
 const branchQuery = (slug: string) =>
@@ -145,12 +146,12 @@ function BranchDetailPage() {
             </div>
 
             <div className="p-4 pt-0 flex flex-col gap-2">
-              <Link
-                to="/book"
+              <a
+                href="#book"
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95"
               >
                 <CalendarPlus className="h-4 w-4" /> احجز في هذا الفرع
-              </Link>
+              </a>
               {b.phone && (
                 <a
                   href={`tel:${b.phone}`}
@@ -246,6 +247,10 @@ function BranchDetailPage() {
               لم يتم إضافة خدمات أو مراكز تميز لهذا الفرع بعد.
             </div>
           )}
+
+          <section id="book">
+            <BranchBookingForm branchId={b.id} branchNameAr={b.name_ar} specialties={specialties} />
+          </section>
 
           <div>
             <Link to="/branches" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
