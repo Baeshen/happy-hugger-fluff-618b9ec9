@@ -161,6 +161,100 @@ export function BranchBookingForm({
   const showErr = (k: "name" | "phone" | "gender" | "reason") =>
     (touched[k] || showAllPatientErrors) && fieldErrors[k];
 
+  const draftKey = `booking-draft:${branchId}`;
+  const draftHydrated = useRef(false);
+  const [draftResumed, setDraftResumed] = useState(false);
+
+  // Restore draft from localStorage on mount (client-only)
+  useEffect(() => {
+    if (draftHydrated.current) return;
+    draftHydrated.current = true;
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw) as {
+        step?: StepId;
+        specialtyId?: string;
+        doctorId?: string;
+        date?: string;
+        time?: string;
+        form?: { name?: string; phone?: string; gender?: "male" | "female"; reason?: string };
+        savedAt?: number;
+      };
+      // expire drafts older than 7 days
+      if (d.savedAt && Date.now() - d.savedAt > 7 * 24 * 60 * 60 * 1000) {
+        window.localStorage.removeItem(draftKey);
+        return;
+      }
+      let restored = false;
+      if (d.specialtyId && specialties.some((s) => s.id === d.specialtyId)) {
+        setSpecialtyId(d.specialtyId);
+        restored = true;
+      }
+      if (d.doctorId) {
+        setDoctorId(d.doctorId);
+        restored = true;
+      }
+      if (d.date) {
+        setDate(d.date);
+        restored = true;
+      }
+      if (d.time) {
+        setTime(d.time);
+        restored = true;
+      }
+      if (d.form) {
+        setForm((prev) => ({
+          name: d.form?.name ?? prev.name,
+          phone: d.form?.phone ?? prev.phone,
+          gender: d.form?.gender ?? prev.gender,
+          reason: d.form?.reason ?? prev.reason,
+        }));
+        if (d.form.name || d.form.phone || d.form.reason) restored = true;
+      }
+      if (d.step && STEPS.some((s) => s.id === d.step)) {
+        setStep(d.step);
+      }
+      if (restored) setDraftResumed(true);
+    } catch {
+      // ignore corrupted drafts
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist draft whenever meaningful state changes
+  useEffect(() => {
+    if (!draftHydrated.current) return;
+    if (typeof window === "undefined") return;
+    const hasAny =
+      !!specialtyId || !!doctorId || !!date || !!time ||
+      !!form.name || !!form.phone || !!form.reason;
+    try {
+      if (!hasAny) {
+        window.localStorage.removeItem(draftKey);
+        return;
+      }
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({ step, specialtyId, doctorId, date, time, form, savedAt: Date.now() }),
+      );
+    } catch {
+      // ignore quota / privacy errors
+    }
+  }, [draftKey, step, specialtyId, doctorId, date, time, form]);
+
+  const clearDraft = () => {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(draftKey);
+      } catch {
+        // ignore
+      }
+    }
+    setDraftResumed(false);
+  };
+
   useEffect(() => {
     if (!preselectedSpecialtyId) return;
     if (!specialties.some((s) => s.id === preselectedSpecialtyId)) return;
@@ -169,6 +263,7 @@ export function BranchBookingForm({
     setDate("");
     setTime("");
     setStep("service");
+    setDraftResumed(false);
     rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [preselectedSpecialtyId, preselectToken, specialties]);
 
@@ -317,6 +412,7 @@ export function BranchBookingForm({
         return;
       }
       toast.success("تم إرسال الحجز بنجاح");
+      clearDraft();
       const ref = id.slice(0, 8).toUpperCase();
       navigate({
         to: "/booking-confirmation",
@@ -344,7 +440,9 @@ export function BranchBookingForm({
     setShowAllPatientErrors(false);
     setSubmitError(null);
     setStep("service");
+    clearDraft();
   };
+
 
 
   const currentStepIdx = stepIndex(step);
@@ -411,8 +509,39 @@ export function BranchBookingForm({
         </p>
       </nav>
 
+      {draftResumed && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs"
+        >
+          <div className="flex items-center gap-2 text-foreground">
+            <RotateCcw className="h-3.5 w-3.5 text-primary" />
+            <span>تم استئناف مسودة الحجز المحفوظة سابقاً.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDraftResumed(false)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              إخفاء
+            </button>
+            <span className="text-muted-foreground">·</span>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="font-semibold text-destructive hover:underline"
+            >
+              بدء من جديد
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Step content */}
       <div className="min-h-[200px]">
+
         {step === "service" && (
           <div className="grid gap-4 animate-in fade-in duration-200">
             <div>
