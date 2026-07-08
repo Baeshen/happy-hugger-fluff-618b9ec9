@@ -47,6 +47,7 @@ import {
   listReminderDeliveries,
   exportReminderDeliveriesCsv,
   retryReminderDelivery,
+  retryReminderDeliveriesBulk,
   getReminderDeliveryStats,
   type ReminderDelivery,
   type DeliveryStats,
