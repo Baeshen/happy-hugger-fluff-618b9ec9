@@ -44,7 +44,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
 
   const totalCount = specialties.length + centers.length;
 
-  const items = useMemo(() => {
+  const allItems = useMemo(() => {
     const specs = specialties.map((s) => ({
       id: `s:${s.id}`,
       label: s.name_ar,
@@ -59,15 +59,30 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
       kind: "center" as const,
       specialtyId: c.specialty_id ?? null,
     }));
-    const all = [...cs, ...specs];
+    return [...cs, ...specs];
+  }, [specialties, centers]);
+
+  const searchMatches = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    return all
-      .filter((x) => (tab === "all" ? true : x.kind === tab))
-      .filter((x) => {
-        if (!q) return true;
-        return x.label.toLowerCase().includes(q) || (x.sub ?? "").toLowerCase().includes(q);
-      });
-  }, [specialties, centers, tab, deferredQuery]);
+    if (!q) return allItems;
+    return allItems.filter(
+      (x) => x.label.toLowerCase().includes(q) || (x.sub ?? "").toLowerCase().includes(q),
+    );
+  }, [allItems, deferredQuery]);
+
+  const counts = useMemo(
+    () => ({
+      all: searchMatches.length,
+      center: searchMatches.filter((x) => x.kind === "center").length,
+      specialty: searchMatches.filter((x) => x.kind === "specialty").length,
+    }),
+    [searchMatches],
+  );
+
+  const items = useMemo(
+    () => (tab === "all" ? searchMatches : searchMatches.filter((x) => x.kind === tab)),
+    [searchMatches, tab],
+  );
 
   const embed = selected ? serviceMapEmbed(branch, selected.label) : baseMapEmbed(branch);
   const hasCoords = branch.lat != null && branch.lng != null;
