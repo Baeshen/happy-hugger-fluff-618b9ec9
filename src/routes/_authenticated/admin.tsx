@@ -2354,7 +2354,7 @@ function RemindersDeliveryStatsTab() {
   const attempted = data ? data.totals.sent + data.totals.failed : 0;
   const successRate = attempted > 0 ? Math.round((data!.totals.sent / attempted) * 1000) / 10 : 0;
   const failureRate = attempted > 0 ? Math.round((data!.totals.failed / attempted) * 1000) / 10 : 0;
-  const maxBucket = data ? Math.max(1, ...data.byBucket.map((b) => b.sent + b.failed)) : 1;
+  
 
   const rangeLabelAr =
     preset === "custom" && data
