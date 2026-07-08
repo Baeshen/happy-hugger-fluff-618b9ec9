@@ -28,6 +28,8 @@ import {
   recordDownloadSuccess,
   recordDownloadFailure,
   INITIAL_HEAD_CHECK_STATE,
+  SIGNED_URL_TTL_SECONDS,
+  formatSignedUrlValidity,
   type HeadCheckState,
   type DownloadBucket,
 } from "@/lib/download-error";
@@ -738,7 +740,7 @@ function DownloadFileButton({
       const signStartedAt = performance.now();
       const { data, error: signError } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
+        .createSignedUrl(path, SIGNED_URL_TTL_SECONDS, filename ? { download: filename } : undefined);
       if (signError || !data?.signedUrl) {
         const friendly = getFriendlyDownloadError(signError?.message);
         headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
@@ -828,6 +830,8 @@ function DownloadFileButton({
     }
   }
 
+  const validityHint = formatSignedUrlValidity();
+
   if (error) {
     return (
       <div className="inline-flex flex-col items-start gap-1.5">
@@ -835,28 +839,38 @@ function DownloadFileButton({
           type="button"
           disabled={loading}
           onClick={generateAndDownload}
+          title={validityHint}
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
           إعادة المحاولة
         </button>
         <span className="text-xs text-destructive">{error}</span>
+        {validityHint ? (
+          <span className="text-[11px] text-muted-foreground">{validityHint} بعد الإنشاء</span>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      disabled={loading}
-      aria-busy={loading}
-      aria-label={loading ? "جاري إعداد رابط التنزيل" : label}
-      onClick={generateAndDownload}
-      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-      {loading ? "جاري التحضير..." : label}
-    </button>
+    <div className="inline-flex flex-col items-start gap-0.5">
+      <button
+        type="button"
+        disabled={loading}
+        aria-busy={loading}
+        aria-label={loading ? "جاري إعداد رابط التنزيل" : `${label} — ${validityHint}`}
+        title={validityHint}
+        onClick={generateAndDownload}
+        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+        {loading ? "جاري التحضير..." : label}
+      </button>
+      {validityHint ? (
+        <span className="text-[11px] text-muted-foreground">{validityHint} بعد الإنشاء</span>
+      ) : null}
+    </div>
   );
 }
 

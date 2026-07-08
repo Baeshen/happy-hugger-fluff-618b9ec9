@@ -16,6 +16,8 @@ import {
   recordDownloadFailure,
   INITIAL_HEAD_CHECK_STATE,
   HEAD_CHECK_DEFAULTS,
+  SIGNED_URL_TTL_SECONDS,
+  formatSignedUrlValidity,
   type DownloadBucket,
 } from "../../src/lib/download-error";
 
@@ -300,6 +302,33 @@ for (const bucket of ["lab-reports", "radiology-reports", "invoice-pdfs"] as Dow
     eq(afterFailure.reason, "recent-failure");
   });
 }
+
+console.log("formatSignedUrlValidity — UI hint for signed-URL lifetime");
+test("default TTL formats to '5 دقيقة'", () => {
+  eq(formatSignedUrlValidity(), "صالح لمدة 5 دقيقة");
+});
+test("SIGNED_URL_TTL_SECONDS default is 300s", () => {
+  eq(SIGNED_URL_TTL_SECONDS, 300);
+});
+test("30s TTL formats in seconds", () => {
+  eq(formatSignedUrlValidity(30), "صالح لمدة 30 ثانية");
+});
+test("120s TTL rounds to '2 دقيقة'", () => {
+  eq(formatSignedUrlValidity(120), "صالح لمدة 2 دقيقة");
+});
+test("90s TTL rounds up to '2 دقيقة'", () => {
+  eq(formatSignedUrlValidity(90), "صالح لمدة 2 دقيقة");
+});
+test("0 TTL yields empty string (hint hidden)", () => {
+  eq(formatSignedUrlValidity(0), "");
+});
+test("negative TTL yields empty string", () => {
+  eq(formatSignedUrlValidity(-10), "");
+});
+test("NaN TTL yields empty string", () => {
+  eq(formatSignedUrlValidity(Number.NaN), "");
+});
+
 
 setTimeout(() => {
   console.log(`\n${passed} passed, ${failed} failed`);

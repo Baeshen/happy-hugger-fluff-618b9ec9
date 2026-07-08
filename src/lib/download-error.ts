@@ -16,6 +16,24 @@ export const DOWNLOAD_ERROR_MESSAGES = {
 } as const;
 
 /**
+ * Signed URL lifetime in seconds. Kept as a shared constant so the button
+ * hint ("صالح لمدة N دقائق") always matches the value passed to
+ * `supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL_SECONDS)`.
+ */
+export const SIGNED_URL_TTL_SECONDS = 300;
+
+/**
+ * Format the signed-URL lifetime as a short Arabic phrase for the UI hint.
+ * Rounds up to whole minutes when >= 60s; falls back to seconds otherwise.
+ */
+export function formatSignedUrlValidity(ttlSeconds: number = SIGNED_URL_TTL_SECONDS): string {
+  if (!Number.isFinite(ttlSeconds) || ttlSeconds <= 0) return "";
+  if (ttlSeconds < 60) return `صالح لمدة ${ttlSeconds} ثانية`;
+  const minutes = Math.round(ttlSeconds / 60);
+  return `صالح لمدة ${minutes} دقيقة`;
+}
+
+/**
  * Map a raw signed-URL error message to a user-friendly Arabic message.
  * - 404 / "not found" → notFound
  * - "expired" / "انتهت" → expired
