@@ -2212,6 +2212,33 @@ function RemindersDeliveryTab({
       </div>
 
 
+      {retriableIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-2">
+          <div className="text-xs text-muted-foreground">
+            {selectedRetriable.length > 0
+              ? `تم تحديد ${selectedRetriable.length.toLocaleString("ar-EG")} من ${retriableIds.length.toLocaleString("ar-EG")} تذكير قابل لإعادة الإرسال`
+              : `${retriableIds.length.toLocaleString("ar-EG")} تذكير فاشل/متجاوز قابل لإعادة الإرسال في هذه الصفحة`}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => toggleAll(!allSelected)}
+              className="rounded-md border border-input px-3 py-1 text-xs hover:bg-muted"
+            >
+              {allSelected ? "إلغاء تحديد الكل" : "تحديد كل الفاشلة"}
+            </button>
+            <button
+              onClick={runBulkRetry}
+              disabled={bulkRetrying || selectedRetriable.length === 0}
+              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              {bulkRetrying
+                ? "جارٍ إعادة الإرسال…"
+                : `إعادة إرسال المحدد (${selectedRetriable.length.toLocaleString("ar-EG")})`}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-border bg-card">
         {query.isLoading ? (
           <p className="p-8 text-center text-sm text-muted-foreground">جارٍ التحميل…</p>
@@ -2228,6 +2255,15 @@ function RemindersDeliveryTab({
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                 <tr>
+                  <th className="px-3 py-2 text-start w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="تحديد كل التذكيرات الفاشلة"
+                      checked={allSelected}
+                      disabled={retriableIds.length === 0}
+                      onChange={(e) => toggleAll(e.target.checked)}
+                    />
+                  </th>
                   <th className="px-3 py-2 text-start">الحجز</th>
                   <th className="px-3 py-2 text-start">الموعد</th>
                   <th className="px-3 py-2 text-start">نوع التذكير</th>
@@ -2244,8 +2280,19 @@ function RemindersDeliveryTab({
                     label: r.send_status,
                     cls: "bg-muted text-muted-foreground",
                   };
+                  const canRetry = retriableIdSet.has(r.id);
                   return (
                     <tr key={r.id} className="border-t border-border align-top">
+                      <td className="px-3 py-2">
+                        {canRetry ? (
+                          <input
+                            type="checkbox"
+                            aria-label="تحديد التذكير لإعادة الإرسال"
+                            checked={selectedIds.has(r.id)}
+                            onChange={(e) => toggleOne(r.id, e.target.checked)}
+                          />
+                        ) : null}
+                      </td>
                       <td className="px-3 py-2">
                         <div className="font-medium">{r.appointment?.patient_name ?? "—"}</div>
                         <div className="text-xs text-muted-foreground" dir="ltr">
