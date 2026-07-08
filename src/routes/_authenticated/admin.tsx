@@ -1777,8 +1777,269 @@ function AvailabilityTab() {
 }
 
 // ============================================================================
+// Reminders Delivery Tab — actual sent reminders + status per booking
+// ============================================================================
+
+const CHANNEL_LABEL_AR: Record<string, string> = {
+  in_app: "داخل التطبيق",
+  web_push: "إشعار متصفح",
+  sms: "SMS",
+  whatsapp: "واتساب",
+  email: "بريد",
+};
+
+const STATUS_LABEL_AR: Record<string, { label: string; cls: string }> = {
+  pending: { label: "قيد الانتظار", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  queued: { label: "في الطابور", cls: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
+  sent: { label: "مُرسل", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+  failed: { label: "فشل", cls: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
+  skipped: { label: "متجاوز", cls: "bg-muted text-muted-foreground" },
+};
+
+function reminderKindLabel(kind: string): string {
+  if (kind === "reminder_24h") return "قبل 24 ساعة";
+  if (kind === "reminder_2h") return "قبل ساعتين";
+  const m = kind.match(/^reminder_(\d+)m$/);
+  if (m) {
+    const n = Number(m[1]);
+    if (n % 1440 === 0) return `قبل ${n / 1440} يوم`;
+    if (n % 60 === 0) return `قبل ${n / 60} ساعة`;
+    return `قبل ${n} دقيقة`;
+  }
+  return kind;
+}
+
+function RemindersDeliveryTab() {
+  const listFn = useServerFn(listReminderDeliveries);
+  const [appointmentIdInput, setAppointmentIdInput] = useState("");
+  const [channel, setChannel] = useState<"" | "in_app" | "web_push" | "sms" | "whatsapp" | "email">("");
+  const [audience, setAudience] = useState<"" | "user" | "staff">("");
+  const [status, setStatus] = useState<"" | "pending" | "queued" | "sent" | "failed" | "skipped">("");
+  const [applied, setApplied] = useState<{
+    appointmentId: string;
+    channel: typeof channel;
+    audience: typeof audience;
+    status: typeof status;
+  }>({ appointmentId: "", channel: "", audience: "", status: "" });
+  const [uuidError, setUuidError] = useState<string | null>(null);
+
+  const query = useQuery({
+    queryKey: ["reminders-log", applied],
+    queryFn: () =>
+      listFn({
+        data: {
+          appointmentId: applied.appointmentId || undefined,
+          channel: applied.channel || undefined,
+          audience: applied.audience || undefined,
+          status: applied.status || undefined,
+          limit: 300,
+        },
+      }),
+    refetchInterval: 60_000,
+    placeholderData: (prev) => prev,
+  });
+
+  function apply() {
+    const trimmed = appointmentIdInput.trim();
+    if (trimmed && !/^[0-9a-f-]{36}$/i.test(trimmed)) {
+      setUuidError("الرجاء استخدام معرّف الموعد الكامل (UUID).");
+      return;
+    }
+    setUuidError(null);
+    setApplied({ appointmentId: trimmed, channel, audience, status });
+  }
+  function clearAll() {
+    setAppointmentIdInput("");
+    setChannel("");
+    setAudience("");
+    setStatus("");
+    setUuidError(null);
+    setApplied({ appointmentId: "", channel: "", audience: "", status: "" });
+  }
+
+  const rows: ReminderDelivery[] = query.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="grid gap-3 md:grid-cols-5">
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              معرّف الموعد (اختياري)
+            </label>
+            <input
+              type="text"
+              value={appointmentIdInput}
+              onChange={(e) => setAppointmentIdInput(e.target.value)}
+              placeholder="00000000-0000-0000-0000-000000000000"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+              dir="ltr"
+            />
+            {uuidError && <p className="mt-1 text-xs text-destructive">{uuidError}</p>}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">القناة</label>
+            <select
+              value={channel}
+              onChange={(e) => setChannel(e.target.value as any)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">الكل</option>
+              <option value="in_app">داخل التطبيق</option>
+              <option value="web_push">إشعار متصفح</option>
+              <option value="sms">SMS</option>
+              <option value="whatsapp">واتساب</option>
+              <option value="email">بريد</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">المستقبل</label>
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value as any)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">الكل</option>
+              <option value="user">المريض</option>
+              <option value="staff">الفريق</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">الحالة</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as any)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">الكل</option>
+              <option value="pending">قيد الانتظار</option>
+              <option value="sent">مُرسل</option>
+              <option value="failed">فشل</option>
+              <option value="skipped">متجاوز</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={apply}
+            className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            تطبيق الفلاتر
+          </button>
+          <button
+            onClick={clearAll}
+            className="rounded-md border border-input px-4 py-1.5 text-sm hover:bg-muted"
+          >
+            مسح
+          </button>
+          <button
+            onClick={() => query.refetch()}
+            className="rounded-md border border-input px-4 py-1.5 text-sm hover:bg-muted"
+          >
+            تحديث
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card">
+        {query.isLoading ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">جارٍ التحميل…</p>
+        ) : query.isError ? (
+          <p className="p-8 text-center text-sm text-destructive">
+            تعذّر تحميل السجل: {(query.error as Error)?.message}
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            لا توجد تذكيرات تطابق الفلاتر الحالية.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-start">الحجز</th>
+                  <th className="px-3 py-2 text-start">الموعد</th>
+                  <th className="px-3 py-2 text-start">نوع التذكير</th>
+                  <th className="px-3 py-2 text-start">القناة</th>
+                  <th className="px-3 py-2 text-start">المستقبل</th>
+                  <th className="px-3 py-2 text-start">الحالة</th>
+                  <th className="px-3 py-2 text-start">تاريخ الإنشاء</th>
+                  <th className="px-3 py-2 text-start">تاريخ الإرسال</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const st = STATUS_LABEL_AR[r.send_status] ?? {
+                    label: r.send_status,
+                    cls: "bg-muted text-muted-foreground",
+                  };
+                  return (
+                    <tr key={r.id} className="border-t border-border align-top">
+                      <td className="px-3 py-2">
+                        <div className="font-medium">{r.appointment?.patient_name ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground" dir="ltr">
+                          {r.appointment?.patient_phone ?? ""}
+                        </div>
+                        {r.appointment_id && (
+                          <div
+                            className="mt-0.5 font-mono text-[10px] text-muted-foreground"
+                            dir="ltr"
+                            title={r.appointment_id}
+                          >
+                            #{r.appointment_id.slice(0, 8).toUpperCase()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
+                        {r.appointment?.appointment_date ?? "—"}
+                        <br />
+                        <span className="text-xs text-muted-foreground">
+                          {r.appointment?.appointment_time ?? ""}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">{reminderKindLabel(r.kind)}</td>
+                      <td className="px-3 py-2">{CHANNEL_LABEL_AR[r.channel] ?? r.channel}</td>
+                      <td className="px-3 py-2">{r.audience === "staff" ? "الفريق" : "المريض"}</td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}
+                        >
+                          {st.label}
+                        </span>
+                        {r.last_error && (
+                          <div
+                            className="mt-1 max-w-[220px] truncate text-[11px] text-destructive"
+                            title={r.last_error}
+                          >
+                            {r.last_error}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs">
+                        {formatAuditDate(r.created_at)}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs">
+                        {r.sent_at ? formatAuditDate(r.sent_at) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        يعرض آخر 300 تذكير عبر جميع القنوات (داخل التطبيق، إشعارات المتصفح، SMS، إلخ) مع تحديث تلقائي كل دقيقة.
+      </p>
+    </div>
+  );
+}
+
+// ============================================================================
 // Reminders Audit Tab
 // ============================================================================
+
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
