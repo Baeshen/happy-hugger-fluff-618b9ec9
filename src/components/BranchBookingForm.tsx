@@ -440,7 +440,9 @@ export function BranchBookingForm({
     setShowAllPatientErrors(false);
     setSubmitError(null);
     setStep("service");
+    clearDraft();
   };
+
 
 
   const currentStepIdx = stepIndex(step);
