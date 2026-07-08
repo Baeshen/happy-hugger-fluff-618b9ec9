@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,7 +41,12 @@ import {
   updateAboutSection,
   deleteAboutSection,
 } from "@/lib/admin.functions";
-import { listReminderDeliveries, type ReminderDelivery } from "@/lib/notifications.functions";
+import {
+  listReminderDeliveries,
+  exportReminderDeliveriesCsv,
+  retryReminderDelivery,
+  type ReminderDelivery,
+} from "@/lib/notifications.functions";
 import { ReminderPreferenceHistoryList } from "@/components/ReminderPreferenceHistory";
 import {
   LayoutDashboard,
@@ -1811,6 +1816,11 @@ function reminderKindLabel(kind: string): string {
 
 function RemindersDeliveryTab() {
   const listFn = useServerFn(listReminderDeliveries);
+  const exportFn = useServerFn(exportReminderDeliveriesCsv);
+  const retryFn = useServerFn(retryReminderDelivery);
+  const queryClient = useQueryClient();
+  const [exporting, setExporting] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [appointmentIdInput, setAppointmentIdInput] = useState("");
   const [patientQuery, setPatientQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -2051,6 +2061,48 @@ function RemindersDeliveryTab() {
           >
             تحديث
           </button>
+          <button
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await exportFn({
+                  data: {
+                    appointmentId: applied.appointmentId || undefined,
+                    patientQuery: applied.patientQuery || undefined,
+                    dateFrom: applied.dateFrom || undefined,
+                    dateTo: applied.dateTo || undefined,
+                    timeFrom: applied.timeFrom || undefined,
+                    timeTo: applied.timeTo || undefined,
+                    channel: applied.channel || undefined,
+                    audience: applied.audience || undefined,
+                    status: applied.status || undefined,
+                  },
+                });
+                const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = res.filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                toast.success(
+                  res.count === 0
+                    ? "تم التصدير لكن لا توجد سجلات مطابقة."
+                    : `تم تصدير ${res.count.toLocaleString("ar-EG")} سجل.`,
+                );
+              } catch (e) {
+                toast.error((e as Error)?.message ?? "تعذّر التصدير.");
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting}
+            className="rounded-md border border-input px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-60"
+          >
+            {exporting ? "جارٍ التصدير…" : "تصدير CSV"}
+          </button>
         </div>
       </div>
 
@@ -2139,6 +2191,26 @@ function RemindersDeliveryTab() {
                           >
                             {r.last_error}
                           </div>
+                        )}
+                        {(r.send_status === "failed" || r.send_status === "skipped") && (
+                          <button
+                            onClick={async () => {
+                              setRetryingId(r.id);
+                              try {
+                                await retryFn({ data: { id: r.id } });
+                                toast.success("تمت إعادة جدولة التذكير للإرسال.");
+                                queryClient.invalidateQueries({ queryKey: ["reminders-log"] });
+                              } catch (e) {
+                                toast.error((e as Error)?.message ?? "تعذّرت إعادة الإرسال.");
+                              } finally {
+                                setRetryingId(null);
+                              }
+                            }}
+                            disabled={retryingId === r.id}
+                            className="mt-1 rounded-md border border-input px-2 py-0.5 text-[11px] hover:bg-muted disabled:opacity-60"
+                          >
+                            {retryingId === r.id ? "…" : "إعادة الإرسال"}
+                          </button>
                         )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs">

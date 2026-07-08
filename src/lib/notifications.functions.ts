@@ -241,6 +241,141 @@ export const listReminderDeliveries = createServerFn({ method: "POST" })
     })) as unknown as ReminderDelivery[];
   });
 
+/* -------- Retry a failed / skipped reminder -------- */
+
+export const retryReminderDelivery = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureStaff(roles);
+    // Only allow retry on failed/skipped rows so pending/sent aren't clobbered
+    const { data: row, error: rErr } = await context.supabase
+      .from("notifications")
+      .select("id, send_status, kind")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (rErr) throw new Error(rErr.message);
+    if (!row) throw new Error("التذكير غير موجود.");
+    if (!["failed", "skipped"].includes(row.send_status as string)) {
+      throw new Error("لا يمكن إعادة إرسال هذا التذكير في حالته الحالية.");
+    }
+    const { error } = await context.supabase
+      .from("notifications")
+      .update({ send_status: "pending", last_error: null, sent_at: null } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/* -------- Export reminder deliveries as CSV -------- */
+
+function csvEscape(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export const exportReminderDeliveriesCsv = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ListRemindersInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureStaff(roles);
+
+    // Reuse the same filter shape but bump the row cap for exports
+    const hasApptFilter =
+      !!data.patientQuery || !!data.dateFrom || !!data.dateTo || !!data.timeFrom || !!data.timeTo || !!data.branchId;
+    let restrictIds: string[] | null = null;
+    if (hasApptFilter) {
+      let aq = context.supabase.from("appointments").select("id").limit(5000);
+      if (data.branchId) aq = aq.eq("branch_id", data.branchId);
+      if (data.dateFrom) aq = aq.gte("appointment_date", data.dateFrom);
+      if (data.dateTo) aq = aq.lte("appointment_date", data.dateTo);
+      if (data.timeFrom) aq = aq.gte("appointment_time", data.timeFrom);
+      if (data.timeTo) aq = aq.lte("appointment_time", data.timeTo);
+      if (data.patientQuery) {
+        const esc = data.patientQuery.replace(/[%,()]/g, " ").trim();
+        if (esc) aq = aq.or(`patient_name.ilike.%${esc}%,patient_phone.ilike.%${esc}%`);
+      }
+      const { data: matched, error: mErr } = await aq;
+      if (mErr) throw new Error(mErr.message);
+      restrictIds = (matched ?? []).map((r) => r.id);
+      if (restrictIds.length === 0) {
+        return { csv: "\uFEFFappointment_id,patient_name,patient_phone,appointment_date,appointment_time,kind,channel,audience,status,created_at,sent_at,last_error\n", count: 0, filename: buildFilename() };
+      }
+    }
+
+    let q = context.supabase
+      .from("notifications")
+      .select(
+        "id, appointment_id, kind, audience, channel, send_status, created_at, sent_at, last_error",
+      )
+      .like("kind", "reminder_%")
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    if (data.appointmentId) q = q.eq("appointment_id", data.appointmentId);
+    if (data.channel) q = q.eq("channel", data.channel);
+    if (data.audience) q = q.eq("audience", data.audience);
+    if (data.status) q = q.eq("send_status", data.status);
+    if (restrictIds) q = q.in("appointment_id", restrictIds);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const apptIds = Array.from(
+      new Set((rows ?? []).map((r) => r.appointment_id).filter((v): v is string => !!v)),
+    );
+    const apptMap = new Map<string, { name: string | null; phone: string | null; date: string | null; time: string | null }>();
+    if (apptIds.length > 0) {
+      const { data: appts } = await context.supabase
+        .from("appointments")
+        .select("id, patient_name, patient_phone, appointment_date, appointment_time")
+        .in("id", apptIds);
+      for (const a of appts ?? []) {
+        apptMap.set(a.id, {
+          name: a.patient_name ?? null,
+          phone: a.patient_phone ?? null,
+          date: a.appointment_date ?? null,
+          time: a.appointment_time ?? null,
+        });
+      }
+    }
+
+    const header =
+      "appointment_id,patient_name,patient_phone,appointment_date,appointment_time,kind,channel,audience,status,created_at,sent_at,last_error";
+    const lines = [header];
+    for (const r of rows ?? []) {
+      const a = r.appointment_id ? apptMap.get(r.appointment_id) : undefined;
+      lines.push(
+        [
+          r.appointment_id ?? "",
+          a?.name ?? "",
+          a?.phone ?? "",
+          a?.date ?? "",
+          a?.time ?? "",
+          r.kind,
+          r.channel,
+          r.audience,
+          r.send_status,
+          r.created_at,
+          r.sent_at ?? "",
+          r.last_error ?? "",
+        ]
+          .map(csvEscape)
+          .join(","),
+      );
+    }
+    // Prepend BOM so Excel opens Arabic content correctly
+    return { csv: "\uFEFF" + lines.join("\n") + "\n", count: rows?.length ?? 0, filename: buildFilename() };
+  });
+
+function buildFilename() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `reminder-deliveries-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
+}
+
 /* -------- Per-user notifications (bell) -------- */
 
 const ListMyInput = z
