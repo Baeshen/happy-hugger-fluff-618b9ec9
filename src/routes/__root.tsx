@@ -145,6 +145,7 @@ function RootComponent() {
           </main>
           <Footer />
           <Toaster position="top-center" richColors closeButton />
+          <ChatbotBubble />
         </div>
       </I18nProvider>
     </QueryClientProvider>
