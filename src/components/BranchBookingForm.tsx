@@ -35,9 +35,11 @@ type Props = {
   branchId: string;
   branchNameAr: string;
   specialties: BranchSpecialty[];
+  preselectedSpecialtyId?: string | null;
+  preselectToken?: number;
 };
 
-export function BranchBookingForm({ branchId, branchNameAr, specialties }: Props) {
+export function BranchBookingForm({ branchId, branchNameAr, specialties, preselectedSpecialtyId, preselectToken }: Props) {
   const [specialtyId, setSpecialtyId] = useState<string>("");
   const [doctorId, setDoctorId] = useState<string>("");
   const [date, setDate] = useState<string>("");
@@ -45,6 +47,18 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties }: Props
   const [form, setForm] = useState({ name: "", phone: "", gender: "male" as "male" | "female", reason: "" });
   const [submitting, setSubmitting] = useState(false);
   const [ref, setRef] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!preselectedSpecialtyId) return;
+    if (!specialties.some((s) => s.id === preselectedSpecialtyId)) return;
+    setRef(null);
+    setSpecialtyId(preselectedSpecialtyId);
+    setDoctorId("");
+    setDate("");
+    setTime("");
+    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [preselectedSpecialtyId, preselectToken, specialties]);
 
   const { data: doctors } = useQuery({
     queryKey: ["branch-doctors", branchId, specialtyId],
