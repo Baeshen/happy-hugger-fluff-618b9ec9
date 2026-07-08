@@ -98,8 +98,12 @@ function BookingConfirmationPage() {
   const [appt, setAppt] = useState<AppointmentSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // API returns refs like "BAA-XXXXXXXX" but lookup_appointment matches
+  // raw hex from the appointment id. Strip prefix so both formats work.
+  const normalizedRef = (ref ?? "").replace(/[^0-9a-fA-F]/g, "");
+
   useEffect(() => {
-    if (!ref || !phone) {
+    if (!normalizedRef || !phone) {
       setLoading(false);
       setError("يرجى إدخال رقم الحجز ورقم الجوال لعرض التفاصيل.");
       return;
@@ -109,7 +113,7 @@ function BookingConfirmationPage() {
       setLoading(true);
       setError(null);
       const { data, error: rpcError } = await supabase.rpc("lookup_appointment", {
-        _ref: ref,
+        _ref: normalizedRef,
         _phone: phone,
       });
       if (cancelled) return;
@@ -129,7 +133,8 @@ function BookingConfirmationPage() {
     return () => {
       cancelled = true;
     };
-  }, [ref, phone, t]);
+  }, [normalizedRef, phone, t]);
+
 
   const share: ShareBooking | null = appt
     ? {
