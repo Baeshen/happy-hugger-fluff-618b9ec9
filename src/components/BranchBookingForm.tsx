@@ -286,6 +286,7 @@ export function BranchBookingForm({
     setDate("");
     setTime("");
     setForm({ name: "", phone: "", gender: "male", reason: "" });
+    setSubmitError(null);
     setStep("service");
   };
 
