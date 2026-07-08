@@ -410,8 +410,12 @@ export function BranchBookingForm({
         appointment_date: date,
         appointment_time: time,
         reason: v.reason || null,
-        reminder_24h: true,
-        reminder_2h: true,
+        reminder_24h: reminderOffsets.includes(1440),
+        reminder_2h: reminderOffsets.includes(120),
+        reminder_offsets_minutes:
+          reminderOffsets.length > 0
+            ? [...new Set(reminderOffsets)].sort((a, b) => b - a)
+            : [1440, 120],
       });
       if (error) {
         const msg = friendlyInsertError(error);
