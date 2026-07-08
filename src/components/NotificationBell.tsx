@@ -55,6 +55,7 @@ export function NotificationBell() {
   const list = useServerFn(listMyNotifications);
   const mark = useServerFn(markNotificationsRead);
   const countFn = useServerFn(countUnreadNotifications);
+  const push = usePushNotifications(signedIn);
 
   const countQuery = useQuery({
     queryKey: ["notifications", "unread-count"],
