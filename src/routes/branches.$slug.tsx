@@ -17,23 +17,83 @@ export const Route = createFileRoute("/branches/$slug")({
     if (!detail) throw notFound();
     return { detail };
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData) {
       return { meta: [{ title: "الفرع غير موجود" }, { name: "robots", content: "noindex" }] };
     }
     const b = loaderData.detail.branch;
-    const title = `${b.name_ar} — مجمع باعشن الطبي`;
-    const desc = b.description_ar
-      ? b.description_ar.slice(0, 155)
-      : `تفاصيل ${b.name_ar}: العنوان، ساعات العمل، الخدمات، ومراكز التميز.`;
+    const { centers, specialties } = loaderData.detail;
+    const cityPart = b.city_ar ? ` — ${b.city_ar}` : "";
+    const title = `${b.name_ar}${cityPart} | مجمع باعشن الطبي`;
+    const descRaw = b.description_ar
+      ? b.description_ar
+      : `${b.name_ar}${b.city_ar ? ` في ${b.city_ar}` : ""}: العنوان، ساعات العمل، التخصصات${
+          centers.length ? "، ومراكز التميز" : ""
+        }، وحجز المواعيد.`;
+    const desc = descRaw.replace(/\s+/g, " ").trim().slice(0, 160);
+    const keywords = [
+      b.name_ar,
+      b.name_en,
+      b.city_ar,
+      "مجمع باعشن الطبي",
+      "حجز موعد",
+      ...specialties.slice(0, 8).map((s) => s.name_ar),
+      ...centers.slice(0, 4).map((c) => c.name_ar),
+    ]
+      .filter(Boolean)
+      .join("، ");
+    const url = `https://happy-hugger-fluff.lovable.app/branches/${params.slug}`;
+    const image = b.hero_image_url ?? undefined;
+
+    const jsonLd: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "MedicalClinic",
+      name: b.name_ar,
+      alternateName: b.name_en || undefined,
+      url,
+      image: image ? [image] : undefined,
+      description: desc,
+      telephone: b.phone || undefined,
+      address: b.address_ar
+        ? {
+            "@type": "PostalAddress",
+            streetAddress: b.address_ar,
+            addressLocality: b.city_ar || undefined,
+            addressCountry: "SA",
+          }
+        : undefined,
+      geo:
+        b.lat != null && b.lng != null
+          ? { "@type": "GeoCoordinates", latitude: b.lat, longitude: b.lng }
+          : undefined,
+      availableService: specialties.map((s) => ({
+        "@type": "MedicalSpecialty",
+        name: s.name_ar,
+      })),
+    };
+
     return {
       meta: [
         { title },
         { name: "description", content: desc },
+        { name: "keywords", content: keywords },
+        { property: "og:type", content: "place" },
         { property: "og:title", content: title },
         { property: "og:description", content: desc },
-        ...(b.hero_image_url ? [{ property: "og:image", content: b.hero_image_url }] : []),
-        ...(b.hero_image_url ? [{ name: "twitter:image", content: b.hero_image_url }] : []),
+        { property: "og:url", content: url },
+        { property: "og:locale", content: "ar_SA" },
+        { name: "twitter:card", content: image ? "summary_large_image" : "summary" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: desc },
+        ...(image ? [{ property: "og:image", content: image }] : []),
+        ...(image ? [{ name: "twitter:image", content: image }] : []),
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify(jsonLd),
+        },
       ],
     };
   },
