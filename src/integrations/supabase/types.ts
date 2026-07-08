@@ -1516,6 +1516,45 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          failure_count: number
+          id: string
+          last_seen_at: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          failure_count?: number
+          id?: string
+          last_seen_at?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          failure_count?: number
+          id?: string
+          last_seen_at?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       reminder_preference_audit: {
         Row: {
           appointment_id: string
@@ -1838,6 +1877,7 @@ export type Database = {
           specialty_name_ar: string
         }[]
       }
+      enqueue_appointment_reminders: { Args: never; Returns: Json }
       generate_mrn: { Args: { _branch_id: string }; Returns: string }
       get_ratings_summary: {
         Args: { _branch_id?: string; _days?: number; _doctor_id?: string }
@@ -2025,6 +2065,7 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
         }[]
       }
+      mark_notifications_read: { Args: { _ids?: string[] }; Returns: number }
       my_appointments: {
         Args: never
         Returns: {
@@ -2058,6 +2099,19 @@ export type Database = {
           specialty_name_ar: string
           specialty_name_en: string
           status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
+      my_notifications: {
+        Args: { _limit?: number }
+        Returns: {
+          appointment_id: string
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          metadata: Json
+          read_at: string
+          title: string
         }[]
       }
       my_reminder_preference_audit: {
@@ -2167,7 +2221,7 @@ export type Database = {
         | "out_for_delivery"
         | "delivered"
         | "cancelled"
-      notification_channel: "in_app" | "sms" | "whatsapp" | "email"
+      notification_channel: "in_app" | "sms" | "whatsapp" | "email" | "web_push"
       notification_send_status:
         | "pending"
         | "queued"
@@ -2332,7 +2386,7 @@ export const Constants = {
         "delivered",
         "cancelled",
       ],
-      notification_channel: ["in_app", "sms", "whatsapp", "email"],
+      notification_channel: ["in_app", "sms", "whatsapp", "email", "web_push"],
       notification_send_status: [
         "pending",
         "queued",
