@@ -21,7 +21,26 @@ import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 import { toast } from "sonner";
 import { ReminderHistoryForMyAppointmentModal } from "@/components/ReminderPreferenceHistory";
-import { getFriendlyDownloadError, DOWNLOAD_ERROR_MESSAGES } from "@/lib/download-error";
+import {
+  getFriendlyDownloadError,
+  DOWNLOAD_ERROR_MESSAGES,
+  shouldPerformHeadCheck,
+  recordDownloadSuccess,
+  recordDownloadFailure,
+  INITIAL_HEAD_CHECK_STATE,
+  type HeadCheckState,
+  type DownloadBucket,
+} from "@/lib/download-error";
+
+/**
+ * Per-bucket adaptive HEAD-check state, shared across DownloadFileButton
+ * instances in the same tab session. Once a bucket proves healthy we skip
+ * the HEAD round-trip until the next failure.
+ */
+const headCheckStateByBucket = new Map<DownloadBucket, HeadCheckState>();
+function getHeadCheckState(bucket: DownloadBucket): HeadCheckState {
+  return headCheckStateByBucket.get(bucket) ?? INITIAL_HEAD_CHECK_STATE;
+}
 
 export const Route = createFileRoute("/_authenticated/my")({
   component: MyPortal,
