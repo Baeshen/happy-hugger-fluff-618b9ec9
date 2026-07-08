@@ -507,6 +507,7 @@ function BookPage() {
                         icon={<Sun className="h-3.5 w-3.5" />}
                         label="صباحًا"
                         times={morningTimes}
+                        booked={bookedSet}
                         selected={time}
                         onSelect={setTime}
                       />
@@ -517,10 +518,16 @@ function BookPage() {
                           icon={<Moon className="h-3.5 w-3.5" />}
                           label="مساءً"
                           times={eveningTimes}
+                          booked={bookedSet}
                           selected={time}
                           onSelect={setTime}
                         />
                       </div>
+                    )}
+                    {doctorId && bookedSet.size > 0 && (
+                      <p className="mt-3 text-[11px] text-muted-foreground">
+                        الأوقات الرمادية محجوزة بالفعل.
+                      </p>
                     )}
                   </div>
                 )}
