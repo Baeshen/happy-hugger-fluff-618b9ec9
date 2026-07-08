@@ -168,9 +168,15 @@ function AdminDashboard() {
       show: isAdmin || isReception,
     },
     {
-      id: "reminders-audit" as Tab,
-      label: "سجل التذكيرات",
+      id: "reminders-log" as Tab,
+      label: "سجل التذكيرات المُرسلة",
       icon: Bell,
+      show: canSeeAppts,
+    },
+    {
+      id: "reminders-audit" as Tab,
+      label: "سجل تفضيلات التذكير",
+      icon: History,
       show: canSeeAppts,
     },
     {
