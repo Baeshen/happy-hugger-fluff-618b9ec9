@@ -408,7 +408,14 @@ function AdminDashboard() {
       {tab === "doctors" && isAdmin && <DoctorsTab />}
       {tab === "specialties" && isAdmin && <SpecialtiesTab />}
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
-      {tab === "reminders-log" && canSeeAppts && <RemindersDeliveryTab />}
+      {tab === "reminders-log" && canSeeAppts && (
+        <RemindersDeliveryTab
+          initialChannel={search.logChannel}
+          initialStatus={search.logStatus}
+          initialDateFrom={search.logFrom}
+          initialDateTo={search.logTo}
+        />
+      )}
       {tab === "reminders-delivery-stats" && canSeeAppts && <RemindersDeliveryStatsTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
       {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
