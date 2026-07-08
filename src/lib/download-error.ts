@@ -34,6 +34,19 @@ export function formatSignedUrlValidity(ttlSeconds: number = SIGNED_URL_TTL_SECO
 }
 
 /**
+ * Format remaining seconds as "MM:SS" for the live countdown shown under the
+ * download button after a signed URL is generated. Clamps to 00:00 for
+ * non-positive / non-finite inputs so the UI never flashes negatives.
+ */
+export function formatCountdown(secondsRemaining: number): string {
+  if (!Number.isFinite(secondsRemaining) || secondsRemaining <= 0) return "00:00";
+  const total = Math.floor(secondsRemaining);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/**
  * Map a raw signed-URL error message to a user-friendly Arabic message.
  * - 404 / "not found" → notFound
  * - "expired" / "انتهت" → expired
