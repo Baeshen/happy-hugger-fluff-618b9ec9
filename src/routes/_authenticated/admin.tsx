@@ -2870,10 +2870,14 @@ function DeliveryTrendChart({
                     type="button"
                     onMouseEnter={() => setHover(i)}
                     onFocus={() => setHover(i)}
-                    onClick={() => setHover(i)}
-                    className="group relative flex shrink-0 flex-col items-center justify-end outline-none"
+                    onClick={() => {
+                      setHover(i);
+                      if (onBucketClick) onBucketClick(b.label);
+                    }}
+                    className={`group relative flex shrink-0 flex-col items-center justify-end outline-none ${onBucketClick ? "cursor-pointer" : ""}`}
                     style={{ width: BAR_W, height: BAR_H }}
-                    aria-label={`${formatBucketLabel(b.label, bucket)}: مُرسلة ${b.sent}, فشلت ${b.failed}`}
+                    title={onBucketClick ? "افتح السجل لهذه الفترة" : undefined}
+                    aria-label={`${formatBucketLabel(b.label, bucket)}: مُرسلة ${b.sent}, فشلت ${b.failed}${onBucketClick ? " — اضغط للانتقال إلى السجل" : ""}`}
                   >
                     <div
                       className={`flex w-full flex-col justify-end overflow-hidden rounded-t-sm transition-opacity ${
