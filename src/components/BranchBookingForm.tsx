@@ -3,7 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Check, CalendarPlus, Loader2, Search } from "lucide-react";
+import {
+  Check,
+  CalendarPlus,
+  Loader2,
+  Search,
+  ChevronRight,
+  ChevronLeft,
+  Stethoscope,
+  CalendarClock,
+  User,
+  FileCheck,
+  AlertCircle,
+  RotateCcw,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { friendlyInsertError } from "@/lib/insert-errors";
 import type { BranchSpecialty } from "@/lib/branches.functions";
@@ -31,6 +44,45 @@ function randomId(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+const STEPS = [
+  { id: "service", label: "الخدمة والطبيب", icon: Stethoscope },
+  { id: "datetime", label: "التاريخ والوقت", icon: CalendarClock },
+  { id: "patient", label: "بيانات المريض", icon: User },
+  { id: "confirm", label: "التأكيد", icon: FileCheck },
+] as const;
+
+type StepId = (typeof STEPS)[number]["id"];
+
+function stepIndex(id: StepId) {
+  return STEPS.findIndex((s) => s.id === id);
+}
+
+function validateStep(
+  id: StepId,
+  state: { specialtyId: string; doctorId: string; date: string; time: string; form: { name: string; phone: string; gender: string; reason: string } },
+): string | null {
+  switch (id) {
+    case "service":
+      if (!state.specialtyId) return "اختر التخصص أولاً";
+      if (!state.doctorId) return "اختر الطبيب";
+      return null;
+    case "datetime":
+      if (!state.specialtyId || !state.doctorId) return " أكمل الخطوة السابقة";
+      if (!state.date) return "اختر تاريخ الموعد";
+      if (!state.time) return "اختر وقت الموعد";
+      return null;
+    case "patient":
+      if (!state.specialtyId || !state.doctorId || !state.date || !state.time) return " أكمل الخطوات السابقة";
+      const parsed = schema.safeParse(state.form);
+      if (!parsed.success) return parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
+      return null;
+    case "confirm":
+      return null;
+    default:
+      return null;
+  }
+}
+
 type Props = {
   branchId: string;
   branchNameAr: string;
@@ -39,7 +91,14 @@ type Props = {
   preselectToken?: number;
 };
 
-export function BranchBookingForm({ branchId, branchNameAr, specialties, preselectedSpecialtyId, preselectToken }: Props) {
+export function BranchBookingForm({
+  branchId,
+  branchNameAr,
+  specialties,
+  preselectedSpecialtyId,
+  preselectToken,
+}: Props) {
+  const [step, setStep] = useState<StepId>("service");
   const [specialtyId, setSpecialtyId] = useState<string>("");
   const [doctorId, setDoctorId] = useState<string>("");
   const [date, setDate] = useState<string>("");
@@ -48,6 +107,7 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
   const [submitting, setSubmitting] = useState(false);
   const [ref, setRef] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     if (!preselectedSpecialtyId) return;
@@ -57,6 +117,7 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
     setDoctorId("");
     setDate("");
     setTime("");
+    setStep("service");
     rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [preselectedSpecialtyId, preselectToken, specialties]);
 
@@ -88,12 +149,18 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
   const availableDates = useMemo(() => {
     if (!availability?.length) return [];
     const wds = new Set(availability.map((a) => a.weekday));
-    const out: { date: string; label: string }[] = [];
+    const out: { date: string; label: string; weekday: string }[] = [];
     const now = new Date();
+    const weekdayLabels = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
     for (let i = 0; i < 21 && out.length < 14; i++) {
-      const d = new Date(now); d.setDate(now.getDate() + i);
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
       if (wds.has(d.getDay())) {
-        out.push({ date: d.toISOString().slice(0, 10), label: `${d.getDate()}/${d.getMonth() + 1}` });
+        out.push({
+          date: d.toISOString().slice(0, 10),
+          label: `${d.getDate()}/${d.getMonth() + 1}`,
+          weekday: weekdayLabels[d.getDay()],
+        });
       }
     }
     return out;
@@ -106,7 +173,8 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
     availability.filter((a) => a.weekday === wd).forEach((a) => {
       const [sh, sm] = a.start_time.split(":").map(Number);
       const [eh, em] = a.end_time.split(":").map(Number);
-      let m = sh * 60 + sm; const end = eh * 60 + em;
+      let m = sh * 60 + sm;
+      const end = eh * 60 + em;
       while (m + a.slot_minutes <= end) {
         slots.add(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
         m += a.slot_minutes;
@@ -115,10 +183,52 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
     return Array.from(slots).sort();
   }, [date, availability]);
 
+  const selectedSpecialty = useMemo(
+    () => specialties.find((s) => s.id === specialtyId) || null,
+    [specialties, specialtyId],
+  );
+  const selectedDoctor = useMemo(
+    () => (doctors ?? []).find((d) => d.id === doctorId) || null,
+    [doctors, doctorId],
+  );
+
+  const stepError = validateStep(step, { specialtyId, doctorId, date, time, form });
+
+  const nextStep = () => {
+    const err = validateStep(step, { specialtyId, doctorId, date, time, form });
+    if (err) {
+      toast.error(err);
+      return;
+    }
+    const idx = stepIndex(step);
+    if (idx < STEPS.length - 1) {
+      setStep(STEPS[idx + 1].id);
+    }
+  };
+
+  const prevStep = () => {
+    const idx = stepIndex(step);
+    if (idx > 0) {
+      setStep(STEPS[idx - 1].id);
+    }
+  };
+
+  const goToStep = (id: StepId) => {
+    const targetIdx = stepIndex(id);
+    const currentIdx = stepIndex(step);
+    if (targetIdx > currentIdx) {
+      const err = validateStep(step, { specialtyId, doctorId, date, time, form });
+      if (err) {
+        toast.error(err);
+        return;
+      }
+    }
+    setStep(id);
+  };
+
   const submit = async () => {
-    if (!specialtyId) return toast.error("اختر التخصص");
-    if (!doctorId) return toast.error("اختر الطبيب");
-    if (!date || !time) return toast.error("اختر التاريخ والوقت");
+    const err = validateStep("patient", { specialtyId, doctorId, date, time, form });
+    if (err) return toast.error(err);
     const parsed = schema.safeParse(form);
     if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? "بيانات غير صالحة");
     const v = parsed.data;
@@ -143,6 +253,16 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
     setRef(id.slice(0, 8).toUpperCase());
   };
 
+  const resetForm = () => {
+    setRef(null);
+    setSpecialtyId("");
+    setDoctorId("");
+    setDate("");
+    setTime("");
+    setForm({ name: "", phone: "", gender: "male", reason: "" });
+    setStep("service");
+  };
+
   if (ref) {
     return (
       <div className="rounded-2xl border border-border bg-card p-6 text-center">
@@ -155,11 +275,16 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
           رقم الحجز: <span className="font-mono font-bold text-primary">{ref}</span>
         </div>
         <div className="mt-4 flex justify-center gap-2">
-          <Link to="/lookup" className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted">
+          <Link
+            to="/lookup"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+          >
             <Search className="h-4 w-4" /> تتبّع الحجز
           </Link>
-          <button onClick={() => { setRef(null); setDate(""); setTime(""); setForm({ name: "", phone: "", gender: "male", reason: "" }); }}
-            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold">
+          <button
+            onClick={resetForm}
+            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
+          >
             حجز جديد
           </button>
         </div>
@@ -167,7 +292,11 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
     );
   }
 
-  const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
+  const currentStepIdx = stepIndex(step);
+  const progress = ((currentStepIdx + 1) / STEPS.length) * 100;
+
+  const inputCls =
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
   return (
     <div ref={rootRef} className="rounded-2xl border border-border bg-card p-5 md:p-6">
@@ -175,107 +304,324 @@ export function BranchBookingForm({ branchId, branchNameAr, specialties, presele
         <CalendarPlus className="h-5 w-5 text-primary" /> احجز موعد في {branchNameAr}
       </h3>
 
-      <div className="grid gap-4">
-        {/* Specialty */}
-        <div>
-          <label className="block text-xs font-semibold mb-1">التخصص</label>
-          {specialties.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا توجد تخصصات متاحة في هذا الفرع حالياً.</p>
-          ) : (
-            <select className={inputCls} value={specialtyId} onChange={(e) => { setSpecialtyId(e.target.value); setDoctorId(""); setDate(""); setTime(""); }}>
-              <option value="">— اختر تخصصاً —</option>
-              {specialties.map((s) => <option key={s.id} value={s.id}>{s.name_ar}</option>)}
-            </select>
-          )}
+      {/* Stepper */}
+      <nav aria-label="مراحل الحجز" className="mb-6">
+        <div className="relative mb-2">
+          <div className="absolute top-1/2 -translate-y-1/2 start-0 end-0 h-1 rounded-full bg-muted" />
+          <div
+            className="absolute top-1/2 -translate-y-1/2 start-0 h-1 rounded-full bg-primary transition-all duration-300"
+            style={{ width: `${progress}%` }}
+            aria-hidden
+          />
+          <ol className="relative z-10 flex items-center justify-between">
+            {STEPS.map((s, i) => {
+              const Icon = s.icon;
+              const status = i < currentStepIdx ? "done" : i === currentStepIdx ? "active" : "pending";
+              const isClickable = i <= currentStepIdx || stepIndex(s.id) < currentStepIdx;
+              return (
+                <li key={s.id} className="flex flex-col items-center gap-1.5">
+                  <button
+                    ref={(el) => {
+                      stepRefs.current[i] = el;
+                    }}
+                    type="button"
+                    onClick={() => isClickable && goToStep(s.id)}
+                    disabled={!isClickable}
+                    aria-current={status === "active" ? "step" : undefined}
+                    aria-label={`الخطوة ${i + 1}: ${s.label}${status === "done" ? " — مكتملة" : ""}`}
+                    className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                      status === "active"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : status === "done"
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-muted bg-background text-muted-foreground"
+                    } ${isClickable ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                  >
+                    {status === "done" ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  </button>
+                  <span
+                    className={`text-[10px] font-medium ${
+                      status === "active" ? "text-primary" : status === "done" ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {s.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
         </div>
+        <p className="text-xs text-muted-foreground text-center" aria-live="polite">
+          الخطوة {currentStepIdx + 1} من {STEPS.length}: {STEPS[currentStepIdx].label}
+        </p>
+      </nav>
 
-        {/* Doctor */}
-        {specialtyId && (
-          <div>
-            <label className="block text-xs font-semibold mb-1">الطبيب</label>
-            <select className={inputCls} value={doctorId} onChange={(e) => { setDoctorId(e.target.value); setDate(""); setTime(""); }}>
-              <option value="">— اختر طبيباً —</option>
-              {(doctors ?? []).map((d) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
-            </select>
-            {doctors && doctors.length === 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">لا يوجد أطباء متاحون لهذا التخصص في الفرع.</p>
+      {/* Step content */}
+      <div className="min-h-[200px]">
+        {step === "service" && (
+          <div className="grid gap-4 animate-in fade-in duration-200">
+            <div>
+              <label className="block text-xs font-semibold mb-1">التخصص</label>
+              {specialties.length === 0 ? (
+                <p className="text-sm text-muted-foreground">لا توجد تخصصات متاحة في هذا الفرع حالياً.</p>
+              ) : (
+                <select
+                  className={inputCls}
+                  value={specialtyId}
+                  onChange={(e) => {
+                    setSpecialtyId(e.target.value);
+                    setDoctorId("");
+                    setDate("");
+                    setTime("");
+                  }}
+                >
+                  <option value="">— اختر تخصصاً —</option>
+                  {specialties.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name_ar}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {specialtyId && (
+              <div>
+                <label className="block text-xs font-semibold mb-1">الطبيب</label>
+                <select
+                  className={inputCls}
+                  value={doctorId}
+                  onChange={(e) => {
+                    setDoctorId(e.target.value);
+                    setDate("");
+                    setTime("");
+                  }}
+                >
+                  <option value="">— اختر طبيباً —</option>
+                  {(doctors ?? []).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name_ar}
+                    </option>
+                  ))}
+                </select>
+                {doctors && doctors.length === 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">لا يوجد أطباء متاحون لهذا التخصص في الفرع.</p>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        {/* Date */}
-        {doctorId && (
-          <div>
-            <label className="block text-xs font-semibold mb-1">التاريخ</label>
-            {availableDates.length === 0 ? (
-              <p className="text-sm text-muted-foreground">لا توجد مواعيد متاحة قريباً.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {availableDates.map((d) => (
-                  <button key={d.date} type="button"
-                    onClick={() => { setDate(d.date); setTime(""); }}
-                    className={`rounded-md border px-3 py-1.5 text-sm ${date === d.date ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted"}`}>
-                    {d.label}
-                  </button>
-                ))}
+            {stepError && (
+              <div className="flex items-center gap-2 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {stepError}
               </div>
             )}
           </div>
         )}
 
-        {/* Time */}
-        {date && (
-          <div>
-            <label className="block text-xs font-semibold mb-1">الوقت</label>
-            {availableTimes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">لا توجد أوقات متاحة في هذا اليوم.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {availableTimes.map((tm) => (
-                  <button key={tm} type="button" dir="ltr"
-                    onClick={() => setTime(tm)}
-                    className={`rounded-md border px-3 py-1.5 text-sm ${time === tm ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted"}`}>
-                    {tm}
-                  </button>
-                ))}
+        {step === "datetime" && (
+          <div className="grid gap-4 animate-in fade-in duration-200">
+            <div>
+              <label className="block text-xs font-semibold mb-1">التاريخ</label>
+              {availableDates.length === 0 ? (
+                <p className="text-sm text-muted-foreground">لا توجد مواعيد متاحة قريباً.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {availableDates.map((d) => (
+                    <button
+                      key={d.date}
+                      type="button"
+                      onClick={() => {
+                        setDate(d.date);
+                        setTime("");
+                      }}
+                      className={`rounded-md border px-3 py-1.5 text-sm ${
+                        date === d.date
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted"
+                      }`}
+                    >
+                      <span dir="ltr">{d.label}</span>
+                      <span className="block text-[10px] text-muted-foreground">{d.weekday}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {date && (
+              <div>
+                <label className="block text-xs font-semibold mb-1">الوقت</label>
+                {availableTimes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">لا توجد أوقات متاحة في هذا اليوم.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {availableTimes.map((tm) => (
+                      <button
+                        key={tm}
+                        type="button"
+                        dir="ltr"
+                        onClick={() => setTime(tm)}
+                        className={`rounded-md border px-3 py-1.5 text-sm ${
+                          time === tm
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:bg-muted"
+                        }`}
+                      >
+                        {tm}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {stepError && (
+              <div className="flex items-center gap-2 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {stepError}
               </div>
             )}
           </div>
         )}
 
-        {/* Patient info */}
-        {time && (
-          <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-border">
+        {step === "patient" && (
+          <div className="grid gap-3 sm:grid-cols-2 animate-in fade-in duration-200">
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold mb-1">الاسم الكامل</label>
-              <input className={inputCls} value={form.name} maxLength={NAME_MAX}
-                onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <input
+                className={inputCls}
+                value={form.name}
+                maxLength={NAME_MAX}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold mb-1">رقم الجوال</label>
-              <input dir="ltr" className={inputCls} value={form.phone} maxLength={PHONE_MAX}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="05xxxxxxxx" />
+              <input
+                dir="ltr"
+                className={inputCls}
+                value={form.phone}
+                maxLength={PHONE_MAX}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="05xxxxxxxx"
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold mb-1">الجنس</label>
-              <select className={inputCls} value={form.gender}
-                onChange={(e) => setForm({ ...form, gender: e.target.value as "male" | "female" })}>
+              <select
+                className={inputCls}
+                value={form.gender}
+                onChange={(e) => setForm({ ...form, gender: e.target.value as "male" | "female" })}
+              >
                 <option value="male">ذكر</option>
                 <option value="female">أنثى</option>
               </select>
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold mb-1">سبب الزيارة (اختياري)</label>
-              <textarea className={inputCls} rows={2} maxLength={REASON_MAX} value={form.reason}
-                onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+              <textarea
+                className={inputCls}
+                rows={2}
+                maxLength={REASON_MAX}
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              />
             </div>
 
-            <button type="button" disabled={submitting} onClick={submit}
-              className="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95 disabled:opacity-60">
+            {stepError && (
+              <div className="sm:col-span-2 flex items-center gap-2 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {stepError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === "confirm" && (
+          <div className="grid gap-4 animate-in fade-in duration-200">
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">الفرع</span>
+                <span className="font-medium">{branchNameAr}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">التخصص</span>
+                <span className="font-medium">{selectedSpecialty?.name_ar ?? "—"}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">الطبيب</span>
+                <span className="font-medium">{selectedDoctor?.name_ar ?? "—"}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">التاريخ</span>
+                <span className="font-medium" dir="ltr">
+                  {date}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">الوقت</span>
+                <span className="font-medium" dir="ltr">
+                  {time}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">المريض</span>
+                <span className="font-medium">{form.name}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">الجوال</span>
+                <span className="font-medium" dir="ltr">
+                  {form.phone}
+                </span>
+              </div>
+              {form.reason && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">سبب الزيارة</span>
+                  <span className="font-medium">{form.reason}</span>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={submit}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95 disabled:opacity-60"
+            >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               تأكيد الحجز
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <div className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-4">
+        <button
+          type="button"
+          onClick={prevStep}
+          disabled={currentStepIdx === 0}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <ChevronRight className="h-4 w-4" /> السابق
+        </button>
+
+        <button
+          type="button"
+          onClick={resetForm}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md px-2 py-1"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> إعادة البدء
+        </button>
+
+        {step !== "confirm" && (
+          <button
+            type="button"
+            onClick={nextStep}
+            className="inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            التالي <ChevronLeft className="h-4 w-4" />
+          </button>
         )}
       </div>
     </div>
