@@ -259,13 +259,61 @@ function BookPage() {
     [slotResp?.booked],
   );
 
+  // Track the scope in which the current time was picked, so if it later
+  // disappears we can explain WHY (booked / scope changed / out of window)
+  // instead of silently clearing the selection.
+  const pickedScopeRef = useRef<{
+    doctorId: string;
+    specialtyId: string;
+    branchId: string | null;
+    date: string;
+  } | null>(null);
+  useEffect(() => {
+    if (time) {
+      pickedScopeRef.current = { doctorId, specialtyId, branchId, date };
+    } else {
+      pickedScopeRef.current = null;
+    }
+    // Only re-capture when the user actively (re-)selects a time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [time]);
+
   // If the currently-selected time disappears from the available list
-  // (someone else booked it, or the doctor went on leave), clear it so the
-  // user is forced to pick again instead of submitting a stale value.
+  // (someone else booked it, doctor went on leave, or scope changed),
+  // clear it AND surface a reason so the user isn't left guessing.
   useEffect(() => {
     if (!time) return;
-    if (!availableTimes.includes(time)) setTime("");
-  }, [availableTimes, time]);
+    if (slotsFetching) return; // wait for the fresh response
+    if (availableTimes.includes(time)) return;
+
+    const picked = pickedScopeRef.current;
+    const scopeChanged =
+      !!picked &&
+      (picked.doctorId !== doctorId ||
+        picked.specialtyId !== specialtyId ||
+        picked.branchId !== branchId ||
+        picked.date !== date);
+
+    let reason: string;
+    if (scopeChanged) {
+      reason =
+        lang === "ar"
+          ? "تم إلغاء الوقت المختار لأن العيادة/الطبيب/التاريخ تغيّر."
+          : "Selected time was cleared because the clinic/doctor/date changed.";
+    } else if (bookedSet.has(time)) {
+      reason =
+        lang === "ar"
+          ? "الوقت الذي اخترته لم يعد متاحًا — تم حجزه للتو."
+          : "Your selected time is no longer available — it was just booked.";
+    } else {
+      reason =
+        lang === "ar"
+          ? "الوقت المختار خارج النافذة المتاحة (فات وقته أو انتهت الفترة)."
+          : "The selected time is outside the available window (past or out of range).";
+    }
+    toast.error(reason);
+    setTime("");
+  }, [availableTimes, bookedSet, slotsFetching, time, doctorId, specialtyId, branchId, date, lang]);
 
   const morningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) < 12);
   const eveningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) >= 12);
