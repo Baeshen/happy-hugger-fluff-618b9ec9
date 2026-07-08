@@ -272,9 +272,35 @@ function BookingConfirmationPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            {(appt.status === "new" || appt.status === "confirmed") && (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="text-sm font-bold mb-1">إدارة الحجز</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  يمكنك تعديل موعدك أو إلغاؤه في أي وقت — سنستخدم رقم الحجز ورقم جوالك للتحقق.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    to="/lookup"
+                    search={{ ref: share.ref, phone: appt.patient_phone, action: "reschedule" }}
+                    className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
+                  >
+                    <CalendarPlus className="h-4 w-4" /> تعديل الموعد
+                  </Link>
+                  <Link
+                    to="/lookup"
+                    search={{ ref: share.ref, phone: appt.patient_phone, action: "cancel" }}
+                    className="inline-flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10"
+                  >
+                    <AlertCircle className="h-4 w-4" /> إلغاء الحجز
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
               <Link
                 to="/lookup"
+                search={{ ref: share.ref, phone: appt.patient_phone }}
                 className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
               >
                 <Search className="h-4 w-4" /> {t("track_booking")}
