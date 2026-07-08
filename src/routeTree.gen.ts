@@ -39,6 +39,7 @@ import { Route as SpecialtiesSlugRouteImport } from './routes/specialties.$slug'
 import { Route as MediaNewsRouteImport } from './routes/media.news'
 import { Route as HealthSearchRouteImport } from './routes/health.search'
 import { Route as HealthSlugRouteImport } from './routes/health.$slug'
+import { Route as ExcellenceSlugRouteImport } from './routes/excellence.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as BranchesSlugRouteImport } from './routes/branches.$slug'
 import { Route as AuthenticatedTransitionsStatsRouteImport } from './routes/_authenticated/transitions-stats'
@@ -214,6 +215,11 @@ const HealthSlugRoute = HealthSlugRouteImport.update({
   path: '/health/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExcellenceSlugRoute = ExcellenceSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ExcellenceRoute,
+} as any)
 const DoctorsSlugRoute = DoctorsSlugRouteImport.update({
   id: '/doctors/$slug',
   path: '/doctors/$slug',
@@ -364,7 +370,7 @@ export interface FileRoutesByFullPath {
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
   '/emergency': typeof EmergencyRoute
-  '/excellence': typeof ExcellenceRoute
+  '/excellence': typeof ExcellenceRouteWithChildren
   '/faq': typeof FaqRoute
   '/home-care': typeof HomeCareRoute
   '/insurance': typeof InsuranceRoute
@@ -396,6 +402,7 @@ export interface FileRoutesByFullPath {
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
+  '/excellence/$slug': typeof ExcellenceSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
@@ -420,7 +427,7 @@ export interface FileRoutesByTo {
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
   '/emergency': typeof EmergencyRoute
-  '/excellence': typeof ExcellenceRoute
+  '/excellence': typeof ExcellenceRouteWithChildren
   '/faq': typeof FaqRoute
   '/home-care': typeof HomeCareRoute
   '/insurance': typeof InsuranceRoute
@@ -452,6 +459,7 @@ export interface FileRoutesByTo {
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
+  '/excellence/$slug': typeof ExcellenceSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
@@ -478,7 +486,7 @@ export interface FileRoutesById {
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
   '/emergency': typeof EmergencyRoute
-  '/excellence': typeof ExcellenceRoute
+  '/excellence': typeof ExcellenceRouteWithChildren
   '/faq': typeof FaqRoute
   '/home-care': typeof HomeCareRoute
   '/insurance': typeof InsuranceRoute
@@ -510,6 +518,7 @@ export interface FileRoutesById {
   '/_authenticated/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
   '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
+  '/excellence/$slug': typeof ExcellenceSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
@@ -568,6 +577,7 @@ export interface FileRouteTypes {
     | '/transitions-stats'
     | '/branches/$slug'
     | '/doctors/$slug'
+    | '/excellence/$slug'
     | '/health/$slug'
     | '/health/search'
     | '/media/news'
@@ -624,6 +634,7 @@ export interface FileRouteTypes {
     | '/transitions-stats'
     | '/branches/$slug'
     | '/doctors/$slug'
+    | '/excellence/$slug'
     | '/health/$slug'
     | '/health/search'
     | '/media/news'
@@ -681,6 +692,7 @@ export interface FileRouteTypes {
     | '/_authenticated/transitions-stats'
     | '/branches/$slug'
     | '/doctors/$slug'
+    | '/excellence/$slug'
     | '/health/$slug'
     | '/health/search'
     | '/media/news'
@@ -707,7 +719,7 @@ export interface RootRouteChildren {
   ComplexRoute: typeof ComplexRoute
   ContactRoute: typeof ContactRoute
   EmergencyRoute: typeof EmergencyRoute
-  ExcellenceRoute: typeof ExcellenceRoute
+  ExcellenceRoute: typeof ExcellenceRouteWithChildren
   FaqRoute: typeof FaqRoute
   HomeCareRoute: typeof HomeCareRoute
   InsuranceRoute: typeof InsuranceRoute
@@ -941,6 +953,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/health/$slug'
       preLoaderRoute: typeof HealthSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/excellence/$slug': {
+      id: '/excellence/$slug'
+      path: '/$slug'
+      fullPath: '/excellence/$slug'
+      preLoaderRoute: typeof ExcellenceSlugRouteImport
+      parentRoute: typeof ExcellenceRoute
     }
     '/doctors/$slug': {
       id: '/doctors/$slug'
@@ -1183,6 +1202,18 @@ const BranchesRouteWithChildren = BranchesRoute._addFileChildren(
   BranchesRouteChildren,
 )
 
+interface ExcellenceRouteChildren {
+  ExcellenceSlugRoute: typeof ExcellenceSlugRoute
+}
+
+const ExcellenceRouteChildren: ExcellenceRouteChildren = {
+  ExcellenceSlugRoute: ExcellenceSlugRoute,
+}
+
+const ExcellenceRouteWithChildren = ExcellenceRoute._addFileChildren(
+  ExcellenceRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -1196,7 +1227,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComplexRoute: ComplexRoute,
   ContactRoute: ContactRoute,
   EmergencyRoute: EmergencyRoute,
-  ExcellenceRoute: ExcellenceRoute,
+  ExcellenceRoute: ExcellenceRouteWithChildren,
   FaqRoute: FaqRoute,
   HomeCareRoute: HomeCareRoute,
   InsuranceRoute: InsuranceRoute,
