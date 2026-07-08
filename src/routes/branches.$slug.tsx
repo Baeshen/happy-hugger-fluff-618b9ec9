@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link, notFound, ErrorComponent, type ErrorComponentProps, useRouter } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { MapPin, Phone, Clock, Siren, Building2, ArrowLeft, CalendarPlus } from "lucide-react";
@@ -145,6 +146,8 @@ function formatHours(hours: PublicBranch["working_hours"]) {
 function BranchDetailPage() {
   const { slug } = Route.useParams();
   const { data } = useSuspenseQuery(branchQuery(slug));
+  const [preselectedSpecialtyId, setPreselectedSpecialtyId] = useState<string | null>(null);
+  const [preselectToken, setPreselectToken] = useState(0);
   if (!data) return null;
   const { branch: b, centers, specialties } = data;
   const hours = formatHours(b.working_hours);
@@ -152,6 +155,13 @@ function BranchDetailPage() {
     b.lat != null && b.lng != null
       ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}`
       : null;
+
+  const handleBookService = (payload: { specialtyId: string | null; label: string }) => {
+    if (!payload.specialtyId) return;
+    setPreselectedSpecialtyId(payload.specialtyId);
+    setPreselectToken((n: number) => n + 1);
+  };
+
 
 
   return (
@@ -250,12 +260,23 @@ function BranchDetailPage() {
               لم يتم إضافة خدمات أو مراكز تميز لهذا الفرع بعد.
             </div>
           ) : (
-            <BranchServicesExplorer branch={b} specialties={specialties} centers={centers} />
+            <BranchServicesExplorer
+              branch={b}
+              specialties={specialties}
+              centers={centers}
+              onBookService={handleBookService}
+            />
           )}
 
 
           <section id="book">
-            <BranchBookingForm branchId={b.id} branchNameAr={b.name_ar} specialties={specialties} />
+            <BranchBookingForm
+              branchId={b.id}
+              branchNameAr={b.name_ar}
+              specialties={specialties}
+              preselectedSpecialtyId={preselectedSpecialtyId}
+              preselectToken={preselectToken}
+            />
           </section>
 
           <div>

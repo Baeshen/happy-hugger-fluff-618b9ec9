@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Search, MapPin, Stethoscope, X } from "lucide-react";
+import { Search, MapPin, Stethoscope, X, CalendarPlus } from "lucide-react";
 import type { BranchSpecialty, ExcellenceCenter, PublicBranch } from "@/lib/branches.functions";
 
 type Props = {
   branch: PublicBranch;
   specialties: BranchSpecialty[];
   centers: ExcellenceCenter[];
+  onBookService?: (payload: { specialtyId: string | null; label: string; kind: "specialty" | "center" }) => void;
 };
 
 function baseMapEmbed(b: PublicBranch): string | null {
@@ -26,10 +27,18 @@ function serviceMapEmbed(b: PublicBranch, serviceLabel: string): string | null {
   return `https://www.google.com/maps?q=${q}&hl=ar&z=15&output=embed`;
 }
 
-export function BranchServicesExplorer({ branch, specialties, centers }: Props) {
+export function BranchServicesExplorer({ branch, specialties, centers, onBookService }: Props) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "specialty" | "center">("all");
-  const [selected, setSelected] = useState<{ id: string; label: string; kind: "specialty" | "center" } | null>(null);
+  const [selected, setSelected] = useState<
+    | {
+        id: string;
+        label: string;
+        kind: "specialty" | "center";
+        specialtyId: string | null;
+      }
+    | null
+  >(null);
 
   const items = useMemo(() => {
     const specs = specialties.map((s) => ({
@@ -37,14 +46,14 @@ export function BranchServicesExplorer({ branch, specialties, centers }: Props) 
       label: s.name_ar,
       sub: s.name_en,
       kind: "specialty" as const,
-      icon: null as string | null,
+      specialtyId: s.id,
     }));
     const cs = centers.map((c) => ({
       id: `c:${c.id}`,
       label: c.name_ar,
       sub: c.short_ar ?? c.name_en,
       kind: "center" as const,
-      icon: c.icon,
+      specialtyId: c.specialty_id ?? null,
     }));
     const all = [...cs, ...specs];
     const filtered = all
@@ -61,6 +70,8 @@ export function BranchServicesExplorer({ branch, specialties, centers }: Props) 
 
   const embed = selected ? serviceMapEmbed(branch, selected.label) : baseMapEmbed(branch);
   const hasCoords = branch.lat != null && branch.lng != null;
+  const canBookSelected = !!(selected && selected.specialtyId && onBookService);
+
 
   return (
     <section className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -122,7 +133,11 @@ export function BranchServicesExplorer({ branch, specialties, centers }: Props) 
                     <button
                       type="button"
                       onClick={() =>
-                        setSelected(active ? null : { id: it.id, label: it.label, kind: it.kind })
+                        setSelected(
+                          active
+                            ? null
+                            : { id: it.id, label: it.label, kind: it.kind, specialtyId: it.specialtyId },
+                        )
                       }
                       className={`w-full text-start rounded-lg border px-3 py-2.5 text-sm transition-all flex items-center justify-between gap-2 ${
                         active
@@ -172,7 +187,7 @@ export function BranchServicesExplorer({ branch, specialties, centers }: Props) 
           )}
 
           {selected && (
-            <div className="absolute top-3 start-3 end-3 rounded-lg bg-background/95 backdrop-blur border border-border shadow-lg p-3 flex items-center gap-3">
+            <div className="absolute top-3 start-3 end-3 rounded-lg bg-background/95 backdrop-blur border border-border shadow-lg p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <MapPin className="h-5 w-5 text-primary shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-muted-foreground">
@@ -184,15 +199,38 @@ export function BranchServicesExplorer({ branch, specialties, centers }: Props) 
                     الموقع الدقيق للخدمة غير متوفر — يعرض موقع الفرع تقريبيًا.
                   </div>
                 )}
+                {selected.kind === "center" && !selected.specialtyId && onBookService && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    هذا المركز غير مرتبط بتخصص محدد — استخدم نموذج الحجز أدناه.
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="rounded-md p-1.5 hover:bg-muted"
-                aria-label="إلغاء التحديد"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                {canBookSelected && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onBookService!({
+                        specialtyId: selected!.specialtyId,
+                        label: selected!.label,
+                        kind: selected!.kind,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:opacity-95"
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5" />
+                    احجز هذه الخدمة
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  className="rounded-md p-1.5 hover:bg-muted"
+                  aria-label="إلغاء التحديد"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
