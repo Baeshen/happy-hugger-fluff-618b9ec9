@@ -685,7 +685,10 @@ function DownloadFileButton({
     <button
       type="button"
       disabled={loading}
+      aria-busy={loading}
+      aria-label={loading ? "جاري إعداد رابط التنزيل" : label}
       onClick={async () => {
+        if (loading) return;
         setLoading(true);
         try {
           const { data, error } = await supabase.storage
@@ -711,10 +714,10 @@ function DownloadFileButton({
           setLoading(false);
         }
       }}
-      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-      {label}
+      {loading ? "جاري التحضير..." : label}
     </button>
   );
 }
