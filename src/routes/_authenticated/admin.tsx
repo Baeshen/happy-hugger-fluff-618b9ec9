@@ -2103,6 +2103,18 @@ function RemindersDeliveryTab() {
                             #{r.appointment_id.slice(0, 8).toUpperCase()}
                           </div>
                         )}
+                        {r.appointment_id && r.appointment?.patient_phone && (
+                          <Link
+                            to="/booking-confirmation"
+                            search={{
+                              ref: r.appointment_id.replace(/-/g, ""),
+                              phone: r.appointment.patient_phone,
+                            }}
+                            className="mt-1 inline-flex text-xs text-primary hover:underline"
+                          >
+                            عرض تفاصيل الحجز
+                          </Link>
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
                         {r.appointment?.appointment_date ?? "—"}
