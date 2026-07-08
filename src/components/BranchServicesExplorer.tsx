@@ -29,19 +29,21 @@ function serviceMapEmbed(b: PublicBranch, serviceLabel: string): string | null {
 }
 
 export function BranchServicesExplorer({ branch, specialties, centers, onBookService }: Props) {
+  const search = useSearch({ from: "/branches/$slug" });
+  const navigate = useNavigate({ from: "/branches/$slug" });
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "specialty" | "center">("all");
   const deferredQuery = useDeferredValue(query);
   const isFiltering = query !== deferredQuery;
-  const [selected, setSelected] = useState<
-    | {
-        id: string;
-        label: string;
-        kind: "specialty" | "center";
-        specialtyId: string | null;
-      }
-    | null
-  >(null);
+  type SelectedItem = {
+    id: string;
+    label: string;
+    kind: "specialty" | "center";
+    specialtyId: string | null;
+  };
+  const [selected, setSelected] = useState<SelectedItem | null>(null);
+  const [mapLoading, setMapLoading] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const totalCount = specialties.length + centers.length;
 
