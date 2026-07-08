@@ -112,6 +112,9 @@ function BookPage() {
   });
   const [errors, setErrors] = useState<StepErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<
+    Extract<BookingSubmitResult, { ok: false }> | null
+  >(null);
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
