@@ -681,39 +681,77 @@ function DownloadFileButton({
   filename?: string;
 }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generateAndDownload() {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: signError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
+      if (signError || !data?.signedUrl) {
+        const msg = signError?.message ?? "";
+        if (/not.?found|404/i.test(msg)) {
+          setError("الملف غير متاح حاليًا، الرجاء التواصل مع الاستقبال");
+        } else if (/expired|انتهت/i.test(msg)) {
+          setError("انتهت صلاحية الرابط، اضغط إعادة المحاولة");
+        } else {
+          setError(msg || "تعذّر إنشاء رابط التنزيل");
+        }
+        return;
+      }
+
+      // Verify the signed URL is reachable before triggering download
+      try {
+        const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
+        if (!check.ok) {
+          setError("رابط التنزيل غير صالح أو انتهت صلاحيته، اضغط إعادة المحاولة");
+          return;
+        }
+      } catch {
+        // If CORS/network check fails, still attempt direct download; browser handles it
+      }
+
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      if (filename) a.download = filename;
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      setError("حدث خطأ غير متوقع، اضغط إعادة المحاولة");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="inline-flex flex-col items-start gap-1.5">
+        <button
+          type="button"
+          disabled={loading}
+          onClick={generateAndDownload}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          إعادة المحاولة
+        </button>
+        <span className="text-xs text-destructive">{error}</span>
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
       disabled={loading}
       aria-busy={loading}
       aria-label={loading ? "جاري إعداد رابط التنزيل" : label}
-      onClick={async () => {
-        if (loading) return;
-        setLoading(true);
-        try {
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
-          if (error || !data?.signedUrl) {
-            const msg = error?.message ?? "";
-            if (/not.?found|404/i.test(msg)) {
-              toast.error("الملف غير متاح حاليًا، الرجاء التواصل مع الاستقبال");
-            } else {
-              toast.error(msg || "تعذّر إنشاء رابط التنزيل");
-            }
-            return;
-          }
-          const a = document.createElement("a");
-          a.href = data.signedUrl;
-          if (filename) a.download = filename;
-          a.rel = "noopener noreferrer";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-        } finally {
-          setLoading(false);
-        }
-      }}
+      onClick={generateAndDownload}
       className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
