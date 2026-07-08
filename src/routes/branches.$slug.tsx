@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound, ErrorComponent, type ErrorComponentPro
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { MapPin, Phone, Clock, Siren, Building2, Stethoscope, Award, ArrowLeft, CalendarPlus } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
+import { BranchBookingForm } from "@/components/BranchBookingForm";
 import { getBranchDetail, type PublicBranch } from "@/lib/branches.functions";
 
 const branchQuery = (slug: string) =>
