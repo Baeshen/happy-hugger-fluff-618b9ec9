@@ -9,13 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TelemedicineRouteImport } from './routes/telemedicine'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RateRouteImport } from './routes/rate'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
+import { Route as PackagesRouteImport } from './routes/packages'
 import { Route as LookupRouteImport } from './routes/lookup'
+import { Route as InternationalPatientsRouteImport } from './routes/international-patients'
+import { Route as InsuranceRouteImport } from './routes/insurance'
+import { Route as HomeCareRouteImport } from './routes/home-care'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ExcellenceRouteImport } from './routes/excellence'
+import { Route as EmergencyRouteImport } from './routes/emergency'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ComplexRouteImport } from './routes/complex'
+import { Route as ComplaintsRouteImport } from './routes/complaints'
+import { Route as CareersRouteImport } from './routes/careers'
+import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as BookRouteImport } from './routes/book'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
@@ -25,6 +35,7 @@ import { Route as SpecialtiesIndexRouteImport } from './routes/specialties.index
 import { Route as HealthIndexRouteImport } from './routes/health.index'
 import { Route as DoctorsIndexRouteImport } from './routes/doctors.index'
 import { Route as SpecialtiesSlugRouteImport } from './routes/specialties.$slug'
+import { Route as MediaNewsRouteImport } from './routes/media.news'
 import { Route as HealthSearchRouteImport } from './routes/health.search'
 import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
@@ -50,6 +61,11 @@ import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 
+const TelemedicineRoute = TelemedicineRouteImport.update({
+  id: '/telemedicine',
+  path: '/telemedicine',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -65,14 +81,44 @@ const PharmacyRoute = PharmacyRouteImport.update({
   path: '/pharmacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PackagesRoute = PackagesRouteImport.update({
+  id: '/packages',
+  path: '/packages',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LookupRoute = LookupRouteImport.update({
   id: '/lookup',
   path: '/lookup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InternationalPatientsRoute = InternationalPatientsRouteImport.update({
+  id: '/international-patients',
+  path: '/international-patients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsuranceRoute = InsuranceRouteImport.update({
+  id: '/insurance',
+  path: '/insurance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeCareRoute = HomeCareRouteImport.update({
+  id: '/home-care',
+  path: '/home-care',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FaqRoute = FaqRouteImport.update({
   id: '/faq',
   path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExcellenceRoute = ExcellenceRouteImport.update({
+  id: '/excellence',
+  path: '/excellence',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmergencyRoute = EmergencyRouteImport.update({
+  id: '/emergency',
+  path: '/emergency',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -83,6 +129,21 @@ const ContactRoute = ContactRouteImport.update({
 const ComplexRoute = ComplexRouteImport.update({
   id: '/complex',
   path: '/complex',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComplaintsRoute = ComplaintsRouteImport.update({
+  id: '/complaints',
+  path: '/complaints',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareersRoute = CareersRouteImport.update({
+  id: '/careers',
+  path: '/careers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BranchesRoute = BranchesRouteImport.update({
+  id: '/branches',
+  path: '/branches',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookRoute = BookRouteImport.update({
@@ -127,6 +188,11 @@ const DoctorsIndexRoute = DoctorsIndexRouteImport.update({
 const SpecialtiesSlugRoute = SpecialtiesSlugRouteImport.update({
   id: '/specialties/$slug',
   path: '/specialties/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MediaNewsRoute = MediaNewsRouteImport.update({
+  id: '/media/news',
+  path: '/media/news',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthSearchRoute = HealthSearchRouteImport.update({
@@ -265,13 +331,23 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/branches': typeof BranchesRoute
+  '/careers': typeof CareersRoute
+  '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
+  '/emergency': typeof EmergencyRoute
+  '/excellence': typeof ExcellenceRoute
   '/faq': typeof FaqRoute
+  '/home-care': typeof HomeCareRoute
+  '/insurance': typeof InsuranceRoute
+  '/international-patients': typeof InternationalPatientsRoute
   '/lookup': typeof LookupRoute
+  '/packages': typeof PackagesRoute
   '/pharmacy': typeof PharmacyRoute
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/telemedicine': typeof TelemedicineRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/audit-export': typeof AuthenticatedAuditExportRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
@@ -293,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
+  '/media/news': typeof MediaNewsRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
@@ -306,13 +383,23 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/branches': typeof BranchesRoute
+  '/careers': typeof CareersRoute
+  '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
+  '/emergency': typeof EmergencyRoute
+  '/excellence': typeof ExcellenceRoute
   '/faq': typeof FaqRoute
+  '/home-care': typeof HomeCareRoute
+  '/insurance': typeof InsuranceRoute
+  '/international-patients': typeof InternationalPatientsRoute
   '/lookup': typeof LookupRoute
+  '/packages': typeof PackagesRoute
   '/pharmacy': typeof PharmacyRoute
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/telemedicine': typeof TelemedicineRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/audit-export': typeof AuthenticatedAuditExportRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
@@ -334,6 +421,7 @@ export interface FileRoutesByTo {
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
+  '/media/news': typeof MediaNewsRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors': typeof DoctorsIndexRoute
   '/health': typeof HealthIndexRoute
@@ -349,13 +437,23 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/branches': typeof BranchesRoute
+  '/careers': typeof CareersRoute
+  '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
   '/contact': typeof ContactRoute
+  '/emergency': typeof EmergencyRoute
+  '/excellence': typeof ExcellenceRoute
   '/faq': typeof FaqRoute
+  '/home-care': typeof HomeCareRoute
+  '/insurance': typeof InsuranceRoute
+  '/international-patients': typeof InternationalPatientsRoute
   '/lookup': typeof LookupRoute
+  '/packages': typeof PackagesRoute
   '/pharmacy': typeof PharmacyRoute
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/telemedicine': typeof TelemedicineRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/audit-export': typeof AuthenticatedAuditExportRoute
   '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
@@ -377,6 +475,7 @@ export interface FileRoutesById {
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
+  '/media/news': typeof MediaNewsRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
@@ -392,13 +491,23 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/book'
+    | '/branches'
+    | '/careers'
+    | '/complaints'
     | '/complex'
     | '/contact'
+    | '/emergency'
+    | '/excellence'
     | '/faq'
+    | '/home-care'
+    | '/insurance'
+    | '/international-patients'
     | '/lookup'
+    | '/packages'
     | '/pharmacy'
     | '/rate'
     | '/sitemap.xml'
+    | '/telemedicine'
     | '/admin'
     | '/audit-export'
     | '/audit-log'
@@ -420,6 +529,7 @@ export interface FileRouteTypes {
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
+    | '/media/news'
     | '/specialties/$slug'
     | '/doctors/'
     | '/health/'
@@ -433,13 +543,23 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/book'
+    | '/branches'
+    | '/careers'
+    | '/complaints'
     | '/complex'
     | '/contact'
+    | '/emergency'
+    | '/excellence'
     | '/faq'
+    | '/home-care'
+    | '/insurance'
+    | '/international-patients'
     | '/lookup'
+    | '/packages'
     | '/pharmacy'
     | '/rate'
     | '/sitemap.xml'
+    | '/telemedicine'
     | '/admin'
     | '/audit-export'
     | '/audit-log'
@@ -461,6 +581,7 @@ export interface FileRouteTypes {
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
+    | '/media/news'
     | '/specialties/$slug'
     | '/doctors'
     | '/health'
@@ -475,13 +596,23 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/book'
+    | '/branches'
+    | '/careers'
+    | '/complaints'
     | '/complex'
     | '/contact'
+    | '/emergency'
+    | '/excellence'
     | '/faq'
+    | '/home-care'
+    | '/insurance'
+    | '/international-patients'
     | '/lookup'
+    | '/packages'
     | '/pharmacy'
     | '/rate'
     | '/sitemap.xml'
+    | '/telemedicine'
     | '/_authenticated/admin'
     | '/_authenticated/audit-export'
     | '/_authenticated/audit-log'
@@ -503,6 +634,7 @@ export interface FileRouteTypes {
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
+    | '/media/news'
     | '/specialties/$slug'
     | '/doctors/'
     | '/health/'
@@ -518,16 +650,27 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
+  BranchesRoute: typeof BranchesRoute
+  CareersRoute: typeof CareersRoute
+  ComplaintsRoute: typeof ComplaintsRoute
   ComplexRoute: typeof ComplexRoute
   ContactRoute: typeof ContactRoute
+  EmergencyRoute: typeof EmergencyRoute
+  ExcellenceRoute: typeof ExcellenceRoute
   FaqRoute: typeof FaqRoute
+  HomeCareRoute: typeof HomeCareRoute
+  InsuranceRoute: typeof InsuranceRoute
+  InternationalPatientsRoute: typeof InternationalPatientsRoute
   LookupRoute: typeof LookupRoute
+  PackagesRoute: typeof PackagesRoute
   PharmacyRoute: typeof PharmacyRoute
   RateRoute: typeof RateRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TelemedicineRoute: typeof TelemedicineRoute
   DoctorsSlugRoute: typeof DoctorsSlugRoute
   HealthSlugRoute: typeof HealthSlugRoute
   HealthSearchRoute: typeof HealthSearchRoute
+  MediaNewsRoute: typeof MediaNewsRoute
   SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
   HealthIndexRoute: typeof HealthIndexRoute
@@ -537,6 +680,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/telemedicine': {
+      id: '/telemedicine'
+      path: '/telemedicine'
+      fullPath: '/telemedicine'
+      preLoaderRoute: typeof TelemedicineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -558,6 +708,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PharmacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/packages': {
+      id: '/packages'
+      path: '/packages'
+      fullPath: '/packages'
+      preLoaderRoute: typeof PackagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lookup': {
       id: '/lookup'
       path: '/lookup'
@@ -565,11 +722,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LookupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/international-patients': {
+      id: '/international-patients'
+      path: '/international-patients'
+      fullPath: '/international-patients'
+      preLoaderRoute: typeof InternationalPatientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insurance': {
+      id: '/insurance'
+      path: '/insurance'
+      fullPath: '/insurance'
+      preLoaderRoute: typeof InsuranceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home-care': {
+      id: '/home-care'
+      path: '/home-care'
+      fullPath: '/home-care'
+      preLoaderRoute: typeof HomeCareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/faq': {
       id: '/faq'
       path: '/faq'
       fullPath: '/faq'
       preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/excellence': {
+      id: '/excellence'
+      path: '/excellence'
+      fullPath: '/excellence'
+      preLoaderRoute: typeof ExcellenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/emergency': {
+      id: '/emergency'
+      path: '/emergency'
+      fullPath: '/emergency'
+      preLoaderRoute: typeof EmergencyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -584,6 +776,27 @@ declare module '@tanstack/react-router' {
       path: '/complex'
       fullPath: '/complex'
       preLoaderRoute: typeof ComplexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/complaints': {
+      id: '/complaints'
+      path: '/complaints'
+      fullPath: '/complaints'
+      preLoaderRoute: typeof ComplaintsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/careers': {
+      id: '/careers'
+      path: '/careers'
+      fullPath: '/careers'
+      preLoaderRoute: typeof CareersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/branches': {
+      id: '/branches'
+      path: '/branches'
+      fullPath: '/branches'
+      preLoaderRoute: typeof BranchesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/book': {
@@ -647,6 +860,13 @@ declare module '@tanstack/react-router' {
       path: '/specialties/$slug'
       fullPath: '/specialties/$slug'
       preLoaderRoute: typeof SpecialtiesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/media/news': {
+      id: '/media/news'
+      path: '/media/news'
+      fullPath: '/media/news'
+      preLoaderRoute: typeof MediaNewsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/health/search': {
@@ -875,16 +1095,27 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
+  BranchesRoute: BranchesRoute,
+  CareersRoute: CareersRoute,
+  ComplaintsRoute: ComplaintsRoute,
   ComplexRoute: ComplexRoute,
   ContactRoute: ContactRoute,
+  EmergencyRoute: EmergencyRoute,
+  ExcellenceRoute: ExcellenceRoute,
   FaqRoute: FaqRoute,
+  HomeCareRoute: HomeCareRoute,
+  InsuranceRoute: InsuranceRoute,
+  InternationalPatientsRoute: InternationalPatientsRoute,
   LookupRoute: LookupRoute,
+  PackagesRoute: PackagesRoute,
   PharmacyRoute: PharmacyRoute,
   RateRoute: RateRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TelemedicineRoute: TelemedicineRoute,
   DoctorsSlugRoute: DoctorsSlugRoute,
   HealthSlugRoute: HealthSlugRoute,
   HealthSearchRoute: HealthSearchRoute,
+  MediaNewsRoute: MediaNewsRoute,
   SpecialtiesSlugRoute: SpecialtiesSlugRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
   HealthIndexRoute: HealthIndexRoute,
