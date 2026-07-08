@@ -13,8 +13,10 @@ import {
   User,
   Loader2,
   ArrowRight,
+  Download,
 } from "lucide-react";
 import { PageHero } from "@/components/PageShell";
+import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
 
 export const Route = createFileRoute("/track")({
   head: () => ({
@@ -299,9 +301,28 @@ function TrackPage() {
                 </dl>
 
                 <div className="mt-5 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadBookingConfirmationPdf({
+                        reference: appointment.reference,
+                        patient_name: appointment.patient_name,
+                        appointment_date: appointment.appointment_date,
+                        appointment_time: appointment.appointment_time,
+                        doctor_name: appointment.doctor_name_ar ?? undefined,
+                        specialty: appointment.specialty_name_ar ?? undefined,
+                        status: status.label,
+                        note: status.note,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    تحميل تأكيد الحجز PDF
+                  </button>
                   <Link
                     to="/book"
-                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input px-4 py-2 text-sm font-semibold hover:bg-muted"
                   >
                     حجز موعد جديد
                     <ArrowRight className="h-3.5 w-3.5" />
