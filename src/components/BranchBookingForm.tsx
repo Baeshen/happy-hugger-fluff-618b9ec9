@@ -509,8 +509,39 @@ export function BranchBookingForm({
         </p>
       </nav>
 
+      {draftResumed && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs"
+        >
+          <div className="flex items-center gap-2 text-foreground">
+            <RotateCcw className="h-3.5 w-3.5 text-primary" />
+            <span>تم استئناف مسودة الحجز المحفوظة سابقاً.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDraftResumed(false)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              إخفاء
+            </button>
+            <span className="text-muted-foreground">·</span>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="font-semibold text-destructive hover:underline"
+            >
+              بدء من جديد
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Step content */}
       <div className="min-h-[200px]">
+
         {step === "service" && (
           <div className="grid gap-4 animate-in fade-in duration-200">
             <div>
