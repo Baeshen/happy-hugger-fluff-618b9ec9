@@ -5,8 +5,22 @@ import { useI18n } from "@/lib/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar as CalIcon,
+  Check,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Stethoscope,
+  Sun,
+  Moon,
+  User,
+  UserCircle2,
+} from "lucide-react";
 import { friendlyInsertError } from "@/lib/insert-errors";
+import { PageHero } from "@/components/PageShell";
 
 const search = z.object({
   specialty: z.string().optional(),
@@ -82,6 +96,14 @@ export const Route = createFileRoute("/book")({
 
 const WEEKDAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
+// Unified field styling matching /second-opinion + /corporate
+const FIELD_CLS =
+  "w-full rounded-lg border border-input bg-background px-3.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20";
+const INPUT_CLS = `${FIELD_CLS} h-11`;
+const TEXTAREA_CLS = `${FIELD_CLS} py-2.5 min-h-[96px]`;
+
+type StepErrors = Partial<Record<"name" | "phone" | "national_id" | "reason", string>>;
+
 function BookPage() {
   const { specialty: initSpec, doctor: initDoc } = Route.useSearch();
   const { t, lang } = useI18n();
@@ -100,6 +122,7 @@ function BookPage() {
     reminder_24h: true,
     reminder_2h: true,
   });
+  const [errors, setErrors] = useState<StepErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
   const { data: specialties } = useQuery({
@@ -132,6 +155,9 @@ function BookPage() {
   const filteredDoctors = (doctors ?? []).filter(
     (d) => !specialtyId || d.specialty_id === specialtyId,
   );
+
+  const selectedSpecialty = specialties?.find((s) => s.id === specialtyId) ?? null;
+  const selectedDoctor = doctors?.find((d) => d.id === doctorId) ?? null;
 
   const { data: availability } = useQuery({
     queryKey: ["availability", doctorId, specialtyId],
@@ -189,26 +215,36 @@ function BookPage() {
     return Array.from(slots).sort();
   }, [date, availability]);
 
+  const morningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) < 12);
+  const eveningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) >= 12);
+
+  const validateStep4 = (): boolean => {
+    const parsed = bookingFormSchema.safeParse(form);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    const next: StepErrors = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0] as keyof StepErrors;
+      if (key && !next[key]) next[key] = issue.message;
+    }
+    setErrors(next);
+    return false;
+  };
+
   const submit = async () => {
     if (!date || !time) {
       toast.error(lang === "ar" ? "يرجى اختيار التاريخ والوقت" : "Please pick a date and time");
       return;
     }
-    const parsed = bookingFormSchema.safeParse(form);
-    if (!parsed.success) {
-      // Surface the first validation issue in Arabic; keeps UI simple and
-      // prevents a raw Zod path/JSON blob from leaking into the toast.
-      toast.error(parsed.error.issues[0]?.message ?? "بيانات غير صالحة");
+    if (!validateStep4()) {
+      toast.error(lang === "ar" ? "يرجى تصحيح الحقول المميزة" : "Please fix highlighted fields");
       return;
     }
-    const v = parsed.data;
+    const v = bookingFormSchema.parse(form);
     setSubmitting(true);
-    // Generate the id client-side so we can show a reference to the patient
-    // WITHOUT relying on `Prefer: return=representation` — anon has no SELECT
-    // policy on `appointments`, so `.select("id").single()` after insert
-    // would trip RLS and the whole insert would roll back. Since the DB
-    // default is also `gen_random_uuid()`, providing our own value here is
-    // just a way to avoid the read-back round trip.
+    // Client-side id avoids a read-back that anon can't perform under RLS.
     const newId = randomId();
     // NOTE: `status` and `notes` are intentionally omitted from the payload;
     // even if a client injected them, `trg_force_appointment_defaults`
@@ -239,259 +275,537 @@ function BookPage() {
     });
   };
 
+  const STEP_LABELS = [
+    { n: 1, label: "التخصص", icon: Stethoscope },
+    { n: 2, label: "الطبيب", icon: UserCircle2 },
+    { n: 3, label: "الموعد", icon: CalIcon },
+    { n: 4, label: "بياناتك", icon: User },
+  ];
+
+  const canGoNext =
+    (step === 1 && !!specialtyId) ||
+    (step === 2 && true) || // doctor optional (any_available)
+    (step === 3 && !!date && !!time);
 
   return (
-    <div className="container-app py-12">
-      <div className="max-w-3xl mx-auto">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold">{t("cta_book")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("step")} {step} {t("of")} 4
-          </p>
-          <div className="mt-4 flex gap-2">
-            {[1, 2, 3, 4].map((n) => (
-              <div
-                key={n}
-                className={`h-1.5 flex-1 rounded-full ${n <= step ? "bg-primary" : "bg-muted"}`}
-              />
-            ))}
-          </div>
-        </header>
-
-        <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
-          {step === 1 && (
-            <div>
-              <h2 className="text-lg font-bold mb-4">{t("choose_specialty")}</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {specialties?.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      setSpecialtyId(s.id);
-                      setDoctorId(null);
-                    }}
-                    className={`text-start rounded-lg border p-3 text-sm transition ${specialtyId === s.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+    <>
+      <PageHero
+        eyebrow="حجز موعد"
+        title={t("cta_book")}
+        subtitle="اختر تخصصك ثم طبيبك ووقتك المناسب، وسنؤكد موعدك خلال دقائق."
+      >
+        {/* Step tracker */}
+        <div className="max-w-3xl">
+          <ol className="flex items-center gap-2 sm:gap-3">
+            {STEP_LABELS.map(({ n, label, icon: Icon }, i) => {
+              const done = step > n;
+              const active = step === n;
+              return (
+                <li key={n} className="flex items-center gap-2 sm:gap-3 flex-1">
+                  <div
+                    className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition ${
+                      active
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : done
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border bg-background/60 text-muted-foreground"
+                    }`}
                   >
-                    {lang === "ar" ? s.name_ar : s.name_en}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div>
-              <h2 className="text-lg font-bold mb-4">{t("choose_doctor")}</h2>
-              <div className="grid gap-2">
-                <button
-                  onClick={() => setDoctorId(null)}
-                  className={`text-start rounded-lg border p-4 transition ${doctorId === null ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-                >
-                  <div className="font-semibold text-sm">{t("any_available")}</div>
-                </button>
-                {filteredDoctors.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setDoctorId(d.id)}
-                    className={`flex items-center gap-3 text-start rounded-lg border p-4 transition ${doctorId === d.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-                  >
-                    <div className="h-10 w-10 rounded-full bg-primary/10 text-primary grid place-items-center font-bold">
-                      {(lang === "ar" ? d.name_ar : d.name_en).charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm">
-                        {lang === "ar" ? d.name_ar : d.name_en}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {lang === "ar" ? d.title_ar : d.title_en}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div>
-              <h2 className="text-lg font-bold mb-4">{t("choose_datetime")}</h2>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-2">
-                  <CalIcon className="h-3 w-3" /> {t("date")}
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                  {availableDates.map((d) => (
-                    <button
-                      key={d.date}
-                      onClick={() => {
-                        setDate(d.date);
-                        setTime("");
-                      }}
-                      className={`rounded-lg border p-2 text-xs text-center transition ${date === d.date ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                    <span
+                      className={`grid h-5 w-5 place-items-center rounded-full text-[10px] ${
+                        active
+                          ? "bg-primary-foreground/20"
+                          : done
+                            ? "bg-primary/20"
+                            : "bg-muted"
+                      }`}
                     >
-                      <div className="font-semibold">{d.label}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {WEEKDAYS_AR[d.weekday]}
+                      {done ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
+                    </span>
+                    <span className="hidden sm:inline">{label}</span>
+                    <span className="sm:hidden">{n}</span>
+                  </div>
+                  {i < STEP_LABELS.length - 1 && (
+                    <div
+                      className={`h-px flex-1 ${done ? "bg-primary/40" : "bg-border"}`}
+                      aria-hidden
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </PageHero>
+
+      <div className="container-app py-10 md:py-14">
+        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          {/* Main card */}
+          <div className="rounded-2xl border border-border bg-card p-6 md:p-8 shadow-sm">
+            {step === 1 && (
+              <div>
+                <h2 className="text-lg font-bold mb-1">{t("choose_specialty")}</h2>
+                <p className="text-xs text-muted-foreground mb-5">
+                  اختر التخصص الطبي الذي يناسب حالتك.
+                </p>
+                {!specialties ? (
+                  <SkeletonGrid />
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {specialties.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          setSpecialtyId(s.id);
+                          setDoctorId(null);
+                        }}
+                        className={`group relative text-start rounded-xl border p-3.5 text-sm transition ${
+                          specialtyId === s.id
+                            ? "border-primary bg-primary/5 shadow-sm"
+                            : "border-border hover:border-primary/50 hover:bg-muted/40"
+                        }`}
+                      >
+                        {specialtyId === s.id && (
+                          <span className="absolute top-2 end-2 grid h-5 w-5 place-items-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                        <div className="font-semibold text-foreground pe-6">
+                          {lang === "ar" ? s.name_ar : s.name_en}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 2 && (
+              <div>
+                <h2 className="text-lg font-bold mb-1">{t("choose_doctor")}</h2>
+                <p className="text-xs text-muted-foreground mb-5">
+                  يمكنك اختيار طبيب معيّن أو ترك النظام يقترح أقرب طبيب متاح.
+                </p>
+                <div className="grid gap-2.5">
+                  <button
+                    onClick={() => setDoctorId(null)}
+                    className={`flex items-center gap-3 text-start rounded-xl border p-4 transition ${
+                      doctorId === null
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+                      <UserCircle2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">{t("any_available")}</div>
+                      <div className="text-xs text-muted-foreground">
+                        سنحجز لك عند أول طبيب متاح في التخصص
                       </div>
+                    </div>
+                    {doctorId === null && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </button>
+                  {filteredDoctors.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                      لا يوجد أطباء في هذا التخصص حاليًا.
+                    </div>
+                  )}
+                  {filteredDoctors.map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => setDoctorId(d.id)}
+                      className={`flex items-center gap-3 text-start rounded-xl border p-4 transition ${
+                        doctorId === d.id
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="h-11 w-11 rounded-full bg-primary/10 text-primary grid place-items-center font-bold">
+                        {(lang === "ar" ? d.name_ar : d.name_en).charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm">
+                          {lang === "ar" ? d.name_ar : d.name_en}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {lang === "ar" ? d.title_ar : d.title_en}
+                        </div>
+                      </div>
+                      {doctorId === d.id && <Check className="h-4 w-4 text-primary" />}
                     </button>
                   ))}
                 </div>
               </div>
-              {date && (
-                <div className="mt-6">
-                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-2">
-                    <Clock className="h-3 w-3" /> {t("time")}
-                  </label>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                    {availableTimes.map((tm) => (
-                      <button
-                        key={tm}
-                        onClick={() => setTime(tm)}
-                        className={`rounded-md border py-2 text-sm transition ${time === tm ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/50"}`}
-                      >
-                        {tm}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+            )}
 
-          {step === 4 && (
-            <div>
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <User className="h-5 w-5" /> {t("patient_info")}
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t("name")} required>
-                  <input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    maxLength={NAME_MAX}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </Field>
-                <Field label={t("phone")} required>
-                  <input
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    inputMode="tel"
-                    maxLength={PHONE_MAX}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </Field>
-                <Field label={t("national_id")}>
-                  <input
-                    value={form.national_id}
-                    onChange={(e) => setForm({ ...form, national_id: e.target.value })}
-                    maxLength={NID_MAX}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </Field>
-                <Field label={t("gender")}>
-                  <select
-                    value={form.gender}
-                    onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="male">{t("male")}</option>
-                    <option value="female">{t("female")}</option>
-                  </select>
-                </Field>
-                <div className="sm:col-span-2">
-                  <Field label={t("reason")}>
-                    <textarea
-                      value={form.reason}
-                      onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                      rows={3}
-                      maxLength={REASON_MAX}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            {step === 3 && (
+              <div>
+                <h2 className="text-lg font-bold mb-1">{t("choose_datetime")}</h2>
+                <p className="text-xs text-muted-foreground mb-5">
+                  اختر اليوم ثم الوقت المناسب لك من الأوقات المتاحة.
+                </p>
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2.5">
+                    <CalIcon className="h-3.5 w-3.5 text-primary" /> {t("date")}
+                  </div>
+                  {availableDates.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                      لا توجد مواعيد متاحة خلال الأسبوعين القادمين — جرّب طبيبًا آخر.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                      {availableDates.map((d) => (
+                        <button
+                          key={d.date}
+                          onClick={() => {
+                            setDate(d.date);
+                            setTime("");
+                          }}
+                          className={`rounded-xl border p-2.5 text-xs text-center transition ${
+                            date === d.date
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : "border-border hover:border-primary/50 hover:bg-muted/40"
+                          }`}
+                        >
+                          <div
+                            className={`text-[10px] ${date === d.date ? "text-primary-foreground/80" : "text-muted-foreground"}`}
+                          >
+                            {WEEKDAYS_AR[d.weekday]}
+                          </div>
+                          <div className="font-bold text-sm mt-0.5">{d.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {date && (
+                  <div className="mt-6">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2.5">
+                      <Clock className="h-3.5 w-3.5 text-primary" /> {t("time")}
+                    </div>
+                    {availableTimes.length === 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        لا توجد أوقات متاحة في هذا اليوم.
+                      </div>
+                    )}
+                    {morningTimes.length > 0 && (
+                      <TimeSection
+                        icon={<Sun className="h-3.5 w-3.5" />}
+                        label="صباحًا"
+                        times={morningTimes}
+                        selected={time}
+                        onSelect={setTime}
+                      />
+                    )}
+                    {eveningTimes.length > 0 && (
+                      <div className="mt-4">
+                        <TimeSection
+                          icon={<Moon className="h-3.5 w-3.5" />}
+                          label="مساءً"
+                          times={eveningTimes}
+                          selected={time}
+                          onSelect={setTime}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 4 && (
+              <div>
+                <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" /> {t("patient_info")}
+                </h2>
+                <p className="text-xs text-muted-foreground mb-5">
+                  نحتاج هذه البيانات لتأكيد الموعد والتواصل معك.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label={t("name")} required error={errors.name}>
+                    <input
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onBlur={() => setErrors((p) => ({ ...p, name: undefined }))}
+                      maxLength={NAME_MAX}
+                      aria-invalid={!!errors.name}
+                      placeholder="مثال: محمد أحمد"
+                      className={INPUT_CLS}
                     />
                   </Field>
-              </div>
-
-              <div className="mt-4 rounded-lg border border-border bg-card p-4">
-                <div className="text-sm font-semibold">تذكيرات قبل الموعد</div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  اختر متى تودّ استلام تذكير قبل موعدك.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <label
-                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer ${
-                      form.reminder_24h ? "border-primary bg-primary/5" : "border-border"
-                    }`}
-                  >
+                  <Field label={t("phone")} required error={errors.phone}>
                     <input
-                      type="checkbox"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      onBlur={() => setErrors((p) => ({ ...p, phone: undefined }))}
+                      inputMode="tel"
+                      maxLength={PHONE_MAX}
+                      aria-invalid={!!errors.phone}
+                      placeholder="05xxxxxxxx"
+                      dir="ltr"
+                      className={`${INPUT_CLS} text-start`}
+                    />
+                  </Field>
+                  <Field label={t("national_id")} error={errors.national_id}>
+                    <input
+                      value={form.national_id}
+                      onChange={(e) => setForm({ ...form, national_id: e.target.value })}
+                      maxLength={NID_MAX}
+                      inputMode="numeric"
+                      aria-invalid={!!errors.national_id}
+                      placeholder="اختياري"
+                      dir="ltr"
+                      className={`${INPUT_CLS} text-start`}
+                    />
+                  </Field>
+                  <Field label={t("gender")}>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["male", "female"] as const).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setForm({ ...form, gender: g })}
+                          className={`h-11 rounded-lg border text-sm font-medium transition ${
+                            form.gender === g
+                              ? "border-primary bg-primary/5 text-primary"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                        >
+                          {t(g)}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field
+                      label={t("reason")}
+                      error={errors.reason}
+                      hint={`${form.reason.length}/${REASON_MAX}`}
+                    >
+                      <textarea
+                        value={form.reason}
+                        onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                        rows={3}
+                        maxLength={REASON_MAX}
+                        aria-invalid={!!errors.reason}
+                        placeholder="اذكر باختصار سبب الزيارة (اختياري)"
+                        className={TEXTAREA_CLS}
+                      />
+                    </Field>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Clock className="h-4 w-4 text-primary" /> تذكيرات قبل الموعد
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    اختر متى تودّ استلام تذكير عبر الرسائل.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <ReminderToggle
                       checked={form.reminder_24h}
-                      onChange={(e) => setForm({ ...form, reminder_24h: e.target.checked })}
-                      className="accent-primary"
+                      onChange={(v) => setForm({ ...form, reminder_24h: v })}
+                      label="قبل الموعد بـ 24 ساعة"
                     />
-                    قبل الموعد بـ 24 ساعة
-                  </label>
-                  <label
-                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer ${
-                      form.reminder_2h ? "border-primary bg-primary/5" : "border-border"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
+                    <ReminderToggle
                       checked={form.reminder_2h}
-                      onChange={(e) => setForm({ ...form, reminder_2h: e.target.checked })}
-                      className="accent-primary"
+                      onChange={(v) => setForm({ ...form, reminder_2h: v })}
+                      label="قبل الموعد بساعتين"
                     />
-                    قبل الموعد بساعتين
-                  </label>
+                  </div>
                 </div>
               </div>
+            )}
 
+            {/* Navigation */}
+            <div className="mt-8 flex items-center justify-between gap-3">
+              <button
+                disabled={step === 1}
+                onClick={() => setStep((s) => Math.max(1, s - 1))}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 h-10 text-sm font-medium hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <ArrowRight className="h-4 w-4 rtl:hidden" />
+                <ArrowLeft className="h-4 w-4 ltr:hidden" /> {t("back")}
+              </button>
+
+              {step < 4 ? (
+                <button
+                  onClick={() => setStep((s) => s + 1)}
+                  disabled={!canGoNext}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 h-10 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 shadow-sm transition"
+                >
+                  {t("next")} <ArrowLeft className="h-4 w-4 rtl:hidden" />
+                  <ArrowRight className="h-4 w-4 ltr:hidden" />
+                </button>
+              ) : (
+                <button
+                  onClick={submit}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 h-10 text-sm font-semibold text-primary-foreground disabled:opacity-60 hover:bg-primary/90 shadow-sm transition"
+                >
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {submitting ? t("loading") : "تأكيد الحجز"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Summary sidebar */}
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <CheckCircle2 className="h-4 w-4 text-primary" /> ملخّص الحجز
               </div>
-
-              <div className="mt-6 rounded-lg bg-muted/60 p-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">{t("date")}:</span>{" "}
-                  <span className="font-semibold">{date}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("time")}:</span>{" "}
-                  <span className="font-semibold">{time}</span>
-                </div>
+              <dl className="mt-4 space-y-3 text-sm">
+                <SummaryRow
+                  icon={<Stethoscope className="h-3.5 w-3.5" />}
+                  label="التخصص"
+                  value={
+                    selectedSpecialty
+                      ? lang === "ar"
+                        ? selectedSpecialty.name_ar
+                        : selectedSpecialty.name_en
+                      : null
+                  }
+                />
+                <SummaryRow
+                  icon={<UserCircle2 className="h-3.5 w-3.5" />}
+                  label="الطبيب"
+                  value={
+                    selectedDoctor
+                      ? lang === "ar"
+                        ? selectedDoctor.name_ar
+                        : selectedDoctor.name_en
+                      : specialtyId
+                        ? "أول متاح"
+                        : null
+                  }
+                />
+                <SummaryRow
+                  icon={<CalIcon className="h-3.5 w-3.5" />}
+                  label={t("date")}
+                  value={date || null}
+                />
+                <SummaryRow
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  label={t("time")}
+                  value={time || null}
+                />
+              </dl>
+              <div className="mt-5 rounded-lg bg-primary/5 border border-primary/15 p-3 text-[11px] leading-5 text-muted-foreground">
+                الحجز مجاني ولا يتطلب دفعًا مسبقًا. يمكنك إلغاؤه أو تعديله في أي وقت من خلال
+                رقم هاتفك.
+              </div>
+              <div className="mt-4 text-[11px] text-muted-foreground">
+                هل تحتاج مساعدة؟{" "}
+                <Link to="/contact" className="text-primary font-semibold hover:underline">
+                  تواصل معنا
+                </Link>
               </div>
             </div>
-          )}
-
-          <div className="mt-8 flex items-center justify-between">
-            <button
-              disabled={step === 1}
-              onClick={() => setStep((s) => Math.max(1, s - 1))}
-              className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm font-medium disabled:opacity-40"
-            >
-              <ArrowRight className="h-4 w-4 rtl:hidden" />
-              <ArrowLeft className="h-4 w-4 ltr:hidden" /> {t("back")}
-            </button>
-
-            {step < 4 ? (
-              <button
-                onClick={() => setStep((s) => s + 1)}
-                disabled={(step === 1 && !specialtyId) || (step === 3 && (!date || !time))}
-                className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 hover:bg-primary/90"
-              >
-                {t("next")} <ArrowLeft className="h-4 w-4 rtl:hidden" />
-                <ArrowRight className="h-4 w-4 ltr:hidden" />
-              </button>
-            ) : (
-              <button
-                onClick={submit}
-                disabled={submitting}
-                className="inline-flex items-center rounded-md bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 hover:bg-primary/90"
-              >
-                {submitting ? t("loading") : t("submit")}
-              </button>
-            )}
-          </div>
+          </aside>
         </div>
       </div>
+    </>
+  );
+}
+
+function TimeSection({
+  icon,
+  label,
+  times,
+  selected,
+  onSelect,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  times: string[];
+  selected: string;
+  onSelect: (t: string) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+        {icon} {label}
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+        {times.map((tm) => (
+          <button
+            key={tm}
+            onClick={() => onSelect(tm)}
+            className={`rounded-lg border py-2 text-sm font-medium transition ${
+              selected === tm
+                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                : "border-border hover:border-primary/50 hover:bg-muted/40"
+            }`}
+          >
+            {tm}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReminderToggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label
+      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${
+        checked ? "border-primary bg-primary/5 text-foreground" : "border-border hover:border-primary/40"
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-primary"
+      />
+      {label}
+    </label>
+  );
+}
+
+function SummaryRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {icon} {label}
+      </dt>
+      <dd
+        className={`text-xs font-semibold text-end ${value ? "text-foreground" : "text-muted-foreground/60"}`}
+      >
+        {value ?? "—"}
+      </dd>
+    </div>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-14 rounded-xl border border-border bg-muted/40 animate-pulse" />
+      ))}
     </div>
   );
 }
@@ -499,18 +813,28 @@ function BookPage() {
 function Field({
   label,
   required,
+  hint,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
+  hint?: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">
-        {label} {required && <span className="text-destructive">*</span>}
-      </span>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-foreground">
+          {label} {required && <span className="text-destructive">*</span>}
+        </span>
+        {hint && !error && (
+          <span className="text-[10px] text-muted-foreground">{hint}</span>
+        )}
+      </div>
       {children}
+      {error && <p className="mt-1 text-[11px] text-destructive font-medium">{error}</p>}
     </label>
   );
 }
