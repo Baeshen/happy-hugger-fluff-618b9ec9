@@ -68,14 +68,8 @@ const EMPTY: FormState = {
   extra: "",
 };
 
-function shortReference(prefix: string): string {
-  const c = globalThis.crypto as Crypto | undefined;
-  const bytes = new Uint8Array(4);
-  if (c?.getRandomValues) c.getRandomValues(bytes);
-  else for (let i = 0; i < 4; i++) bytes[i] = Math.floor(Math.random() * 256);
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-  return `${prefix}-${hex}`;
-}
+
+
 
 export function ServiceRequestForm({
   tag,
@@ -104,7 +98,7 @@ export function ServiceRequestForm({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<
-    | (FormState & { reference: string })
+    | (FormState & { reference: string | null })
     | null
   >(null);
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -143,7 +137,7 @@ export function ServiceRequestForm({
       }
       setConfirmation({
         ...d,
-        reference: result.reference ?? shortReference(refPrefix),
+        reference: result.reference,
       });
       setForm(EMPTY);
       setErrors({});
@@ -208,29 +202,39 @@ export function ServiceRequestForm({
             <p className="text-xs text-muted-foreground">سيتواصل معك فريقنا للتأكيد وترتيب التفاصيل.</p>
           </div>
         </div>
-        <div className="mt-5 rounded-xl border border-border bg-background/60 p-4">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">رقم الطلب</span>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard?.writeText(confirmation.reference).then(
-                  () => toast.success("تم نسخ رقم الطلب"),
-                  () => toast.error("تعذّر النسخ"),
-                );
-              }}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-            >
-              <Copy className="h-3 w-3" />
-              نسخ
-            </button>
+        {confirmation.reference ? (
+          <div className="mt-5 rounded-xl border border-border bg-background/60 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">رقم الطلب</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(confirmation.reference!).then(
+                    () => toast.success("تم نسخ رقم الطلب"),
+                    () => toast.error("تعذّر النسخ"),
+                  );
+                }}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                <Copy className="h-3 w-3" />
+                نسخ
+              </button>
+            </div>
+            <div className="mt-1 text-lg font-mono font-bold tracking-wider">{confirmation.reference}</div>
           </div>
-          <div className="mt-1 text-lg font-mono font-bold tracking-wider">{confirmation.reference}</div>
-        </div>
+        ) : (
+          <div className="mt-5 rounded-xl border border-dashed border-border bg-background/60 p-4 text-xs text-muted-foreground">
+            سيصلك رقم الطلب في رسالة التأكيد على جوالك خلال دقائق، وستتمكن حينها من تحميل تأكيد الحجز من صفحة{" "}
+            <span className="font-semibold">"تتبّع طلبك"</span>.
+          </div>
+        )}
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <button
             type="button"
-            onClick={() =>
+            disabled={!confirmation.reference}
+            title={confirmation.reference ? undefined : "سيتوفر التحميل بعد استلام رقم الطلب"}
+            onClick={() => {
+              if (!confirmation.reference) return;
               downloadBookingConfirmationPdf({
                 reference: confirmation.reference,
                 patient_name: confirmation.patient_name,
@@ -239,9 +243,9 @@ export function ServiceRequestForm({
                 appointment_time: confirmation.appointment_time,
                 service: confirmation.service,
                 centerName: tag,
-              })
-            }
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              });
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="h-4 w-4" />
             تحميل تأكيد الحجز PDF
