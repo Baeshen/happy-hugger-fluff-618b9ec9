@@ -18,6 +18,7 @@ import {
   HEAD_CHECK_DEFAULTS,
   SIGNED_URL_TTL_SECONDS,
   formatSignedUrlValidity,
+  formatCountdown,
   type DownloadBucket,
 } from "../../src/lib/download-error";
 
@@ -329,6 +330,35 @@ test("NaN TTL yields empty string", () => {
   eq(formatSignedUrlValidity(Number.NaN), "");
 });
 
+
+console.log("formatCountdown — live signed-URL countdown");
+test("300s → '05:00' (full TTL)", () => {
+  eq(formatCountdown(300), "05:00");
+});
+test("299.4s → '04:59' (floors seconds, no rounding up)", () => {
+  eq(formatCountdown(299.4), "04:59");
+});
+test("65s → '01:05' (pads seconds < 10)", () => {
+  eq(formatCountdown(65), "01:05");
+});
+test("60s → '01:00' (exact minute boundary)", () => {
+  eq(formatCountdown(60), "01:00");
+});
+test("9s → '00:09' (pads minutes and seconds)", () => {
+  eq(formatCountdown(9), "00:09");
+});
+test("0s → '00:00' (clamped)", () => {
+  eq(formatCountdown(0), "00:00");
+});
+test("negative → '00:00' (clamped, no leading dash)", () => {
+  eq(formatCountdown(-5), "00:00");
+});
+test("NaN → '00:00' (clamped)", () => {
+  eq(formatCountdown(Number.NaN), "00:00");
+});
+test("Infinity → '00:00' (clamped, non-finite)", () => {
+  eq(formatCountdown(Number.POSITIVE_INFINITY), "00:00");
+});
 
 setTimeout(() => {
   console.log(`\n${passed} passed, ${failed} failed`);

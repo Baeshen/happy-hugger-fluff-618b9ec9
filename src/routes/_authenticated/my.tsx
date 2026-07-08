@@ -30,6 +30,7 @@ import {
   INITIAL_HEAD_CHECK_STATE,
   SIGNED_URL_TTL_SECONDS,
   formatSignedUrlValidity,
+  formatCountdown,
   type HeadCheckState,
   type DownloadBucket,
 } from "@/lib/download-error";
@@ -727,7 +728,33 @@ function DownloadFileButton({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signedAt, setSignedAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const attemptRef = useRef(0);
+
+  // Live countdown: tick every second while a signed URL is still within
+  // its TTL window. Auto-cleans up when the URL expires or the button
+  // unmounts, so we don't leave orphan intervals running.
+  useEffect(() => {
+    if (signedAt === null) return;
+    setNowTick(Date.now());
+    const id = window.setInterval(() => {
+      const remaining = SIGNED_URL_TTL_SECONDS - (Date.now() - signedAt) / 1000;
+      if (remaining <= 0) {
+        setSignedAt(null);
+        window.clearInterval(id);
+        return;
+      }
+      setNowTick(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [signedAt]);
+
+  const remainingSeconds =
+    signedAt === null ? 0 : Math.max(0, SIGNED_URL_TTL_SECONDS - (nowTick - signedAt) / 1000);
+  const countdownLabel = signedAt !== null && remainingSeconds > 0
+    ? `متبقّي ${formatCountdown(remainingSeconds)}`
+    : null;
 
   async function generateAndDownload() {
     if (loading) return;
@@ -805,6 +832,7 @@ function DownloadFileButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
+      setSignedAt(Date.now());
       headCheckStateByBucket.set(bucket, recordDownloadSuccess(getHeadCheckState(bucket)));
       // Reset per-button attempt counter after a fully successful download.
       attemptRef.current = 0;
@@ -846,7 +874,15 @@ function DownloadFileButton({
           إعادة المحاولة
         </button>
         <span className="text-xs text-destructive">{error}</span>
-        {validityHint ? (
+        {countdownLabel ? (
+          <span
+            className="text-[11px] font-medium text-primary tabular-nums"
+            aria-live="polite"
+            role="status"
+          >
+            {countdownLabel}
+          </span>
+        ) : validityHint ? (
           <span className="text-[11px] text-muted-foreground">{validityHint} بعد الإنشاء</span>
         ) : null}
       </div>
@@ -867,7 +903,15 @@ function DownloadFileButton({
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
         {loading ? "جاري التحضير..." : label}
       </button>
-      {validityHint ? (
+      {countdownLabel ? (
+        <span
+          className="text-[11px] font-medium text-primary tabular-nums"
+          aria-live="polite"
+          role="status"
+        >
+          {countdownLabel}
+        </span>
+      ) : validityHint ? (
         <span className="text-[11px] text-muted-foreground">{validityHint} بعد الإنشاء</span>
       ) : null}
     </div>
