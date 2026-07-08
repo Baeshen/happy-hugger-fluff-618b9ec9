@@ -269,12 +269,29 @@ export const Route = createFileRoute("/api/public/book/availability")({
             }
           }
 
-          return json(200, {
+          const body = {
             ok: true,
             times,
             booked,
             doctors_considered: candidateDoctorIds.length,
-          });
+            // `_v` is a compact fingerprint used only to build the ETag;
+            // small counters are enough to distinguish results across the
+            // cache window without hashing the whole payload.
+            _v: times.length * 1000 + booked.length,
+          };
+          memoSet(cacheKey, body);
+          const etag = `W/"${cacheKey}:${body._v}"`;
+          if (request.headers.get("if-none-match") === etag) {
+            return new Response(null, {
+              status: 304,
+              headers: {
+                ETag: etag,
+                "Cache-Control":
+                  "public, max-age=0, s-maxage=30, stale-while-revalidate=60",
+              },
+            });
+          }
+          return json(200, body, { ETag: etag });
         } catch {
           return json(200, empty);
         }
