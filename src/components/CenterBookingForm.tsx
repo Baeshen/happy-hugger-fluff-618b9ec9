@@ -296,7 +296,17 @@ export function CenterBookingForm({
         </p>
       </div>
 
-      <div className="space-y-3 text-sm">
+      {submitError && (
+        <SubmitErrorBanner
+          kind={submitError.kind}
+          message={submitError.message}
+          onRetry={onRetry}
+          retrying={submitting}
+        />
+      )}
+
+      <fieldset disabled={submitting} className="space-y-3 text-sm border-0 p-0 m-0 disabled:opacity-70">
+
         <Field label="الاسم الكامل" error={errors.patient_name} htmlFor="ff-name">
           <input
             id="ff-name"
