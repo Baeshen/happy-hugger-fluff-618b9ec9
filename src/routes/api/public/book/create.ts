@@ -108,6 +108,39 @@ export const Route = createFileRoute("/api/public/book/create")({
           },
         });
 
+        // Pre-insert conflict check: when a specific doctor is chosen,
+        // reject if that (doctor_id, date, time) slot is already taken by
+        // a non-cancelled appointment. Uses admin client — the /book UI's
+        // availability endpoint mirrors the same rule for instant UX.
+        if (parsed.data.doctor_id) {
+          try {
+            const { supabaseAdmin } = await import(
+              "@/integrations/supabase/client.server"
+            );
+            const timeHHMM = parsed.data.appointment_time.slice(0, 5);
+            const { data: existing } = await supabaseAdmin
+              .from("appointments")
+              .select("id,status,appointment_time")
+              .eq("doctor_id", parsed.data.doctor_id)
+              .eq("appointment_date", parsed.data.appointment_date);
+            const clash = (existing ?? []).some(
+              (r) =>
+                r.status !== "cancelled" &&
+                r.status !== "no_show" &&
+                String(r.appointment_time).slice(0, 5) === timeHHMM,
+            );
+            if (clash) {
+              return json(409, {
+                ok: false,
+                kind: "conflict",
+                message: FRIENDLY_INSERT_MESSAGES.duplicate,
+              });
+            }
+          } catch {
+            // Fall through to insert — trigger/RLS will still guard.
+          }
+        }
+
         // Keep the anon insert path exactly as before so triggers + RLS
         // behave identically to the /book UI. Anon has no SELECT policy, so
         // we cannot use .select() here.
@@ -121,6 +154,12 @@ export const Route = createFileRoute("/api/public/book/create")({
           appointment_date: parsed.data.appointment_date,
           appointment_time: parsed.data.appointment_time,
           reason: parsed.data.reason ?? null,
+          ...(parsed.data.reminder_24h !== undefined
+            ? { reminder_24h: parsed.data.reminder_24h }
+            : {}),
+          ...(parsed.data.reminder_2h !== undefined
+            ? { reminder_2h: parsed.data.reminder_2h }
+            : {}),
         });
 
         if (error) {
