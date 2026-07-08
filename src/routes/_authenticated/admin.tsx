@@ -368,6 +368,7 @@ function AdminDashboard() {
       {tab === "doctors" && isAdmin && <DoctorsTab />}
       {tab === "specialties" && isAdmin && <SpecialtiesTab />}
       {tab === "availability" && (isAdmin || isReception) && <AvailabilityTab />}
+      {tab === "reminders-log" && canSeeAppts && <RemindersDeliveryTab />}
       {tab === "reminders-audit" && canSeeAppts && <RemindersAuditTab />}
       {tab === "reminders-stats" && canSeeAppts && <RemindersStatsTab />}
       {tab === "security-audit" && isAdmin && <SecurityAuditTab />}
