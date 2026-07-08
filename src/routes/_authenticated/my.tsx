@@ -895,7 +895,15 @@ function DownloadFileButton({
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
         {loading ? "جاري التحضير..." : label}
       </button>
-      {validityHint ? (
+      {countdownLabel ? (
+        <span
+          className="text-[11px] font-medium text-primary tabular-nums"
+          aria-live="polite"
+          role="status"
+        >
+          {countdownLabel}
+        </span>
+      ) : validityHint ? (
         <span className="text-[11px] text-muted-foreground">{validityHint} بعد الإنشاء</span>
       ) : null}
     </div>
