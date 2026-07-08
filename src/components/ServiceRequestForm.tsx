@@ -208,7 +208,15 @@ export function ServiceRequestForm({
       return;
     }
 
-    const payload: FormState = { ...parsed.data, extra: parsed.data.extra ?? "" };
+    const data = parsed.success ? parsed.data : form;
+    const payload: FormState = {
+      patient_name: data.patient_name ?? form.patient_name,
+      patient_phone: data.patient_phone ?? form.patient_phone,
+      service: data.service ?? form.service,
+      appointment_date: data.appointment_date ?? form.appointment_date,
+      appointment_time: data.appointment_time ?? form.appointment_time,
+      extra: (data.extra ?? form.extra) || "",
+    };
     lastPayloadRef.current = payload;
     await doSubmit(payload);
   }
