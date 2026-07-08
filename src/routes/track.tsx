@@ -262,9 +262,11 @@ function TrackPage() {
         <form
           onSubmit={onSubmit}
           noValidate
+          aria-busy={loading}
           className="rounded-2xl border border-border bg-card p-6 space-y-4 h-fit"
           aria-label="نموذج تتبع طلب الحجز"
         >
+          <fieldset disabled={loading} className="space-y-4 border-0 p-0 m-0 disabled:opacity-70">
           <div>
             <label htmlFor="tr-ref" className="mb-1 block text-xs font-semibold">
               رقم الطلب
