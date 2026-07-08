@@ -235,7 +235,7 @@ function BookingConfirmationPage() {
                 <Row icon={<User className="h-4 w-4" />} label={t("name")} value={appt.patient_name} />
                 <Row icon={<Phone className="h-4 w-4" />} label={t("phone")} value={appt.patient_phone} />
                 {appt.reason && (
-                  <Row icon={<Share2 className="h-4 w-4" />} label={t("reason")} value={appt.reason} />
+                  <Row icon={<FileText className="h-4 w-4" />} label={t("reason")} value={appt.reason} />
                 )}
               </div>
 
