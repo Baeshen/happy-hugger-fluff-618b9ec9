@@ -282,7 +282,6 @@ export function BranchBookingForm({
   };
 
   const resetForm = () => {
-    setRef(null);
     setSpecialtyId("");
     setDoctorId("");
     setDate("");
