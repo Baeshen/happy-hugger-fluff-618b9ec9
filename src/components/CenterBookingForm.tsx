@@ -120,13 +120,30 @@ export function CenterBookingForm({
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
+  function validateField(k: keyof FormState, value: string): string | undefined {
+    const fieldSchema = (schema.shape as Record<string, z.ZodTypeAny>)[k];
+    if (!fieldSchema) return undefined;
+    const r = fieldSchema.safeParse(value);
+    return r.success ? undefined : r.error.issues[0]?.message;
+  }
+
   const update =
     (k: keyof FormState) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setForm((s) => ({ ...s, [k]: e.target.value }));
-      if (errors[k]) setErrors((prev) => ({ ...prev, [k]: undefined }));
-      if (submitError) setSubmitError(null);
+      const value = e.target.value;
+      setForm((s) => ({ ...s, [k]: value }));
+      // If the field already shows an error, re-validate live so it clears when fixed.
+      if (errors[k]) {
+        const msg = validateField(k, value);
+        setErrors((prev) => ({ ...prev, [k]: msg }));
+      }
+      if (submitError && submitError.kind === "validation") setSubmitError(null);
     };
+
+  const onBlur = (k: keyof FormState) => () => {
+    const msg = validateField(k, form[k]);
+    setErrors((prev) => ({ ...prev, [k]: msg }));
+  };
 
   async function doSubmit(data: FormState) {
     setSubmitting(true);
