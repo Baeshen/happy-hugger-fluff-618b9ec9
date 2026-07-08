@@ -159,7 +159,7 @@ function BranchDetailPage() {
   const handleBookService = (payload: { specialtyId: string | null; label: string }) => {
     if (!payload.specialtyId) return;
     setPreselectedSpecialtyId(payload.specialtyId);
-    setPreselectToken((n) => n + 1);
+    setPreselectToken((n: number) => n + 1);
   };
 
 
