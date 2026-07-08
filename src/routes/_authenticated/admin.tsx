@@ -1878,9 +1878,12 @@ function RemindersDeliveryTab({
   const listFn = useServerFn(listReminderDeliveries);
   const exportFn = useServerFn(exportReminderDeliveriesCsv);
   const retryFn = useServerFn(retryReminderDelivery);
+  const bulkRetryFn = useServerFn(retryReminderDeliveriesBulk);
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRetrying, setBulkRetrying] = useState(false);
   const safeCh: LogChannel = (LOG_CHANNELS.includes(initialChannel as LogChannel)
     ? (initialChannel as LogChannel)
     : "");
