@@ -55,7 +55,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 
           if (url && key) {
             const headers = { apikey: key };
-            const [sr, dr, hr] = await Promise.all([
+            const [sr, dr, hr, br] = await Promise.all([
               fetch(
                 `${url}/rest/v1/specialties?select=slug,created_at&is_active=eq.true&order=sort_order`,
                 { headers },
@@ -68,10 +68,15 @@ export const Route = createFileRoute("/sitemap.xml")({
                 `${url}/rest/v1/health_articles?select=slug,updated_at,published_at&is_published=eq.true&order=published_at.desc`,
                 { headers },
               ),
+              fetch(
+                `${url}/rest/v1/branches?select=slug,updated_at,created_at&is_active=eq.true&order=sort_order`,
+                { headers },
+              ),
             ]);
             const specialtiesRes = sr.ok ? await sr.json() : [];
             const doctorsRes = dr.ok ? await dr.json() : [];
             const articlesRes = hr.ok ? await hr.json() : [];
+            const branchesRes = br.ok ? await br.json() : [];
 
             for (const s of (specialtiesRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
@@ -95,6 +100,14 @@ export const Route = createFileRoute("/sitemap.xml")({
                 lastmod: (a.updated_at || a.published_at || "").slice(0, 10) || undefined,
                 changefreq: "monthly",
                 priority: "0.7",
+              });
+            }
+            for (const b of (branchesRes as Array<{ slug: string; updated_at: string | null; created_at: string }>) ?? []) {
+              entries.push({
+                path: `/branches/${encodeURIComponent(b.slug)}`,
+                lastmod: (b.updated_at || b.created_at || "").slice(0, 10) || undefined,
+                changefreq: "monthly",
+                priority: "0.8",
               });
             }
           }
