@@ -93,7 +93,7 @@ function CenterPage() {
           <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="mb-4 text-xl font-bold">أهم الخدمات</h2>
             <ul className="grid gap-3 sm:grid-cols-2">
-              {center.services.map((s) => (
+              {center.services.map((s: string) => (
                 <li key={s} className="flex items-start gap-2 text-sm">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <span>{s}</span>
