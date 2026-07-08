@@ -1598,6 +1598,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _assert_branch_access: {
+        Args: { _branch_id: string }
+        Returns: undefined
+      }
       _assert_staff: { Args: never; Returns: undefined }
       _emit_appointment_notification: {
         Args: {
