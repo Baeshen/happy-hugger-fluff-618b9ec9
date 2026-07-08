@@ -15,7 +15,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Building2, Stethoscope, CalendarPlus, ChevronLeft } from "lucide-react";
+import { z } from "zod";
+import { AlertCircle, Building2, Stethoscope, CalendarPlus, ChevronLeft } from "lucide-react";
 import {
   createBranch,
   createDoctor,
@@ -109,9 +110,46 @@ function TabButton({
 }
 
 /* ---------------- Branch (عيادة) form ---------------- */
+const branchClientSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(2, "المعرّف قصير جدًا (حرفان على الأقل)")
+    .max(40, "المعرّف طويل جدًا (٤٠ حرفًا كحد أقصى)")
+    .regex(/^[a-z0-9-]+$/, "أحرف إنجليزية صغيرة وأرقام وشرطات فقط، مثل: jeddah-main"),
+  name_ar: z
+    .string()
+    .trim()
+    .min(2, "الاسم بالعربية مطلوب (حرفان على الأقل)")
+    .max(120, "الاسم بالعربية طويل جدًا")
+    .regex(/[\u0600-\u06FF]/, "يجب أن يحتوي على أحرف عربية"),
+  name_en: z
+    .string()
+    .trim()
+    .min(2, "الاسم بالإنجليزية مطلوب")
+    .max(120, "الاسم بالإنجليزية طويل جدًا")
+    .regex(/^[A-Za-z0-9 .,'&()-]+$/, "أحرف إنجليزية فقط"),
+  city_ar: z.string().trim().max(80, "اسم المدينة طويل").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\+?[0-9\s-]{7,20}$/.test(v), "رقم هاتف غير صالح"),
+  email: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "بريد إلكتروني غير صالح"),
+  address_ar: z.string().trim().max(240, "العنوان طويل جدًا").optional().or(z.literal("")),
+});
+
+type BranchFormValues = z.infer<typeof branchClientSchema>;
+
 function BranchForm() {
   const submit = useServerFn(createBranch);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<BranchFormValues>({
     slug: "",
     name_ar: "",
     name_en: "",
@@ -120,83 +158,132 @@ function BranchForm() {
     email: "",
     address_ar: "",
   });
+  const [errors, setErrors] = useState<Partial<Record<keyof BranchFormValues, string>>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  const validate = (values: BranchFormValues) => {
+    const result = branchClientSchema.safeParse(values);
+    if (result.success) return {};
+    const map: Partial<Record<keyof BranchFormValues, string>> = {};
+    for (const issue of result.error.issues) {
+      const key = issue.path[0] as keyof BranchFormValues;
+      if (key && !map[key]) map[key] = issue.message;
+    }
+    return map;
+  };
+
+  const update = <K extends keyof BranchFormValues>(key: K, value: BranchFormValues[K]) => {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    if (submitAttempted) setErrors(validate(next));
+  };
+
   const m = useMutation({
-    mutationFn: (data: typeof form) => submit({ data }),
+    mutationFn: (data: BranchFormValues) => submit({ data }),
     onSuccess: () => {
       toast.success("تمت إضافة العيادة بنجاح");
       setForm({ slug: "", name_ar: "", name_en: "", city_ar: "", phone: "", email: "", address_ar: "" });
+      setErrors({});
+      setSubmitAttempted(false);
     },
     onError: (e: any) => toast.error(e?.message ?? "تعذّر إضافة العيادة"),
   });
-  const disabled = m.isPending || !form.slug || !form.name_ar || !form.name_en;
+
+  const errorCount = Object.keys(errors).length;
 
   return (
     <form
       className="grid gap-3"
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        if (!disabled) m.mutate(form);
+        setSubmitAttempted(true);
+        const map = validate(form);
+        setErrors(map);
+        if (Object.keys(map).length > 0) {
+          toast.error("الرجاء تصحيح الحقول المميّزة قبل الإرسال");
+          return;
+        }
+        m.mutate(form);
       }}
     >
+      {submitAttempted && errorCount > 0 && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>يوجد {errorCount} خطأ في النموذج. الرجاء المراجعة قبل الحفظ.</span>
+        </div>
+      )}
       <Row>
-        <Field label="المعرّف (slug)" required>
+        <Field label="المعرّف (slug)" required error={errors.slug}>
           <input
             className={inputClass}
             value={form.slug}
-            onChange={(e) => setForm({ ...form, slug: e.target.value })}
+            onChange={(e) => update("slug", e.target.value)}
             placeholder="jeddah-main"
+            aria-invalid={!!errors.slug}
           />
         </Field>
-        <Field label="المدينة">
+        <Field label="المدينة" error={errors.city_ar}>
           <input
             className={inputClass}
             value={form.city_ar}
-            onChange={(e) => setForm({ ...form, city_ar: e.target.value })}
+            onChange={(e) => update("city_ar", e.target.value)}
             placeholder="جدة"
+            aria-invalid={!!errors.city_ar}
           />
         </Field>
       </Row>
       <Row>
-        <Field label="الاسم بالعربية" required>
+        <Field label="الاسم بالعربية" required error={errors.name_ar}>
           <input
             className={inputClass}
             value={form.name_ar}
-            onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
+            onChange={(e) => update("name_ar", e.target.value)}
+            aria-invalid={!!errors.name_ar}
           />
         </Field>
-        <Field label="الاسم بالإنجليزية" required>
+        <Field label="الاسم بالإنجليزية" required error={errors.name_en}>
           <input
             className={inputClass}
             value={form.name_en}
-            onChange={(e) => setForm({ ...form, name_en: e.target.value })}
+            onChange={(e) => update("name_en", e.target.value)}
+            aria-invalid={!!errors.name_en}
           />
         </Field>
       </Row>
       <Row>
-        <Field label="هاتف">
+        <Field label="هاتف" error={errors.phone}>
           <input
             className={inputClass}
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onChange={(e) => update("phone", e.target.value)}
+            placeholder="+9665..."
+            inputMode="tel"
+            aria-invalid={!!errors.phone}
           />
         </Field>
-        <Field label="بريد إلكتروني">
+        <Field label="بريد إلكتروني" error={errors.email}>
           <input
             className={inputClass}
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            onChange={(e) => update("email", e.target.value)}
             type="email"
+            aria-invalid={!!errors.email}
           />
         </Field>
       </Row>
-      <Field label="العنوان">
+      <Field label="العنوان" error={errors.address_ar}>
         <input
           className={inputClass}
           value={form.address_ar}
-          onChange={(e) => setForm({ ...form, address_ar: e.target.value })}
+          onChange={(e) => update("address_ar", e.target.value)}
+          aria-invalid={!!errors.address_ar}
         />
       </Field>
-      <SubmitBar disabled={disabled} pending={m.isPending} label="إضافة العيادة" />
+      <SubmitBar disabled={m.isPending} pending={m.isPending} label="إضافة العيادة" />
     </form>
   );
 }
@@ -531,10 +618,12 @@ function Row({ children }: { children: React.ReactNode }) {
 function Field({
   label,
   required,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -542,7 +631,10 @@ function Field({
       <span className="text-muted-foreground">
         {label} {required && <span className="text-destructive">*</span>}
       </span>
-      {children}
+      <div className={error ? "[&_input]:border-destructive [&_select]:border-destructive [&_textarea]:border-destructive" : ""}>
+        {children}
+      </div>
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </label>
   );
 }
