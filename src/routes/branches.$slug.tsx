@@ -260,12 +260,23 @@ function BranchDetailPage() {
               لم يتم إضافة خدمات أو مراكز تميز لهذا الفرع بعد.
             </div>
           ) : (
-            <BranchServicesExplorer branch={b} specialties={specialties} centers={centers} />
+            <BranchServicesExplorer
+              branch={b}
+              specialties={specialties}
+              centers={centers}
+              onBookService={handleBookService}
+            />
           )}
 
 
           <section id="book">
-            <BranchBookingForm branchId={b.id} branchNameAr={b.name_ar} specialties={specialties} />
+            <BranchBookingForm
+              branchId={b.id}
+              branchNameAr={b.name_ar}
+              specialties={specialties}
+              preselectedSpecialtyId={preselectedSpecialtyId}
+              preselectToken={preselectToken}
+            />
           </section>
 
           <div>
