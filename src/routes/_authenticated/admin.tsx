@@ -122,7 +122,14 @@ const ORDER_STATUS: {
 
 function AdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("overview");
+  const navigate = useNavigate({ from: "/admin" });
+  const search = Route.useSearch();
+  const tab: Tab = (ALL_TABS.includes(search.tab as Tab) ? search.tab : "overview") as Tab;
+  const setTab = (t: Tab) =>
+    navigate({
+      search: (prev) => ({ ...prev, tab: t }),
+      replace: false,
+    });
 
   const myRolesFn = useServerFn(getMyRoles);
   const rolesQuery = useQuery({ queryKey: ["my-roles"], queryFn: () => myRolesFn() });
