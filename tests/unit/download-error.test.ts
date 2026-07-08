@@ -11,6 +11,11 @@
 import {
   getFriendlyDownloadError,
   DOWNLOAD_ERROR_MESSAGES,
+  shouldPerformHeadCheck,
+  recordDownloadSuccess,
+  recordDownloadFailure,
+  INITIAL_HEAD_CHECK_STATE,
+  HEAD_CHECK_DEFAULTS,
   type DownloadBucket,
 } from "../../src/lib/download-error";
 
