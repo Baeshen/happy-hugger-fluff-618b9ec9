@@ -109,6 +109,10 @@ export function ServiceRequestForm({
   >(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<
+    { kind: Exclude<BookingSubmitKind, "success">; message: string } | null
+  >(null);
+  const lastPayloadRef = useRef<FormState | null>(null);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const update =
@@ -116,7 +120,39 @@ export function ServiceRequestForm({
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setForm((s) => ({ ...s, [k]: e.target.value }));
       if (errors[k]) setErrors((prev) => ({ ...prev, [k]: undefined }));
+      if (submitError) setSubmitError(null);
     };
+
+  async function doSubmit(d: FormState) {
+    setSubmitting(true);
+    setSubmitError(null);
+    const toastId = toast.loading("جاري إرسال طلبك...");
+    try {
+      const reason = [`[${tag}]`, `الخدمة: ${d.service}`, d.extra?.trim()].filter(Boolean).join(" — ");
+      const result = await submitBooking({
+        patient_name: d.patient_name,
+        patient_phone: d.patient_phone,
+        appointment_date: d.appointment_date,
+        appointment_time: d.appointment_time,
+        reason,
+      });
+      if (!result.ok) {
+        setSubmitError({ kind: result.kind, message: result.message });
+        toast.error(result.message, { id: toastId });
+        return;
+      }
+      setConfirmation({
+        ...d,
+        reference: result.reference ?? shortReference(refPrefix),
+      });
+      setForm(EMPTY);
+      setErrors({});
+      lastPayloadRef.current = null;
+      toast.success("تم استلام طلبك، سنتواصل معك للتأكيد قريبًا", { id: toastId });
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -133,52 +169,27 @@ export function ServiceRequestForm({
         fe.extra = "هذا الحقل مطلوب";
       }
       setErrors(fe);
-      toast.error(parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول");
+      const first = parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول";
+      setSubmitError({ kind: "validation", message: first });
+      toast.error(first);
       return;
     }
     if (extraRequired && !parsed.data.extra?.trim()) {
       setErrors({ extra: "هذا الحقل مطلوب" });
+      setSubmitError({ kind: "validation", message: "هذا الحقل مطلوب" });
       toast.error("هذا الحقل مطلوب");
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const d = parsed.data;
-      const reason = [`[${tag}]`, `الخدمة: ${d.service}`, d.extra?.trim()].filter(Boolean).join(" — ");
-      const res = await fetch("/api/public/book/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patient_name: d.patient_name,
-          patient_phone: d.patient_phone,
-          appointment_date: d.appointment_date,
-          appointment_time: d.appointment_time,
-          reason,
-        }),
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        message?: string;
-        reference?: string | null;
-      };
-      if (!res.ok || !body.ok) {
-        toast.error(body.message ?? "تعذّر إرسال الطلب");
-        return;
-      }
-      setConfirmation({
-        ...d,
-        extra: d.extra ?? "",
-        reference: body.reference ?? shortReference(refPrefix),
-      });
-      setForm(EMPTY);
-      setErrors({});
-      toast.success("تم استلام طلبك، سنتواصل معك للتأكيد قريبًا");
-    } catch {
-      toast.error("تعذّر الاتصال بالخادم");
-    } finally {
-      setSubmitting(false);
-    }
+    const payload: FormState = { ...parsed.data, extra: parsed.data.extra ?? "" };
+    lastPayloadRef.current = payload;
+    await doSubmit(payload);
+  }
+
+  function onRetry() {
+    if (submitting) return;
+    const last = lastPayloadRef.current;
+    if (last) void doSubmit(last);
   }
 
   if (confirmation) {
