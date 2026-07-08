@@ -174,11 +174,7 @@ export const listReminderDeliveries = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("notifications")
       .select(
-        `id, appointment_id, kind, audience, channel, send_status, title, body,
-         created_at, sent_at, last_error, metadata,
-         appointment:appointments!notifications_appointment_id_fkey (
-           id, patient_name, patient_phone, appointment_date, appointment_time, status, branch_id
-         )`,
+        "id, appointment_id, kind, audience, channel, send_status, title, body, created_at, sent_at, last_error, metadata",
       )
       .like("kind", "reminder_%")
       .order("created_at", { ascending: false })
@@ -190,7 +186,34 @@ export const listReminderDeliveries = createServerFn({ method: "POST" })
     if (data.branchId) q = q.eq("branch_id", data.branchId);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return (rows ?? []) as unknown as ReminderDelivery[];
+
+    const apptIds = Array.from(
+      new Set((rows ?? []).map((r) => r.appointment_id).filter((v): v is string => !!v)),
+    );
+    const apptMap = new Map<string, ReminderDelivery["appointment"]>();
+    if (apptIds.length > 0) {
+      const { data: appts, error: aErr } = await context.supabase
+        .from("appointments")
+        .select("id, patient_name, patient_phone, appointment_date, appointment_time, status, branch_id")
+        .in("id", apptIds);
+      if (aErr) throw new Error(aErr.message);
+      for (const a of appts ?? []) {
+        apptMap.set(a.id, {
+          id: a.id,
+          patient_name: a.patient_name ?? null,
+          patient_phone: a.patient_phone ?? null,
+          appointment_date: a.appointment_date ?? null,
+          appointment_time: a.appointment_time ?? null,
+          status: (a.status as string | null) ?? null,
+          branch_id: a.branch_id ?? null,
+        });
+      }
+    }
+    return (rows ?? []).map((r) => ({
+      ...r,
+      appointment: r.appointment_id ? apptMap.get(r.appointment_id) ?? null : null,
+    })) as unknown as ReminderDelivery[];
+  });
   });
 
 /* -------- Per-user notifications (bell) -------- */
