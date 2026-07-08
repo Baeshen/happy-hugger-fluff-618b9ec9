@@ -1812,16 +1812,37 @@ function reminderKindLabel(kind: string): string {
 function RemindersDeliveryTab() {
   const listFn = useServerFn(listReminderDeliveries);
   const [appointmentIdInput, setAppointmentIdInput] = useState("");
+  const [patientQuery, setPatientQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
   const [channel, setChannel] = useState<"" | "in_app" | "web_push" | "sms" | "whatsapp" | "email">("");
   const [audience, setAudience] = useState<"" | "user" | "staff">("");
   const [status, setStatus] = useState<"" | "pending" | "queued" | "sent" | "failed" | "skipped">("");
   const [applied, setApplied] = useState<{
     appointmentId: string;
+    patientQuery: string;
+    dateFrom: string;
+    dateTo: string;
+    timeFrom: string;
+    timeTo: string;
     channel: typeof channel;
     audience: typeof audience;
     status: typeof status;
-  }>({ appointmentId: "", channel: "", audience: "", status: "" });
+  }>({
+    appointmentId: "",
+    patientQuery: "",
+    dateFrom: "",
+    dateTo: "",
+    timeFrom: "",
+    timeTo: "",
+    channel: "",
+    audience: "",
+    status: "",
+  });
   const [uuidError, setUuidError] = useState<string | null>(null);
+  const [rangeError, setRangeError] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ["reminders-log", applied],
@@ -1829,6 +1850,11 @@ function RemindersDeliveryTab() {
       listFn({
         data: {
           appointmentId: applied.appointmentId || undefined,
+          patientQuery: applied.patientQuery || undefined,
+          dateFrom: applied.dateFrom || undefined,
+          dateTo: applied.dateTo || undefined,
+          timeFrom: applied.timeFrom || undefined,
+          timeTo: applied.timeTo || undefined,
           channel: applied.channel || undefined,
           audience: applied.audience || undefined,
           status: applied.status || undefined,
@@ -1845,16 +1871,51 @@ function RemindersDeliveryTab() {
       setUuidError("الرجاء استخدام معرّف الموعد الكامل (UUID).");
       return;
     }
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      setRangeError("تاريخ البداية يجب أن يسبق تاريخ النهاية.");
+      return;
+    }
+    if (timeFrom && timeTo && timeFrom > timeTo) {
+      setRangeError("وقت البداية يجب أن يسبق وقت النهاية.");
+      return;
+    }
     setUuidError(null);
-    setApplied({ appointmentId: trimmed, channel, audience, status });
+    setRangeError(null);
+    setApplied({
+      appointmentId: trimmed,
+      patientQuery: patientQuery.trim(),
+      dateFrom,
+      dateTo,
+      timeFrom,
+      timeTo,
+      channel,
+      audience,
+      status,
+    });
   }
   function clearAll() {
     setAppointmentIdInput("");
+    setPatientQuery("");
+    setDateFrom("");
+    setDateTo("");
+    setTimeFrom("");
+    setTimeTo("");
     setChannel("");
     setAudience("");
     setStatus("");
     setUuidError(null);
-    setApplied({ appointmentId: "", channel: "", audience: "", status: "" });
+    setRangeError(null);
+    setApplied({
+      appointmentId: "",
+      patientQuery: "",
+      dateFrom: "",
+      dateTo: "",
+      timeFrom: "",
+      timeTo: "",
+      channel: "",
+      audience: "",
+      status: "",
+    });
   }
 
   const rows: ReminderDelivery[] = query.data ?? [];
@@ -1862,8 +1923,23 @@ function RemindersDeliveryTab() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="grid gap-3 md:grid-cols-5">
-          <div className="md:col-span-2">
+        <div className="grid gap-3 md:grid-cols-6">
+          <div className="md:col-span-3">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              بحث باسم أو جوال المريض
+            </label>
+            <input
+              type="search"
+              value={patientQuery}
+              onChange={(e) => setPatientQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") apply();
+              }}
+              placeholder="مثال: أحمد أو 0501234567"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="md:col-span-3">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               معرّف الموعد (اختياري)
             </label>
@@ -1876,6 +1952,42 @@ function RemindersDeliveryTab() {
               dir="ltr"
             />
             {uuidError && <p className="mt-1 text-xs text-destructive">{uuidError}</p>}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">من تاريخ</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">إلى تاريخ</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">من وقت</label>
+            <input
+              type="time"
+              value={timeFrom}
+              onChange={(e) => setTimeFrom(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">إلى وقت</label>
+            <input
+              type="time"
+              value={timeTo}
+              onChange={(e) => setTimeTo(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">القناة</label>
@@ -1919,6 +2031,7 @@ function RemindersDeliveryTab() {
             </select>
           </div>
         </div>
+        {rangeError && <p className="mt-2 text-xs text-destructive">{rangeError}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={apply}
@@ -1940,6 +2053,7 @@ function RemindersDeliveryTab() {
           </button>
         </div>
       </div>
+
 
       <div className="rounded-2xl border border-border bg-card">
         {query.isLoading ? (

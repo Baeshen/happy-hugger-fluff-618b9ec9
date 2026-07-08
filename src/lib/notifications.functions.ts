@@ -161,6 +161,11 @@ const ListRemindersInput = z
     audience: z.enum(["user", "staff"]).nullable().optional(),
     status: z.enum(["pending", "queued", "sent", "failed", "skipped"]).nullable().optional(),
     branchId: z.string().uuid().nullable().optional(),
+    patientQuery: z.string().trim().max(120).nullable().optional(),
+    dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    timeFrom: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).nullable().optional(),
+    timeTo: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).nullable().optional(),
     limit: z.number().int().min(1).max(500).optional(),
   })
   .default({});
@@ -171,6 +176,27 @@ export const listReminderDeliveries = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<ReminderDelivery[]> => {
     const roles = await getRoles(context.supabase, context.userId);
     ensureStaff(roles);
+
+    const hasApptFilter =
+      !!data.patientQuery || !!data.dateFrom || !!data.dateTo || !!data.timeFrom || !!data.timeTo || !!data.branchId;
+    let restrictIds: string[] | null = null;
+    if (hasApptFilter) {
+      let aq = context.supabase.from("appointments").select("id").limit(2000);
+      if (data.branchId) aq = aq.eq("branch_id", data.branchId);
+      if (data.dateFrom) aq = aq.gte("appointment_date", data.dateFrom);
+      if (data.dateTo) aq = aq.lte("appointment_date", data.dateTo);
+      if (data.timeFrom) aq = aq.gte("appointment_time", data.timeFrom);
+      if (data.timeTo) aq = aq.lte("appointment_time", data.timeTo);
+      if (data.patientQuery) {
+        const esc = data.patientQuery.replace(/[%,()]/g, " ").trim();
+        if (esc) aq = aq.or(`patient_name.ilike.%${esc}%,patient_phone.ilike.%${esc}%`);
+      }
+      const { data: matched, error: mErr } = await aq;
+      if (mErr) throw new Error(mErr.message);
+      restrictIds = (matched ?? []).map((r) => r.id);
+      if (restrictIds.length === 0) return [];
+    }
+
     let q = context.supabase
       .from("notifications")
       .select(
@@ -183,7 +209,7 @@ export const listReminderDeliveries = createServerFn({ method: "POST" })
     if (data.channel) q = q.eq("channel", data.channel);
     if (data.audience) q = q.eq("audience", data.audience);
     if (data.status) q = q.eq("send_status", data.status);
-    if (data.branchId) q = q.eq("branch_id", data.branchId);
+    if (restrictIds) q = q.in("appointment_id", restrictIds);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
