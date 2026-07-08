@@ -143,6 +143,27 @@ export const Route = createFileRoute("/api/public/book/availability")({
           return json(400, { ok: false, error: "missing_scope" });
         }
 
+        // Cache key includes every parameter that changes the result. `date`
+        // is bucketed only per full day (safe) but same-day results include
+        // an implicit "now" cutoff — we keep the TTL tight (20s) so that
+        // cutoff can only drift by ~one slot's fraction at worst.
+        const cacheKey = `${date}|${doctorId ?? ""}|${specialtyId ?? ""}|${branchId ?? ""}`;
+        const cached = memoGet(cacheKey);
+        if (cached) {
+          const etag = `W/"${cacheKey}:${(cached as { _v?: number })._v ?? 0}"`;
+          if (request.headers.get("if-none-match") === etag) {
+            return new Response(null, {
+              status: 304,
+              headers: {
+                ETag: etag,
+                "Cache-Control":
+                  "public, max-age=0, s-maxage=30, stale-while-revalidate=60",
+              },
+            });
+          }
+          return json(200, cached, { ETag: etag });
+        }
+
         const empty = { ok: true, times: [], booked: [], doctors_considered: 0 };
 
         try {
