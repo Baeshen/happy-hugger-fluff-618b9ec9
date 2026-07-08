@@ -164,7 +164,11 @@ export function ServiceRequestForm({
         toast.error(body.message ?? "تعذّر إرسال الطلب");
         return;
       }
-      setReference(body.reference ?? shortReference(refPrefix));
+      setConfirmation({
+        ...d,
+        extra: d.extra ?? "",
+        reference: body.reference ?? shortReference(refPrefix),
+      });
       setForm(EMPTY);
       setErrors({});
       toast.success("تم استلام طلبك، سنتواصل معك للتأكيد قريبًا");
@@ -175,7 +179,7 @@ export function ServiceRequestForm({
     }
   }
 
-  if (reference) {
+  if (confirmation) {
     return (
       <div
         role="status"
@@ -197,7 +201,7 @@ export function ServiceRequestForm({
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard?.writeText(reference).then(
+                navigator.clipboard?.writeText(confirmation.reference).then(
                   () => toast.success("تم نسخ رقم الطلب"),
                   () => toast.error("تعذّر النسخ"),
                 );
@@ -208,15 +212,35 @@ export function ServiceRequestForm({
               نسخ
             </button>
           </div>
-          <div className="mt-1 text-lg font-mono font-bold tracking-wider">{reference}</div>
+          <div className="mt-1 text-lg font-mono font-bold tracking-wider">{confirmation.reference}</div>
         </div>
-        <button
-          type="button"
-          onClick={() => setReference(null)}
-          className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold hover:bg-muted"
-        >
-          إرسال طلب آخر
-        </button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() =>
+              downloadBookingConfirmationPdf({
+                reference: confirmation.reference,
+                patient_name: confirmation.patient_name,
+                patient_phone: confirmation.patient_phone,
+                appointment_date: confirmation.appointment_date,
+                appointment_time: confirmation.appointment_time,
+                service: confirmation.service,
+                centerName: tag,
+              })
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Download className="h-4 w-4" />
+            تحميل تأكيد الحجز PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmation(null)}
+            className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            إرسال طلب آخر
+          </button>
+        </div>
       </div>
     );
   }
