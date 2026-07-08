@@ -1,79 +1,37 @@
-# المرحلة 4 — بوابة المريض + خدمات الجودة
+## لوحة إدارة الحجوزات
 
-بعد اكتمال المراحل 1-3 (البنية، الفروع، مراكز التميز، الخدمات المتقدمة) وصقل تجربة الحجز والتتبع، ننتقل لآخر مرحلة في الخطة الكبرى.
+تم بالفعل بناء لوحة إدارة الحجوزات في `src/routes/_authenticated/appointments-queue.tsx` في خطوة سابقة. الخطة أدناه هي إعادة تأكيد للنطاق المنفَّذ — إن أردت توسعة أو تعديل ميزة معيّنة، أخبرني بها.
 
-## الحالة الحالية
+### النطاق
 
-موجود بالفعل: `/complaints`, `/emergency`, `/my` (نسخة أولية), `/careers`, `/telemedicine`, `/insurance`, `/home-care`, `/international-patients`, `/media/news`, `/packages`.
+1. **تبويبات النطاق الزمني** مع عدّادات:
+   - القادمة (افتراضي) · المرشّحة (اليوم + غدًا) · اليوم · المنقضية · الكل
 
-الناقص من المرحلة 4:
-- إعادة تصميم `/my` كبوابة تبويبية شاملة
-- `/second-opinion` — الرأي الطبي الثاني
-- `/app` — صفحة تنزيل التطبيق
-- Chatbot عائم بسيط
-- `/media/stories` — قصص المرضى (تبقّى من المرحلة 3)
-- `/corporate` — خدمات الشركات (تبقّى من المرحلة 3)
+2. **فلاتر وبحث**:
+   - فلتر حسب الحالة: جديد، مؤكّد، مكتمل، لم يحضر، ملغى
+   - بحث نصّي: الاسم، رقم الجوّال، رقم الطلب، سبب الزيارة
+   - فلتر اختياري حسب الفرع/الطبيب
 
-## نطاق المرحلة
+3. **عرض قائمة الحجوزات**:
+   - بطاقة/صف لكل حجز: المريض، الجوّال، التاريخ/الوقت، الطبيب، التخصص، الفرع، الحالة (شارة ملوّنة)، رقم مرجعي
 
-### 1) إعادة تصميم `/my` كبوابة تبويبية (الأولوية القصوى)
-5 تبويبات داخل الصفحة (تحت `_authenticated`):
-- **المواعيد** — الحالية + قادمة + سابقة (موجود جزئياً، يُنقل تحت تبويب).
-- **الوصفات النشطة** — قراءة من `prescriptions` (جديد).
-- **تقارير المختبر** — قراءة من `lab_reports` + رابط تحميل PDF من Storage bucket `lab-reports`.
-- **تقارير الأشعة** — من `radiology_reports` + رابط PDF من `radiology-reports`.
-- **الفواتير** — من `invoices` + زر "طلب مطالبة تأمين".
+4. **درج التفاصيل + الإجراءات**:
+   - تأكيد · إتمام · وضع "لم يحضر" · إلغاء (مع حقل سبب إجباري لعدم الحضور/الإلغاء)
+   - زر "تعديل الموعد" → يوجّه إلى `/lookup?ref=...&action=reschedule`
+   - زر اتصال سريع بالعميل (`tel:`) وواتساب (`wa.me`)
 
-### 2) `/second-opinion`
-نموذج طلب رأي طبي ثاني: بيانات المريض، التخصص، ملخص الحالة، رفع تقارير سابقة (Storage bucket `second-opinion-uploads`، RLS: إدراج عام لمستخدم مسجّل، قراءة للأدمن).
-جدول `second_opinion_requests`.
+5. **البيانات**:
+   - `listAppointments` server fn (محمي بـ `requireSupabaseAuth` + فحص دور admin/staff)
+   - `updateAppointmentStatus` server fn لتحديث الحالة مع كتابة سجل في `appointment_audit`
+   - `useQuery` + `useMutation` مع `invalidateQueries` بعد كل تعديل
 
-### 3) `/app`
-صفحة تسويقية لتطبيق الجوال: hero + مزايا + بطاقات App Store / Google Play (روابط placeholders + QR code).
+### تفاصيل تقنية
 
-### 4) Chatbot عائم
-مكوّن `<ChatbotBubble />` في `__root.tsx`:
-- زر عائم أسفل يمين (يحترم `QuickBar` الموجود).
-- نافذة صغيرة تعرض أسئلة شائعة من `faqs` (قراءة عبر Supabase publishable).
-- fallback: زر "تحدث معنا على واتساب" يفتح `wa.me` برسالة مُعدّة.
-- بدون AI في هذه المرحلة (بحث نصي بسيط داخل عناوين `faqs`).
+- المسار: `src/routes/_authenticated/appointments-queue.tsx` (تحت الحارس المُدار)
+- التحقق من الدور: `has_role(auth.uid(), 'admin' | 'staff')` داخل كل server fn
+- التحديث الفوري: `queryClient.invalidateQueries({ queryKey: ['appointments', ...] })` بعد كل mutation
+- الشارات تستخدم توكنات التصميم في `index.css` (لا ألوان صريحة)
 
-### 5) `/media/stories` (تكميل المرحلة 3)
-قصص مرضى: جدول `patient_stories` + صفحة فهرس + صفحة تفصيلية `$slug`.
+### ما تم تنفيذه سابقاً
 
-### 6) `/corporate` (تكميل المرحلة 3)
-صفحة اتفاقيات الشركات + نموذج طلب اتفاقية → `corporate_requests`.
-
-## الجداول والـStorage الجديدة
-
-```text
-prescriptions            (id, patient_id, doctor_id, medication, dosage, start_date, end_date, status, notes)
-lab_reports              (id, patient_id, title, ordered_by, report_date, file_path, status)
-radiology_reports        (id, patient_id, modality, body_part, report_date, file_path, findings)
-invoices                 (id, patient_id, appointment_id?, total, currency, status, issued_at, pdf_path)
-second_opinion_requests  (id, patient_name, phone, specialty, summary, uploads[], status, created_at)
-patient_stories          (id, slug, title_ar, excerpt, body_md, hero_image_url, published_at)
-corporate_requests       (id, company_name, contact_name, phone, email, employee_count, notes, status)
-
-Storage buckets: lab-reports, radiology-reports, invoice-pdfs, second-opinion-uploads
-```
-
-## تفاصيل تقنية
-
-- جميع الجداول الجديدة تتبع القاعدة الصارمة: `CREATE TABLE public.*` → `GRANT` لكل دور مسموح → `ENABLE ROW LEVEL SECURITY` → `CREATE POLICY`.
-- سياسات RLS للجداول الشخصية (`prescriptions`, `lab_reports`, `radiology_reports`, `invoices`): SELECT مقيّد بـ `patient_id = auth.uid()` + admin عبر `has_role`.
-- الجداول العامة (`patient_stories`): SELECT للـ `anon` عندما `published_at IS NOT NULL`.
-- كل ملف مسار تحت `src/routes/` بـ `head()` مستقل: title/description/og:title/og:description/canonical على `https://happy-hugger-fluff.lovable.app/...`.
-- Storage: buckets خاصة (غير عامة) — تُقدَّم عبر `createSignedUrl` من server function محمي بـ `requireSupabaseAuth`.
-- SSR: كل صفحة عامة تستخدم `loader` + `ensureQueryData` + `useSuspenseQuery`. الصفحات تحت `_authenticated` تستخدم `useServerFn` داخل `useQuery`.
-- Chatbot: مكوّن client-only يُلفّ بـ `useHydrated()` لتجنّب mismatch.
-- بيانات تجريبية (seed) للجداول الجديدة تُضاف عبر migration منفصلة (ليست في نفس migration الإنشاء).
-
-## التنفيذ التدريجي
-
-سأنفّذها بترتيب الأولوية:
-1. بوابة `/my` التبويبية + جداول الوصفات/المختبر/الأشعة/الفواتير (الأكبر أثراً).
-2. `/second-opinion` + `/app` + `/corporate` + `/media/stories` (صفحات جديدة مستقلة).
-3. Chatbot العائم (لمسة نهائية عبر الموقع كله).
-
-بعد الانتهاء يكون الموقع مطابقاً لنطاق HMG وظيفياً، مع صقل تجربة أحدث وأسرع.
+كل ما أعلاه مطبّق. إن أردت الآن إضافات مثل: تصدير CSV، طباعة قائمة اليوم، تعيين طبيب، إشعارات فورية، ترحيل جماعي، أو تعديل حقول الموعد داخل اللوحة نفسها بدلاً من التوجيه إلى `/lookup` — حدّد المطلوب وسأجهّز خطة جديدة.
