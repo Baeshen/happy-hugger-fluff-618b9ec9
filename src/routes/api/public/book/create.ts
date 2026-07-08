@@ -58,6 +58,8 @@ const bookingCreateSchema = z.object({
     .max(REASON_MAX, `السبب طويل جدًا (الحد الأقصى ${REASON_MAX} حرفًا)`)
     .optional()
     .nullable(),
+  reminder_24h: z.boolean().optional(),
+  reminder_2h: z.boolean().optional(),
 });
 
 function json(status: number, body: Record<string, unknown>) {
