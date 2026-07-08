@@ -78,14 +78,24 @@ import {
   Info,
 } from "lucide-react";
 
+const adminSearchSchema = z.object({
+  tab: fallback(z.string(), "overview").default("overview"),
+  logChannel: fallback(z.string(), "").default(""),
+  logStatus: fallback(z.string(), "").default(""),
+  logFrom: fallback(z.string(), "").default(""),
+  logTo: fallback(z.string(), "").default(""),
+});
+
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [{ title: "لوحة التحكم | مجمع باعشن الطبي" }, { name: "robots", content: "noindex" }],
   }),
+  validateSearch: zodValidator(adminSearchSchema),
   component: AdminDashboard,
 });
 
 type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-log" | "reminders-delivery-stats" | "reminders-audit" | "reminders-stats" | "security-audit" | "content";
+const ALL_TABS: Tab[] = ["overview","appointments","orders","doctors","specialties","availability","reminders-log","reminders-delivery-stats","reminders-audit","reminders-stats","security-audit","content"];
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
