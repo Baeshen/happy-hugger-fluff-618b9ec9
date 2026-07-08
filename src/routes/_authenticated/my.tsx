@@ -31,6 +31,29 @@ import {
   type HeadCheckState,
   type DownloadBucket,
 } from "@/lib/download-error";
+import { logDownloadError } from "@/lib/download-error.functions";
+
+/**
+ * Fire-and-forget: log download failures both to the browser console and to
+ * the server. Never throws — logging must not block the retry UI.
+ */
+function reportDownloadError(report: {
+  bucket: DownloadBucket;
+  path: string;
+  stage: "sign" | "head" | "download" | "unexpected";
+  message?: string | null;
+  httpStatus?: number | null;
+  durationMs?: number | null;
+  headCheckSkipped?: boolean;
+  attempt?: number;
+}) {
+  const clientTimestamp = new Date().toISOString();
+  // eslint-disable-next-line no-console
+  console.error("[download-error]", { ...report, clientTimestamp });
+  void logDownloadError({ data: { ...report, clientTimestamp } }).catch(() => {
+    /* swallow — logging must never break the download UI */
+  });
+}
 
 /**
  * Per-bucket adaptive HEAD-check state, shared across DownloadFileButton
