@@ -264,7 +264,11 @@ export function BranchBookingForm({
         return;
       }
       toast.success("تم إرسال الحجز بنجاح");
-      setRef(id.slice(0, 8).toUpperCase());
+      const ref = id.slice(0, 8).toUpperCase();
+      navigate({
+        to: "/booking-confirmation",
+        search: { ref, phone: v.phone, branch: branchNameAr },
+      });
     } catch (e) {
       const msg =
         e instanceof Error && e.message
