@@ -190,8 +190,8 @@ export function CenterBookingForm({
       return;
     }
 
-    lastPayloadRef.current = parsed.data;
-    await doSubmit(parsed.data);
+    lastPayloadRef.current = { ...parsed.data, reason: parsed.data.reason ?? "" };
+    await doSubmit(lastPayloadRef.current);
   }
 
   function onRetry() {
