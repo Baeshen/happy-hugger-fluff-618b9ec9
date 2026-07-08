@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Search, MapPin, Stethoscope, X, CalendarPlus } from "lucide-react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { Search, MapPin, Stethoscope, X, CalendarPlus, Loader2, SearchX } from "lucide-react";
 import type { BranchSpecialty, ExcellenceCenter, PublicBranch } from "@/lib/branches.functions";
 
 type Props = {
