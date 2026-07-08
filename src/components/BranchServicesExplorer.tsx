@@ -27,10 +27,18 @@ function serviceMapEmbed(b: PublicBranch, serviceLabel: string): string | null {
   return `https://www.google.com/maps?q=${q}&hl=ar&z=15&output=embed`;
 }
 
-export function BranchServicesExplorer({ branch, specialties, centers }: Props) {
+export function BranchServicesExplorer({ branch, specialties, centers, onBookService }: Props) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "specialty" | "center">("all");
-  const [selected, setSelected] = useState<{ id: string; label: string; kind: "specialty" | "center" } | null>(null);
+  const [selected, setSelected] = useState<
+    | {
+        id: string;
+        label: string;
+        kind: "specialty" | "center";
+        specialtyId: string | null;
+      }
+    | null
+  >(null);
 
   const items = useMemo(() => {
     const specs = specialties.map((s) => ({
@@ -38,14 +46,14 @@ export function BranchServicesExplorer({ branch, specialties, centers }: Props) 
       label: s.name_ar,
       sub: s.name_en,
       kind: "specialty" as const,
-      icon: null as string | null,
+      specialtyId: s.id,
     }));
     const cs = centers.map((c) => ({
       id: `c:${c.id}`,
       label: c.name_ar,
       sub: c.short_ar ?? c.name_en,
       kind: "center" as const,
-      icon: c.icon,
+      specialtyId: c.specialty_id ?? null,
     }));
     const all = [...cs, ...specs];
     const filtered = all
@@ -62,6 +70,8 @@ export function BranchServicesExplorer({ branch, specialties, centers }: Props) 
 
   const embed = selected ? serviceMapEmbed(branch, selected.label) : baseMapEmbed(branch);
   const hasCoords = branch.lat != null && branch.lng != null;
+  const canBookSelected = !!(selected && selected.specialtyId && onBookService);
+
 
   return (
     <section className="rounded-2xl border border-border bg-card overflow-hidden">
