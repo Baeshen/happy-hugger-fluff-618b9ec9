@@ -245,12 +245,12 @@ export function BranchBookingForm({
       }
       window.localStorage.setItem(
         draftKey,
-        JSON.stringify({ step, specialtyId, doctorId, date, time, form, savedAt: Date.now() }),
+        JSON.stringify({ step, specialtyId, doctorId, date, time, form, reminderOffsets, savedAt: Date.now() }),
       );
     } catch {
       // ignore quota / privacy errors
     }
-  }, [draftKey, step, specialtyId, doctorId, date, time, form]);
+  }, [draftKey, step, specialtyId, doctorId, date, time, form, reminderOffsets]);
 
   const clearDraft = () => {
     if (typeof window !== "undefined") {
