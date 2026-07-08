@@ -136,24 +136,45 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
           <div role="tablist" aria-label="تصفية الخدمات" className="flex gap-1 rounded-lg bg-muted p-1 text-xs">
             {(
               [
-                { k: "all", label: `الكل (${totalCount})` },
-                { k: "center", label: `مراكز التميز (${centers.length})` },
-                { k: "specialty", label: `التخصصات (${specialties.length})` },
+                { k: "all", label: "الكل", count: counts.all, total: totalCount },
+                { k: "center", label: "مراكز التميز", count: counts.center, total: centers.length },
+                { k: "specialty", label: "التخصصات", count: counts.specialty, total: specialties.length },
               ] as const
-            ).map((t) => (
-              <button
-                key={t.k}
-                role="tab"
-                aria-selected={tab === t.k}
-                onClick={() => setTab(t.k)}
-                className={`flex-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
-                  tab === t.k ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+            ).map((t) => {
+              const isActive = tab === t.k;
+              const isEmptyCat = t.count === 0;
+              return (
+                <button
+                  key={t.k}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setTab(t.k)}
+                  className={`flex-1 rounded-md px-2.5 py-1.5 font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    isActive
+                      ? "bg-background text-primary shadow-sm"
+                      : isEmptyCat && hasQuery
+                      ? "text-muted-foreground/50"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className="truncate">{t.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold min-w-[1.4rem] text-center ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : isEmptyCat
+                        ? "bg-muted-foreground/10 text-muted-foreground/60"
+                        : "bg-background text-muted-foreground"
+                    }`}
+                    aria-label={hasQuery ? `${t.count} نتيجة من ${t.total}` : `${t.total}`}
+                  >
+                    {hasQuery ? `${t.count}/${t.total}` : t.total}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+
 
           <ul
             className={`max-h-[420px] overflow-y-auto space-y-1.5 pr-1 transition-opacity ${
