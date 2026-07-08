@@ -2576,62 +2576,259 @@ function RemindersDeliveryStatsTab() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="mb-4 flex items-baseline justify-between">
-              <h3 className="text-base font-semibold">
-                التذكيرات {data.bucket === "hour" ? "بالساعة" : "اليومية"}
-              </h3>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> مُرسلة
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-destructive" /> فشلت
-                </span>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <div
-                className="flex items-end gap-1 min-w-full"
-                style={{ height: 180, minWidth: Math.max(320, data.byBucket.length * 14) }}
-                dir="ltr"
-              >
-                {data.byBucket.map((b) => {
-                  const totalH = ((b.sent + b.failed) / maxBucket) * 160;
-                  const sentH = (b.sent / maxBucket) * 160;
-                  const failH = (b.failed / maxBucket) * 160;
-                  return (
-                    <div
-                      key={b.label}
-                      className="group relative flex flex-1 flex-col items-center justify-end"
-                      title={`${b.label}\nمُرسلة: ${b.sent}\nفشلت: ${b.failed}`}
-                    >
-                      <div
-                        className="flex w-full flex-col justify-end"
-                        style={{ height: totalH || 1 }}
-                      >
-                        {b.failed > 0 && (
-                          <div className="w-full bg-destructive" style={{ height: failH }} />
-                        )}
-                        {b.sent > 0 && (
-                          <div className="w-full bg-emerald-500" style={{ height: sentH }} />
-                        )}
-                        {totalH === 0 && (
-                          <div className="w-full bg-muted/40" style={{ height: 1 }} />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-2 flex justify-between text-[10px] text-muted-foreground" dir="ltr">
-                <span>{data.byBucket[0]?.label ?? ""}</span>
-                <span>{data.byBucket[data.byBucket.length - 1]?.label ?? ""}</span>
-              </div>
-            </div>
-          </div>
+          <DeliveryTrendChart
+            buckets={data.byBucket}
+            bucket={data.bucket}
+          />
         </>
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Delivery Trend Chart — hover tooltip + horizontal scroll + success-rate overlay
+// ============================================================================
+
+function formatBucketLabel(label: string, bucket: "hour" | "day"): string {
+  // label is ISO prefix: "yyyy-MM-dd" (day) or "yyyy-MM-ddTHH" (hour)
+  if (bucket === "hour") {
+    const d = new Date(label + ":00:00Z");
+    if (isNaN(d.getTime())) return label;
+    return new Intl.DateTimeFormat("ar-EG", {
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+    }).format(d);
+  }
+  const d = new Date(label + "T00:00:00Z");
+  if (isNaN(d.getTime())) return label;
+  return new Intl.DateTimeFormat("ar-EG", {
+    month: "short",
+    day: "2-digit",
+    weekday: "short",
+  }).format(d);
+}
+
+function DeliveryTrendChart({
+  buckets,
+  bucket,
+}: {
+  buckets: Array<{ label: string; sent: number; failed: number }>;
+  bucket: "hour" | "day";
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const maxBucket = Math.max(1, ...buckets.map((b) => b.sent + b.failed));
+  // 4 gridlines at 25/50/75/100%
+  const gridSteps = [0.25, 0.5, 0.75, 1];
+  const CHART_H = 200;
+  const BAR_H = 170;
+  const BAR_W = 18;
+  const GAP = 4;
+  const contentWidth = Math.max(320, buckets.length * (BAR_W + GAP));
+
+  const hovered = hover !== null ? buckets[hover] : null;
+  const hoveredTotal = hovered ? hovered.sent + hovered.failed : 0;
+  const hoveredRate =
+    hovered && hoveredTotal > 0 ? Math.round((hovered.sent / hoveredTotal) * 1000) / 10 : 0;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-base font-semibold">
+          الاتجاه الزمني للتذكيرات {bucket === "hour" ? "بالساعة" : "باليوم"}
+        </h3>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> مُرسلة
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-destructive" /> فشلت
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-0.5 w-4 bg-sky-500" /> معدل النجاح
+          </span>
+        </div>
+      </div>
+
+      <div className="relative overflow-x-auto" dir="ltr">
+        {/* Fixed y-axis on the left, chart scrolls horizontally next to it */}
+        <div className="flex">
+          <div
+            className="relative shrink-0 pe-2 text-[10px] text-muted-foreground"
+            style={{ height: CHART_H, width: 40 }}
+          >
+            {gridSteps
+              .slice()
+              .reverse()
+              .map((g) => (
+                <div
+                  key={g}
+                  className="absolute end-2 -translate-y-1/2 tabular-nums"
+                  style={{ top: CHART_H - 15 - g * BAR_H }}
+                >
+                  {Math.round(maxBucket * g)}
+                </div>
+              ))}
+            <div
+              className="absolute end-2 -translate-y-1/2 tabular-nums"
+              style={{ top: CHART_H - 15 }}
+            >
+              0
+            </div>
+          </div>
+
+          <div
+            className="relative flex-1"
+            style={{ height: CHART_H, minWidth: contentWidth }}
+            onMouseLeave={() => setHover(null)}
+          >
+            {/* Gridlines */}
+            {gridSteps.map((g) => (
+              <div
+                key={g}
+                className="absolute inset-x-0 border-t border-dashed border-border/60"
+                style={{ top: CHART_H - 15 - g * BAR_H }}
+              />
+            ))}
+            {/* Baseline */}
+            <div
+              className="absolute inset-x-0 border-t border-border"
+              style={{ top: CHART_H - 15 }}
+            />
+
+            {/* Bars */}
+            <div
+              className="absolute inset-x-0 flex items-end"
+              style={{ bottom: 15, height: BAR_H, gap: GAP }}
+            >
+              {buckets.map((b, i) => {
+                const total = b.sent + b.failed;
+                const totalH = (total / maxBucket) * BAR_H;
+                const sentH = (b.sent / maxBucket) * BAR_H;
+                const failH = (b.failed / maxBucket) * BAR_H;
+                const isHover = hover === i;
+                return (
+                  <button
+                    key={b.label}
+                    type="button"
+                    onMouseEnter={() => setHover(i)}
+                    onFocus={() => setHover(i)}
+                    onClick={() => setHover(i)}
+                    className="group relative flex shrink-0 flex-col items-center justify-end outline-none"
+                    style={{ width: BAR_W, height: BAR_H }}
+                    aria-label={`${formatBucketLabel(b.label, bucket)}: مُرسلة ${b.sent}, فشلت ${b.failed}`}
+                  >
+                    <div
+                      className={`flex w-full flex-col justify-end overflow-hidden rounded-t-sm transition-opacity ${
+                        hover !== null && !isHover ? "opacity-60" : "opacity-100"
+                      }`}
+                      style={{ height: totalH || 1 }}
+                    >
+                      {b.failed > 0 && (
+                        <div className="w-full bg-destructive" style={{ height: failH }} />
+                      )}
+                      {b.sent > 0 && (
+                        <div className="w-full bg-emerald-500" style={{ height: sentH }} />
+                      )}
+                      {totalH === 0 && (
+                        <div className="w-full bg-muted/40" style={{ height: 1 }} />
+                      )}
+                    </div>
+                    {isHover && (
+                      <div
+                        className="pointer-events-none absolute inset-x-0 -top-1 border-s border-e border-primary/40"
+                        style={{ height: BAR_H + 4 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Success-rate line overlay (only where there's data) */}
+            <svg
+              className="pointer-events-none absolute inset-0"
+              width={contentWidth}
+              height={CHART_H}
+              style={{ overflow: "visible" }}
+            >
+              <polyline
+                fill="none"
+                stroke="rgb(14 165 233)"
+                strokeWidth={1.5}
+                strokeDasharray="3 2"
+                points={buckets
+                  .map((b, i) => {
+                    const total = b.sent + b.failed;
+                    if (total === 0) return null;
+                    const rate = b.sent / total; // 0..1
+                    const x = i * (BAR_W + GAP) + BAR_W / 2;
+                    const y = CHART_H - 15 - rate * BAR_H;
+                    return `${x},${y}`;
+                  })
+                  .filter(Boolean)
+                  .join(" ")}
+              />
+            </svg>
+
+            {/* X-axis labels: show first, mid, last to avoid crowding */}
+            <div
+              className="absolute inset-x-0 flex justify-between text-[10px] text-muted-foreground"
+              style={{ bottom: 0 }}
+            >
+              <span>{formatBucketLabel(buckets[0]?.label ?? "", bucket)}</span>
+              {buckets.length > 4 && (
+                <span>
+                  {formatBucketLabel(
+                    buckets[Math.floor(buckets.length / 2)]?.label ?? "",
+                    bucket,
+                  )}
+                </span>
+              )}
+              <span>
+                {formatBucketLabel(buckets[buckets.length - 1]?.label ?? "", bucket)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tooltip */}
+        {hovered && (
+          <div
+            className="pointer-events-none absolute top-2 rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-lg"
+            style={{ insetInlineEnd: 12 }}
+            dir="rtl"
+          >
+            <div className="font-semibold">{formatBucketLabel(hovered.label, bucket)}</div>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500" />
+              <span>مُرسلة:</span>
+              <span className="tabular-nums font-medium">{hovered.sent.toLocaleString("ar-EG")}</span>
+            </div>
+            <div className="mt-0.5 flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-sm bg-destructive" />
+              <span>فشلت:</span>
+              <span className="tabular-nums font-medium">{hovered.failed.toLocaleString("ar-EG")}</span>
+            </div>
+            <div className="mt-1 border-t border-border pt-1">
+              <span>الإجمالي: </span>
+              <span className="tabular-nums font-medium">{hoveredTotal.toLocaleString("ar-EG")}</span>
+              {hoveredTotal > 0 && (
+                <>
+                  <span className="mx-1">·</span>
+                  <span>معدل النجاح: </span>
+                  <span className="tabular-nums font-medium text-emerald-600">{hoveredRate}%</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        مرّر أفقيًا لعرض جميع الفترات، ومرّر الفأرة (أو المس) على أي عمود لعرض القيم التفصيلية.
+      </p>
     </div>
   );
 }
