@@ -2061,6 +2061,48 @@ function RemindersDeliveryTab() {
           >
             تحديث
           </button>
+          <button
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await exportFn({
+                  data: {
+                    appointmentId: applied.appointmentId || undefined,
+                    patientQuery: applied.patientQuery || undefined,
+                    dateFrom: applied.dateFrom || undefined,
+                    dateTo: applied.dateTo || undefined,
+                    timeFrom: applied.timeFrom || undefined,
+                    timeTo: applied.timeTo || undefined,
+                    channel: applied.channel || undefined,
+                    audience: applied.audience || undefined,
+                    status: applied.status || undefined,
+                  },
+                });
+                const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = res.filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                toast.success(
+                  res.count === 0
+                    ? "تم التصدير لكن لا توجد سجلات مطابقة."
+                    : `تم تصدير ${res.count.toLocaleString("ar-EG")} سجل.`,
+                );
+              } catch (e) {
+                toast.error((e as Error)?.message ?? "تعذّر التصدير.");
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting}
+            className="rounded-md border border-input px-4 py-1.5 text-sm hover:bg-muted disabled:opacity-60"
+          >
+            {exporting ? "جارٍ التصدير…" : "تصدير CSV"}
+          </button>
         </div>
       </div>
 
