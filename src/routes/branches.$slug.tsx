@@ -102,7 +102,46 @@ export const Route = createFileRoute("/branches/$slug")({
   component: BranchDetailPage,
   errorComponent: BranchError,
   notFoundComponent: BranchNotFound,
+  pendingComponent: BranchDetailPending,
+  pendingMs: 200,
 });
+
+function BranchDetailPending() {
+  return (
+    <div className="container-app py-8 grid gap-6 lg:grid-cols-3" aria-busy="true" aria-label="جاري تحميل بيانات الفرع">
+      <aside className="lg:col-span-1 space-y-4">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="aspect-[16/9] bg-muted animate-pulse" />
+          <div className="p-4 space-y-3">
+            <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-2/3 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+            <div className="h-10 w-full bg-muted rounded animate-pulse mt-2" />
+          </div>
+        </div>
+      </aside>
+      <div className="lg:col-span-2 space-y-4">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <div className="h-5 w-56 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+            <div className="p-4 space-y-3 border-b lg:border-b-0 lg:border-l border-border">
+              <div className="h-10 w-full bg-muted rounded-lg animate-pulse" />
+              <div className="h-8 w-full bg-muted rounded-lg animate-pulse" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 w-full bg-muted/70 rounded-lg animate-pulse" />
+              ))}
+            </div>
+            <div className="min-h-[360px] bg-muted animate-pulse" />
+          </div>
+        </div>
+        <div className="h-40 rounded-2xl bg-muted animate-pulse" />
+      </div>
+    </div>
+  );
+}
 
 function BranchError({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
