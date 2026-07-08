@@ -713,6 +713,7 @@ function DownloadFileButton({
         .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
       if (signError || !data?.signedUrl) {
         const friendly = getFriendlyDownloadError(signError?.message);
+        headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
         setError(friendly);
         toast.error(friendly);
         return;
