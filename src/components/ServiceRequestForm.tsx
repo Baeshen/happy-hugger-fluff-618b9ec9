@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { CalendarPlus, CheckCircle2, Copy, Loader2 } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Copy, Download, Loader2 } from "lucide-react";
+import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
 
 /**
  * Generic service-request form used by advanced-service pages
