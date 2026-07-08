@@ -161,46 +161,94 @@ function TrackPage() {
   const [phone4, setPhone4] = useState("");
   const [loading, setLoading] = useState(false);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LookupError | null>(null);
+  const lastQueryRef = useRef<{ reference: string; phone_last4: string } | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function runLookup(payload: { reference: string; phone_last4: string }) {
+    setLoading(true);
     setError(null);
     setAppointment(null);
-
-    const parsed = schema.safeParse({ reference, phone_last4: phone4 });
-    if (!parsed.success) {
-      const msg = parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    setLoading(true);
+    const toastId = toast.loading("جاري البحث عن حالة طلبك...");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
     try {
-      const res = await fetch("/api/public/book/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        appointment?: Appointment;
-        message?: string;
-      };
-      if (!res.ok || !body.ok || !body.appointment) {
-        setError(body.message ?? "لم نعثر على طلب مطابق.");
+      let res: Response;
+      try {
+        res = await fetch("/api/public/book/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        const isAbort =
+          (err instanceof DOMException && err.name === "AbortError") ||
+          (err as { name?: string } | null)?.name === "AbortError";
+        const kind: LookupErrorKind = isAbort ? "timeout" : "network";
+        const msg = ERROR_META[kind].title;
+        setError({ kind, message: msg });
+        toast.error(msg, { id: toastId });
         return;
       }
-      setAppointment(body.appointment);
-    } catch {
-      setError("تعذّر الاتصال بالخادم. حاول مجددًا.");
+
+      let body: { ok?: boolean; appointment?: Appointment; message?: string } = {};
+      try {
+        body = await res.json();
+      } catch {
+        const kind: LookupErrorKind = res.status >= 500 ? "server" : "unknown";
+        setError({ kind, message: ERROR_META[kind].title });
+        toast.error(ERROR_META[kind].title, { id: toastId });
+        return;
+      }
+
+      if (res.ok && body.ok && body.appointment) {
+        setAppointment(body.appointment);
+        toast.success("تم العثور على طلبك", { id: toastId });
+        return;
+      }
+
+      const kind: LookupErrorKind =
+        res.status === 404
+          ? "not_found"
+          : res.status === 400
+            ? "validation"
+            : res.status >= 500
+              ? "server"
+              : "unknown";
+      const message = body.message?.trim() || ERROR_META[kind].title;
+      setError({ kind, message });
+      toast.error(message, { id: toastId });
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }
 
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (loading) return;
+
+    const parsed = schema.safeParse({ reference, phone_last4: phone4 });
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
+      setAppointment(null);
+      setError({ kind: "validation", message: msg });
+      toast.error(msg);
+      return;
+    }
+
+    lastQueryRef.current = parsed.data;
+    await runLookup(parsed.data);
+  }
+
+  function onRetry() {
+    if (loading) return;
+    const last = lastQueryRef.current;
+    if (last) void runLookup(last);
+  }
+
   const status = appointment ? STATUS[appointment.status] ?? STATUS.new : null;
+  const errorMeta = error ? ERROR_META[error.kind] : null;
 
   return (
     <>
