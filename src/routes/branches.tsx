@@ -169,7 +169,6 @@ function BranchesPage() {
                 <div className="mt-5 flex gap-2">
                   <Link
                     to="/book"
-                    search={{ branch: b.slug }}
                     className="flex-1 text-center rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-semibold hover:opacity-95"
                   >
                     احجز في هذا الفرع
