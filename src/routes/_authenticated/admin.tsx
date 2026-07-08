@@ -2547,13 +2547,15 @@ function RemindersDeliveryStatsTab() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="إجمالي التذكيرات" value={totalAll} icon={Bell} />
-            <StatCard label="مُرسلة بنجاح" value={data.totals.sent} icon={CalendarDays} />
-            <StatCard label="فشلت" value={data.totals.failed} icon={ShieldAlert} />
-            <StatCard
+            <ClickableStatCard label="إجمالي التذكيرات" value={totalAll} icon={Bell} onClick={() => openLog({})} hint="عرض كل التذكيرات في هذه الفترة" />
+            <ClickableStatCard label="مُرسلة بنجاح" value={data.totals.sent} icon={CalendarDays} onClick={() => openLog({ status: "sent" })} hint="عرض التذكيرات المُرسلة" />
+            <ClickableStatCard label="فشلت" value={data.totals.failed} icon={ShieldAlert} onClick={() => openLog({ status: "failed" })} hint="عرض التذكيرات الفاشلة" />
+            <ClickableStatCard
               label="قيد الانتظار"
               value={data.totals.pending + data.totals.queued}
               icon={Clock}
+              onClick={() => openLog({ status: "pending" })}
+              hint="عرض التذكيرات المعلّقة"
             />
           </div>
 
@@ -2584,16 +2586,25 @@ function RemindersDeliveryStatsTab() {
             <div className="rounded-xl border border-border bg-card p-5">
               <h3 className="mb-4 text-base font-semibold">توزيع الحالات</h3>
               <div className="space-y-3">
-                <StatBar label="مُرسلة" value={data.totals.sent} total={totalAll} tone="emerald" />
-                <StatBar label="فشلت" value={data.totals.failed} total={totalAll} tone="destructive" />
-                <StatBar
-                  label="قيد الانتظار"
-                  value={data.totals.pending + data.totals.queued}
-                  total={totalAll}
-                  tone="sky"
-                />
-                <StatBar label="متجاوزة" value={data.totals.skipped} total={totalAll} tone="amber" />
+                <button type="button" onClick={() => openLog({ status: "sent" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض المُرسلة في السجل">
+                  <StatBar label="مُرسلة" value={data.totals.sent} total={totalAll} tone="emerald" />
+                </button>
+                <button type="button" onClick={() => openLog({ status: "failed" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض الفاشلة في السجل">
+                  <StatBar label="فشلت" value={data.totals.failed} total={totalAll} tone="destructive" />
+                </button>
+                <button type="button" onClick={() => openLog({ status: "pending" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض المعلّقة في السجل">
+                  <StatBar
+                    label="قيد الانتظار"
+                    value={data.totals.pending + data.totals.queued}
+                    total={totalAll}
+                    tone="sky"
+                  />
+                </button>
+                <button type="button" onClick={() => openLog({ status: "skipped" })} className="block w-full rounded text-start hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40" aria-label="عرض المتجاوزة في السجل">
+                  <StatBar label="متجاوزة" value={data.totals.skipped} total={totalAll} tone="amber" />
+                </button>
               </div>
+              <p className="mt-3 text-xs text-muted-foreground">اضغط على أي شريط للانتقال إلى السجل بنفس الفلاتر.</p>
             </div>
           </div>
 
