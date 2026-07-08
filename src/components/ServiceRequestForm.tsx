@@ -365,7 +365,7 @@ export function ServiceRequestForm({
             />
           </Field>
         )}
-      </div>
+      </fieldset>
 
       <button
         type="submit"
