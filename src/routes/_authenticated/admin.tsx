@@ -1816,6 +1816,11 @@ function reminderKindLabel(kind: string): string {
 
 function RemindersDeliveryTab() {
   const listFn = useServerFn(listReminderDeliveries);
+  const exportFn = useServerFn(exportReminderDeliveriesCsv);
+  const retryFn = useServerFn(retryReminderDelivery);
+  const queryClient = useQueryClient();
+  const [exporting, setExporting] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [appointmentIdInput, setAppointmentIdInput] = useState("");
   const [patientQuery, setPatientQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
