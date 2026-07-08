@@ -14,6 +14,7 @@ import {
   Search,
   CalendarPlus,
   Share2,
+  FileText,
   ArrowLeft,
   Loader2,
   AlertCircle,
