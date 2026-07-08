@@ -111,17 +111,49 @@ export function googleCalendarUrl(b: ShareBooking, minutes = 30): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-export function whatsappShareUrl(b: ShareBooking): string {
-  const lines = [
-    `تم حجز موعد في ${SITE.nameAr}`,
-    `الاسم: ${b.patient_name}`,
-    b.specialty ? `التخصص: ${b.specialty}` : "",
-    b.doctor ? `الطبيب: ${b.doctor}` : "",
-    `التاريخ: ${b.appointment_date}`,
-    `الوقت: ${b.appointment_time}`,
-    `رقم الحجز: ${b.ref}`,
-    `للاستفسار: ${SITE.phoneDisplay}`,
+/**
+ * Build a wa.me deep-link that opens WhatsApp with a bilingual (AR + EN)
+ * booking-confirmation message pre-filled.
+ *
+ * Options:
+ *  - `to`: E.164 digits only. Defaults to the clinic's WhatsApp number so the
+ *    patient can tap once to send the confirmation to the clinic. Pass a
+ *    patient number to let clinic staff open a chat with that patient.
+ *  - `share`: when true, uses `https://wa.me/?text=` so WhatsApp asks the
+ *    user to pick any contact (generic share sheet).
+ */
+export function whatsappShareUrl(
+  b: ShareBooking,
+  opts: { to?: string; share?: boolean } = {},
+): string {
+  const ar = [
+    `✅ تأكيد حجز موعد — ${SITE.nameAr}`,
+    ``,
+    `👤 الاسم: ${b.patient_name}`,
+    b.specialty ? `🩺 التخصص: ${b.specialty}` : "",
+    b.doctor ? `👨‍⚕️ الطبيب: ${b.doctor}` : "",
+    `📅 التاريخ: ${b.appointment_date}`,
+    `⏰ الوقت: ${b.appointment_time}`,
+    `🔖 رقم الحجز: ${b.ref}`,
+    ``,
+    `📞 للاستفسار: ${SITE.phoneDisplay}`,
   ].filter(Boolean);
-  const text = encodeURIComponent(lines.join("\n"));
-  return `https://wa.me/?text=${text}`;
+
+  const en = [
+    `— — — — — — — —`,
+    `✅ Appointment Confirmation — ${SITE.nameEn ?? SITE.nameAr}`,
+    ``,
+    `Name: ${b.patient_name}`,
+    b.specialty ? `Specialty: ${b.specialty}` : "",
+    b.doctor ? `Doctor: ${b.doctor}` : "",
+    `Date: ${b.appointment_date}`,
+    `Time: ${b.appointment_time}`,
+    `Reference: ${b.ref}`,
+    ``,
+    `Contact: ${SITE.phoneDisplay}`,
+  ].filter(Boolean);
+
+  const text = encodeURIComponent([...ar, ...en].join("\n"));
+  const to = opts.share ? "" : (opts.to ?? SITE.whatsapp).replace(/\D/g, "");
+  return `https://wa.me/${to}?text=${text}`;
 }

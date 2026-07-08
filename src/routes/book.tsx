@@ -282,7 +282,7 @@ function BookPage() {
     const ref = result.reference ?? "";
     navigate({
       to: "/booking-confirmation",
-      search: { ref, phone: v.phone },
+      search: { ref, phone: v.phone, wa: "1" },
     });
   };
 
