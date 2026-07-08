@@ -101,7 +101,10 @@ export function ServiceRequestForm({
   submitLabel?: string;
 }) {
   const [submitting, setSubmitting] = useState(false);
-  const [reference, setReference] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<
+    | (FormState & { reference: string })
+    | null
+  >(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [errors, setErrors] = useState<FieldErrors>({});
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
