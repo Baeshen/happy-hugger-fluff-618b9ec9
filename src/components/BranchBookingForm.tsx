@@ -146,10 +146,20 @@ export function BranchBookingForm({
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
   const [form, setForm] = useState({ name: "", phone: "", gender: "male" as "male" | "female", reason: "" });
+  const [touched, setTouched] = useState<Record<"name" | "phone" | "gender" | "reason", boolean>>({
+    name: false,
+    phone: false,
+    gender: false,
+    reason: false,
+  });
+  const [showAllPatientErrors, setShowAllPatientErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const fieldErrors = useMemo(() => computeFieldErrors(form), [form]);
+  const showErr = (k: "name" | "phone" | "gender" | "reason") =>
+    (touched[k] || showAllPatientErrors) && fieldErrors[k];
 
   useEffect(() => {
     if (!preselectedSpecialtyId) return;
