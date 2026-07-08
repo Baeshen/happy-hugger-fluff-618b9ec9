@@ -105,6 +105,7 @@ export function BranchBookingForm({
   const [time, setTime] = useState<string>("");
   const [form, setForm] = useState({ name: "", phone: "", gender: "male" as "male" | "female", reason: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [ref, setRef] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -228,29 +229,54 @@ export function BranchBookingForm({
 
   const submit = async () => {
     const err = validateStep("patient", { specialtyId, doctorId, date, time, form });
-    if (err) return toast.error(err);
+    if (err) {
+      setSubmitError(err);
+      toast.error(err);
+      return;
+    }
     const parsed = schema.safeParse(form);
-    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? "بيانات غير صالحة");
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
+      setSubmitError(msg);
+      return toast.error(msg);
+    }
     const v = parsed.data;
     setSubmitting(true);
+    setSubmitError(null);
     const id = randomId();
-    const { error } = await supabase.from("appointments").insert({
-      id,
-      patient_name: v.name,
-      patient_phone: v.phone,
-      gender: v.gender,
-      branch_id: branchId,
-      specialty_id: specialtyId,
-      doctor_id: doctorId,
-      appointment_date: date,
-      appointment_time: time,
-      reason: v.reason || null,
-      reminder_24h: true,
-      reminder_2h: true,
-    });
-    setSubmitting(false);
-    if (error) return toast.error(friendlyInsertError(error));
-    setRef(id.slice(0, 8).toUpperCase());
+    try {
+      const { error } = await supabase.from("appointments").insert({
+        id,
+        patient_name: v.name,
+        patient_phone: v.phone,
+        gender: v.gender,
+        branch_id: branchId,
+        specialty_id: specialtyId,
+        doctor_id: doctorId,
+        appointment_date: date,
+        appointment_time: time,
+        reason: v.reason || null,
+        reminder_24h: true,
+        reminder_2h: true,
+      });
+      if (error) {
+        const msg = friendlyInsertError(error);
+        setSubmitError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success("تم إرسال الحجز بنجاح");
+      setRef(id.slice(0, 8).toUpperCase());
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message
+          ? e.message
+          : "تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.";
+      setSubmitError(msg);
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -260,6 +286,7 @@ export function BranchBookingForm({
     setDate("");
     setTime("");
     setForm({ name: "", phone: "", gender: "male", reason: "" });
+    setSubmitError(null);
     setStep("service");
   };
 
@@ -582,14 +609,38 @@ export function BranchBookingForm({
                 </div>
               )}
             </div>
+
+            {submitError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold mb-0.5">تعذّر إرسال الحجز</p>
+                  <p className="text-xs opacity-90">{submitError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={submitting}
+                  className="text-xs font-semibold underline hover:no-underline disabled:opacity-50"
+                >
+                  إعادة المحاولة
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               disabled={submitting}
               onClick={submit}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95 disabled:opacity-60"
+              aria-busy={submitting}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              تأكيد الحجز
+              {submitting ? "جارٍ إرسال الحجز…" : submitError ? "إعادة إرسال الحجز" : "تأكيد الحجز"}
             </button>
           </div>
         )}
@@ -600,7 +651,7 @@ export function BranchBookingForm({
         <button
           type="button"
           onClick={prevStep}
-          disabled={currentStepIdx === 0}
+          disabled={currentStepIdx === 0 || submitting}
           className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <ChevronRight className="h-4 w-4" /> السابق
@@ -609,10 +660,12 @@ export function BranchBookingForm({
         <button
           type="button"
           onClick={resetForm}
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md px-2 py-1"
+          disabled={submitting}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RotateCcw className="h-3.5 w-3.5" /> إعادة البدء
         </button>
+
 
         {step !== "confirm" && (
           <button
