@@ -98,7 +98,7 @@ export function ServiceRequestForm({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<
-    | (FormState & { reference: string })
+    | (FormState & { reference: string | null })
     | null
   >(null);
   const [form, setForm] = useState<FormState>(EMPTY);
