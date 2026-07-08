@@ -103,7 +103,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
         </h2>
         <span className="text-xs text-muted-foreground flex items-center gap-1.5" aria-live="polite">
           {isFiltering && <Loader2 className="h-3 w-3 animate-spin text-primary" aria-hidden />}
-          {items.length} من {totalCount}
+          {hasQuery ? `${items.length} نتيجة من ${totalCount}` : `${items.length} من ${totalCount}`}
         </span>
       </header>
 
