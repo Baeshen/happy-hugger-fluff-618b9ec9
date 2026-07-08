@@ -60,6 +60,7 @@ import { Route as AuthenticatedClinicSettingsRouteImport } from './routes/_authe
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAuditExportRouteImport } from './routes/_authenticated/audit-export'
+import { Route as AuthenticatedAppointmentsQueueRouteImport } from './routes/_authenticated/appointments-queue'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
@@ -329,6 +330,12 @@ const AuthenticatedAuditExportRoute =
     path: '/audit-export',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAppointmentsQueueRoute =
+  AuthenticatedAppointmentsQueueRouteImport.update({
+    id: '/appointments-queue',
+    path: '/appointments-queue',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -382,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telemedicine': typeof TelemedicineRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/appointments-queue': typeof AuthenticatedAppointmentsQueueRoute
   '/audit-export': typeof AuthenticatedAuditExportRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
@@ -439,6 +447,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telemedicine': typeof TelemedicineRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/appointments-queue': typeof AuthenticatedAppointmentsQueueRoute
   '/audit-export': typeof AuthenticatedAuditExportRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
   '/calendar': typeof AuthenticatedCalendarRoute
@@ -498,6 +507,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telemedicine': typeof TelemedicineRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/appointments-queue': typeof AuthenticatedAppointmentsQueueRoute
   '/_authenticated/audit-export': typeof AuthenticatedAuditExportRoute
   '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
@@ -557,6 +567,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/telemedicine'
     | '/admin'
+    | '/appointments-queue'
     | '/audit-export'
     | '/audit-log'
     | '/calendar'
@@ -614,6 +625,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/telemedicine'
     | '/admin'
+    | '/appointments-queue'
     | '/audit-export'
     | '/audit-log'
     | '/calendar'
@@ -672,6 +684,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/telemedicine'
     | '/_authenticated/admin'
+    | '/_authenticated/appointments-queue'
     | '/_authenticated/audit-export'
     | '/_authenticated/audit-log'
     | '/_authenticated/calendar'
@@ -1101,6 +1114,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditExportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/appointments-queue': {
+      id: '/_authenticated/appointments-queue'
+      path: '/appointments-queue'
+      fullPath: '/appointments-queue'
+      preLoaderRoute: typeof AuthenticatedAppointmentsQueueRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -1141,6 +1161,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAppointmentsQueueRoute: typeof AuthenticatedAppointmentsQueueRoute
   AuthenticatedAuditExportRoute: typeof AuthenticatedAuditExportRoute
   AuthenticatedAuditLogRoute: typeof AuthenticatedAuditLogRoute
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
@@ -1165,6 +1186,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAppointmentsQueueRoute: AuthenticatedAppointmentsQueueRoute,
   AuthenticatedAuditExportRoute: AuthenticatedAuditExportRoute,
   AuthenticatedAuditLogRoute: AuthenticatedAuditLogRoute,
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
