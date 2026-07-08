@@ -21,7 +21,26 @@ import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 import { toast } from "sonner";
 import { ReminderHistoryForMyAppointmentModal } from "@/components/ReminderPreferenceHistory";
-import { getFriendlyDownloadError, DOWNLOAD_ERROR_MESSAGES } from "@/lib/download-error";
+import {
+  getFriendlyDownloadError,
+  DOWNLOAD_ERROR_MESSAGES,
+  shouldPerformHeadCheck,
+  recordDownloadSuccess,
+  recordDownloadFailure,
+  INITIAL_HEAD_CHECK_STATE,
+  type HeadCheckState,
+  type DownloadBucket,
+} from "@/lib/download-error";
+
+/**
+ * Per-bucket adaptive HEAD-check state, shared across DownloadFileButton
+ * instances in the same tab session. Once a bucket proves healthy we skip
+ * the HEAD round-trip until the next failure.
+ */
+const headCheckStateByBucket = new Map<DownloadBucket, HeadCheckState>();
+function getHeadCheckState(bucket: DownloadBucket): HeadCheckState {
+  return headCheckStateByBucket.get(bucket) ?? INITIAL_HEAD_CHECK_STATE;
+}
 
 export const Route = createFileRoute("/_authenticated/my")({
   component: MyPortal,
@@ -694,22 +713,28 @@ function DownloadFileButton({
         .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
       if (signError || !data?.signedUrl) {
         const friendly = getFriendlyDownloadError(signError?.message);
+        headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
         setError(friendly);
         toast.error(friendly);
         return;
       }
 
-      // Verify the signed URL is reachable before triggering download
-      try {
-        const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
-        if (!check.ok) {
-          const friendly = DOWNLOAD_ERROR_MESSAGES.invalidUrl;
-          setError(friendly);
-          toast.error(friendly);
-          return;
+      // Adaptive HEAD check: skip once the bucket has proven healthy, but
+      // always re-check on the first attempt or after a recent failure.
+      const decision = shouldPerformHeadCheck(getHeadCheckState(bucket));
+      if (decision.shouldCheck) {
+        try {
+          const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
+          if (!check.ok) {
+            const friendly = DOWNLOAD_ERROR_MESSAGES.invalidUrl;
+            headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
+            setError(friendly);
+            toast.error(friendly);
+            return;
+          }
+        } catch {
+          // If CORS/network check fails, still attempt direct download; browser handles it
         }
-      } catch {
-        // If CORS/network check fails, still attempt direct download; browser handles it
       }
 
       const a = document.createElement("a");
@@ -719,9 +744,11 @@ function DownloadFileButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
+      headCheckStateByBucket.set(bucket, recordDownloadSuccess(getHeadCheckState(bucket)));
       toast.success(DOWNLOAD_ERROR_MESSAGES.downloadStarted);
     } catch {
       const friendly = DOWNLOAD_ERROR_MESSAGES.unexpected;
+      headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
       setError(friendly);
       toast.error(friendly);
     } finally {

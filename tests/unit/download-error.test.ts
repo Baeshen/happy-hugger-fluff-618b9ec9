@@ -11,6 +11,11 @@
 import {
   getFriendlyDownloadError,
   DOWNLOAD_ERROR_MESSAGES,
+  shouldPerformHeadCheck,
+  recordDownloadSuccess,
+  recordDownloadFailure,
+  INITIAL_HEAD_CHECK_STATE,
+  HEAD_CHECK_DEFAULTS,
   type DownloadBucket,
 } from "../../src/lib/download-error";
 
@@ -180,7 +185,122 @@ for (const bucket of ["lab-reports", "radiology-reports", "invoice-pdfs"] as Dow
   });
 }
 
-// Run async tests to completion, then report.
+console.log("shouldPerformHeadCheck — adaptive policy");
+test("first attempt (no history) → HEAD required", () => {
+  const d = shouldPerformHeadCheck(INITIAL_HEAD_CHECK_STATE, 1_000_000);
+  eq(d.shouldCheck, true, "shouldCheck");
+  eq(d.reason, "first-attempt", "reason");
+});
+test("below success threshold → HEAD required", () => {
+  const d = shouldPerformHeadCheck(
+    { consecutiveSuccesses: HEAD_CHECK_DEFAULTS.successThreshold - 1, lastFailureAt: null },
+    1_000_000,
+  );
+  eq(d.shouldCheck, true);
+  eq(d.reason, "below-success-threshold");
+});
+test("at success threshold → HEAD skipped (trusted bucket)", () => {
+  const d = shouldPerformHeadCheck(
+    { consecutiveSuccesses: HEAD_CHECK_DEFAULTS.successThreshold, lastFailureAt: null },
+    1_000_000,
+  );
+  eq(d.shouldCheck, false);
+  eq(d.reason, "trusted-bucket");
+});
+test("far above threshold → HEAD skipped", () => {
+  const d = shouldPerformHeadCheck({ consecutiveSuccesses: 99, lastFailureAt: null }, 1_000_000);
+  eq(d.shouldCheck, false);
+  eq(d.reason, "trusted-bucket");
+});
+test("recent failure within cool-down → HEAD required even with many successes", () => {
+  const now = 1_000_000;
+  const d = shouldPerformHeadCheck(
+    { consecutiveSuccesses: 99, lastFailureAt: now - 1_000 },
+    now,
+  );
+  eq(d.shouldCheck, true);
+  eq(d.reason, "recent-failure");
+});
+test("failure older than cool-down + enough successes → HEAD skipped", () => {
+  const now = 5_000_000;
+  const d = shouldPerformHeadCheck(
+    {
+      consecutiveSuccesses: HEAD_CHECK_DEFAULTS.successThreshold,
+      lastFailureAt: now - HEAD_CHECK_DEFAULTS.failureCoolDownMs - 1,
+    },
+    now,
+  );
+  eq(d.shouldCheck, false);
+  eq(d.reason, "trusted-bucket");
+});
+test("custom successThreshold override respected", () => {
+  const d = shouldPerformHeadCheck(
+    { consecutiveSuccesses: 1, lastFailureAt: null },
+    1_000_000,
+    { successThreshold: 1 },
+  );
+  eq(d.shouldCheck, false);
+  eq(d.reason, "trusted-bucket");
+});
+test("custom failureCoolDownMs override respected", () => {
+  const now = 1_000_000;
+  const d = shouldPerformHeadCheck(
+    { consecutiveSuccesses: 10, lastFailureAt: now - 100 },
+    now,
+    { failureCoolDownMs: 50 },
+  );
+  eq(d.shouldCheck, false, "cool-down passed under tight override");
+  eq(d.reason, "trusted-bucket");
+});
+
+console.log("recordDownloadSuccess / recordDownloadFailure — state transitions");
+test("success increments consecutiveSuccesses and clears lastFailureAt", () => {
+  const next = recordDownloadSuccess({ consecutiveSuccesses: 2, lastFailureAt: 12345 });
+  eq(next.consecutiveSuccesses, 3);
+  eq(next.lastFailureAt, null);
+});
+test("failure resets consecutiveSuccesses and stamps lastFailureAt", () => {
+  const next = recordDownloadFailure({ consecutiveSuccesses: 5, lastFailureAt: null }, 42);
+  eq(next.consecutiveSuccesses, 0);
+  eq(next.lastFailureAt, 42);
+});
+
+console.log("Adaptive HEAD-check — end-to-end per tab");
+for (const bucket of ["lab-reports", "radiology-reports", "invoice-pdfs"] as DownloadBucket[]) {
+  test(`[${bucket}] HEAD runs on first success, skipped after threshold`, () => {
+    let state = INITIAL_HEAD_CHECK_STATE;
+    const headCalls: number[] = [];
+    let clock = 1_000_000;
+
+    for (let i = 0; i < 6; i++) {
+      const d = shouldPerformHeadCheck(state, clock);
+      if (d.shouldCheck) headCalls.push(i);
+      state = recordDownloadSuccess(state);
+      clock += 1_000;
+    }
+    // First 3 clicks HEAD; subsequent 3 skip once bucket is trusted.
+    eq(headCalls.length, HEAD_CHECK_DEFAULTS.successThreshold, "head-call count");
+    eq(headCalls[0], 0);
+    eq(headCalls[HEAD_CHECK_DEFAULTS.successThreshold - 1], HEAD_CHECK_DEFAULTS.successThreshold - 1);
+  });
+
+  test(`[${bucket}] failure re-enables HEAD checks on the next click`, () => {
+    // Bucket is trusted (past threshold, no failures).
+    let state: { consecutiveSuccesses: number; lastFailureAt: number | null } = {
+      consecutiveSuccesses: HEAD_CHECK_DEFAULTS.successThreshold + 5,
+      lastFailureAt: null,
+    };
+    const now = 2_000_000;
+    eq(shouldPerformHeadCheck(state, now).shouldCheck, false, "trusted before failure");
+
+    // A failure happens.
+    state = recordDownloadFailure(state, now);
+    const afterFailure = shouldPerformHeadCheck(state, now + 500);
+    eq(afterFailure.shouldCheck, true, "HEAD required right after failure");
+    eq(afterFailure.reason, "recent-failure");
+  });
+}
+
 setTimeout(() => {
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
