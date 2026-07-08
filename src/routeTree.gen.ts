@@ -57,6 +57,7 @@ import { Route as AuthenticatedRatingsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedQrCardsRouteImport } from './routes/_authenticated/qr-cards'
 import { Route as AuthenticatedPatientsManagementRouteImport } from './routes/_authenticated/patients-management'
 import { Route as AuthenticatedPatientsAnalyticsRouteImport } from './routes/_authenticated/patients-analytics'
+import { Route as AuthenticatedPatientStoriesAdminRouteImport } from './routes/_authenticated/patient-stories-admin'
 import { Route as AuthenticatedNotificationsQueueRouteImport } from './routes/_authenticated/notifications-queue'
 import { Route as AuthenticatedMyRouteImport } from './routes/_authenticated/my'
 import { Route as AuthenticatedMessageTemplatesRouteImport } from './routes/_authenticated/message-templates'
@@ -320,6 +321,12 @@ const AuthenticatedPatientsAnalyticsRoute =
     path: '/patients-analytics',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPatientStoriesAdminRoute =
+  AuthenticatedPatientStoriesAdminRouteImport.update({
+    id: '/patient-stories-admin',
+    path: '/patient-stories-admin',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNotificationsQueueRoute =
   AuthenticatedNotificationsQueueRouteImport.update({
     id: '/notifications-queue',
@@ -460,6 +467,7 @@ export interface FileRoutesByFullPath {
   '/message-templates': typeof AuthenticatedMessageTemplatesRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/patient-stories-admin': typeof AuthenticatedPatientStoriesAdminRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/qr-cards': typeof AuthenticatedQrCardsRoute
@@ -527,6 +535,7 @@ export interface FileRoutesByTo {
   '/message-templates': typeof AuthenticatedMessageTemplatesRoute
   '/my': typeof AuthenticatedMyRoute
   '/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/patient-stories-admin': typeof AuthenticatedPatientStoriesAdminRoute
   '/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/qr-cards': typeof AuthenticatedQrCardsRoute
@@ -596,6 +605,7 @@ export interface FileRoutesById {
   '/_authenticated/message-templates': typeof AuthenticatedMessageTemplatesRoute
   '/_authenticated/my': typeof AuthenticatedMyRoute
   '/_authenticated/notifications-queue': typeof AuthenticatedNotificationsQueueRoute
+  '/_authenticated/patient-stories-admin': typeof AuthenticatedPatientStoriesAdminRoute
   '/_authenticated/patients-analytics': typeof AuthenticatedPatientsAnalyticsRoute
   '/_authenticated/patients-management': typeof AuthenticatedPatientsManagementRoute
   '/_authenticated/qr-cards': typeof AuthenticatedQrCardsRoute
@@ -665,6 +675,7 @@ export interface FileRouteTypes {
     | '/message-templates'
     | '/my'
     | '/notifications-queue'
+    | '/patient-stories-admin'
     | '/patients-analytics'
     | '/patients-management'
     | '/qr-cards'
@@ -732,6 +743,7 @@ export interface FileRouteTypes {
     | '/message-templates'
     | '/my'
     | '/notifications-queue'
+    | '/patient-stories-admin'
     | '/patients-analytics'
     | '/patients-management'
     | '/qr-cards'
@@ -800,6 +812,7 @@ export interface FileRouteTypes {
     | '/_authenticated/message-templates'
     | '/_authenticated/my'
     | '/_authenticated/notifications-queue'
+    | '/_authenticated/patient-stories-admin'
     | '/_authenticated/patients-analytics'
     | '/_authenticated/patients-management'
     | '/_authenticated/qr-cards'
@@ -1209,6 +1222,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPatientsAnalyticsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/patient-stories-admin': {
+      id: '/_authenticated/patient-stories-admin'
+      path: '/patient-stories-admin'
+      fullPath: '/patient-stories-admin'
+      preLoaderRoute: typeof AuthenticatedPatientStoriesAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notifications-queue': {
       id: '/_authenticated/notifications-queue'
       path: '/notifications-queue'
@@ -1351,6 +1371,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMessageTemplatesRoute: typeof AuthenticatedMessageTemplatesRoute
   AuthenticatedMyRoute: typeof AuthenticatedMyRoute
   AuthenticatedNotificationsQueueRoute: typeof AuthenticatedNotificationsQueueRoute
+  AuthenticatedPatientStoriesAdminRoute: typeof AuthenticatedPatientStoriesAdminRoute
   AuthenticatedPatientsAnalyticsRoute: typeof AuthenticatedPatientsAnalyticsRoute
   AuthenticatedPatientsManagementRoute: typeof AuthenticatedPatientsManagementRoute
   AuthenticatedQrCardsRoute: typeof AuthenticatedQrCardsRoute
@@ -1378,6 +1399,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMessageTemplatesRoute: AuthenticatedMessageTemplatesRoute,
   AuthenticatedMyRoute: AuthenticatedMyRoute,
   AuthenticatedNotificationsQueueRoute: AuthenticatedNotificationsQueueRoute,
+  AuthenticatedPatientStoriesAdminRoute: AuthenticatedPatientStoriesAdminRoute,
   AuthenticatedPatientsAnalyticsRoute: AuthenticatedPatientsAnalyticsRoute,
   AuthenticatedPatientsManagementRoute: AuthenticatedPatientsManagementRoute,
   AuthenticatedQrCardsRoute: AuthenticatedQrCardsRoute,
