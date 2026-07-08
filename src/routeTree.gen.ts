@@ -40,6 +40,7 @@ import { Route as SpecialtiesIndexRouteImport } from './routes/specialties.index
 import { Route as HealthIndexRouteImport } from './routes/health.index'
 import { Route as DoctorsIndexRouteImport } from './routes/doctors.index'
 import { Route as SpecialtiesSlugRouteImport } from './routes/specialties.$slug'
+import { Route as MediaStoriesRouteImport } from './routes/media.stories'
 import { Route as MediaNewsRouteImport } from './routes/media.news'
 import { Route as HealthSearchRouteImport } from './routes/health.search'
 import { Route as HealthSlugRouteImport } from './routes/health.$slug'
@@ -224,6 +225,11 @@ const DoctorsIndexRoute = DoctorsIndexRouteImport.update({
 const SpecialtiesSlugRoute = SpecialtiesSlugRouteImport.update({
   id: '/specialties/$slug',
   path: '/specialties/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MediaStoriesRoute = MediaStoriesRouteImport.update({
+  id: '/media/stories',
+  path: '/media/stories',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MediaNewsRoute = MediaNewsRouteImport.update({
@@ -448,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
+  '/media/stories': typeof MediaStoriesRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
@@ -511,6 +518,7 @@ export interface FileRoutesByTo {
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
+  '/media/stories': typeof MediaStoriesRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors': typeof DoctorsIndexRoute
   '/health': typeof HealthIndexRoute
@@ -576,6 +584,7 @@ export interface FileRoutesById {
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
   '/media/news': typeof MediaNewsRoute
+  '/media/stories': typeof MediaStoriesRoute
   '/specialties/$slug': typeof SpecialtiesSlugRoute
   '/doctors/': typeof DoctorsIndexRoute
   '/health/': typeof HealthIndexRoute
@@ -641,6 +650,7 @@ export interface FileRouteTypes {
     | '/health/$slug'
     | '/health/search'
     | '/media/news'
+    | '/media/stories'
     | '/specialties/$slug'
     | '/doctors/'
     | '/health/'
@@ -704,6 +714,7 @@ export interface FileRouteTypes {
     | '/health/$slug'
     | '/health/search'
     | '/media/news'
+    | '/media/stories'
     | '/specialties/$slug'
     | '/doctors'
     | '/health'
@@ -768,6 +779,7 @@ export interface FileRouteTypes {
     | '/health/$slug'
     | '/health/search'
     | '/media/news'
+    | '/media/stories'
     | '/specialties/$slug'
     | '/doctors/'
     | '/health/'
@@ -811,6 +823,7 @@ export interface RootRouteChildren {
   HealthSlugRoute: typeof HealthSlugRoute
   HealthSearchRoute: typeof HealthSearchRoute
   MediaNewsRoute: typeof MediaNewsRoute
+  MediaStoriesRoute: typeof MediaStoriesRoute
   SpecialtiesSlugRoute: typeof SpecialtiesSlugRoute
   DoctorsIndexRoute: typeof DoctorsIndexRoute
   HealthIndexRoute: typeof HealthIndexRoute
@@ -1037,6 +1050,13 @@ declare module '@tanstack/react-router' {
       path: '/specialties/$slug'
       fullPath: '/specialties/$slug'
       preLoaderRoute: typeof SpecialtiesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/media/stories': {
+      id: '/media/stories'
+      path: '/media/stories'
+      fullPath: '/media/stories'
+      preLoaderRoute: typeof MediaStoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/media/news': {
@@ -1368,6 +1388,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthSlugRoute: HealthSlugRoute,
   HealthSearchRoute: HealthSearchRoute,
   MediaNewsRoute: MediaNewsRoute,
+  MediaStoriesRoute: MediaStoriesRoute,
   SpecialtiesSlugRoute: SpecialtiesSlugRoute,
   DoctorsIndexRoute: DoctorsIndexRoute,
   HealthIndexRoute: HealthIndexRoute,
