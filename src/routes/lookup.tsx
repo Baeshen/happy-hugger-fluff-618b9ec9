@@ -326,6 +326,26 @@ function LookupPage() {
     }
   };
 
+  // Auto-search once when arriving from /booking-confirmation with
+  // ?ref=&phone= (and optionally &action=cancel|reschedule to open the
+  // corresponding dialog straight away).
+  useEffect(() => {
+    if (autoRan.current) return;
+    if (!routeSearch.ref || !routeSearch.phone) return;
+    autoRan.current = true;
+    void submit();
+  }, [routeSearch.ref, routeSearch.phone]);
+
+  useEffect(() => {
+    if (!appt) return;
+    if (routeSearch.action === "cancel" && (appt.status === "new" || appt.status === "confirmed")) {
+      setShowCancel(true);
+    } else if (routeSearch.action === "reschedule" && (appt.status === "new" || appt.status === "confirmed")) {
+      setShowReschedule(true);
+    }
+  }, [appt, routeSearch.action]);
+
+
   const doctorName = appt
     ? lang === "ar"
       ? appt.doctor_name_ar
