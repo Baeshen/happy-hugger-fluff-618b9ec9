@@ -76,7 +76,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-audit" | "reminders-stats" | "security-audit" | "content";
+type Tab = "overview" | "appointments" | "orders" | "doctors" | "specialties" | "availability" | "reminders-log" | "reminders-audit" | "reminders-stats" | "security-audit" | "content";
 
 const APPT_STATUS: {
   value: "new" | "confirmed" | "completed" | "cancelled" | "no_show";
