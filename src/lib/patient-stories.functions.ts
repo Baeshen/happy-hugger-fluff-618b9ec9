@@ -27,6 +27,7 @@ export const listPatientStories = createServerFn({ method: "GET" }).handler(
     const { data, error } = await serverClient()
       .from("patient_stories")
       .select("id, slug, title_ar, title_en, excerpt, body_md, hero_image_url, specialty, published_at")
+      .eq("status", "published")
       .not("published_at", "is", null)
       .order("display_order", { ascending: true })
       .order("published_at", { ascending: false })
@@ -46,6 +47,7 @@ export const getPatientStory = createServerFn({ method: "GET" })
       .from("patient_stories")
       .select("id, slug, title_ar, title_en, excerpt, body_md, hero_image_url, specialty, published_at")
       .eq("slug", data.slug)
+      .eq("status", "published")
       .not("published_at", "is", null)
       .limit(1);
     if (error) throw new Error(error.message);
