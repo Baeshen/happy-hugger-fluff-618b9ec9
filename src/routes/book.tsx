@@ -263,8 +263,8 @@ function BookPage() {
   // disappears we can explain WHY (booked / scope changed / out of window)
   // instead of silently clearing the selection.
   const pickedScopeRef = useRef<{
-    doctorId: string;
-    specialtyId: string;
+    doctorId: string | null;
+    specialtyId: string | null;
     branchId: string | null;
     date: string;
   } | null>(null);
