@@ -728,7 +728,33 @@ function DownloadFileButton({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signedAt, setSignedAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const attemptRef = useRef(0);
+
+  // Live countdown: tick every second while a signed URL is still within
+  // its TTL window. Auto-cleans up when the URL expires or the button
+  // unmounts, so we don't leave orphan intervals running.
+  useEffect(() => {
+    if (signedAt === null) return;
+    setNowTick(Date.now());
+    const id = window.setInterval(() => {
+      const remaining = SIGNED_URL_TTL_SECONDS - (Date.now() - signedAt) / 1000;
+      if (remaining <= 0) {
+        setSignedAt(null);
+        window.clearInterval(id);
+        return;
+      }
+      setNowTick(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [signedAt]);
+
+  const remainingSeconds =
+    signedAt === null ? 0 : Math.max(0, SIGNED_URL_TTL_SECONDS - (nowTick - signedAt) / 1000);
+  const countdownLabel = signedAt !== null && remainingSeconds > 0
+    ? `متبقّي ${formatCountdown(remainingSeconds)}`
+    : null;
 
   async function generateAndDownload() {
     if (loading) return;
