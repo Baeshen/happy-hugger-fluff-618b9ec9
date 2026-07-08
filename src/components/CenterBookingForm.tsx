@@ -195,9 +195,19 @@ export function CenterBookingForm({
         if (key && !fe[key]) fe[key] = issue.message;
       }
       setErrors(fe);
-      const first = parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول";
-      setSubmitError({ kind: "validation", message: first });
-      toast.error(first);
+      const count = Object.keys(fe).length;
+      const summary =
+        count > 1
+          ? `يرجى تصحيح ${count} حقول قبل الإرسال — راجع الرسائل الحمراء أسفل كل حقل.`
+          : parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول";
+      setSubmitError({ kind: "validation", message: summary });
+      toast.error(summary);
+      // Focus the first invalid field for a11y.
+      const firstKey = Object.keys(fe)[0] as keyof FormState | undefined;
+      if (firstKey) {
+        const el = document.getElementById(`ff-${firstKey === "patient_name" ? "name" : firstKey === "patient_phone" ? "phone" : firstKey === "appointment_date" ? "date" : firstKey === "appointment_time" ? "time" : firstKey}`);
+        el?.focus();
+      }
       return;
     }
 
