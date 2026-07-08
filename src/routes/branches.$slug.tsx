@@ -14,6 +14,9 @@ const branchQuery = (slug: string) =>
   });
 
 export const Route = createFileRoute("/branches/$slug")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    service: typeof search.service === "string" && search.service.length > 0 ? search.service : undefined,
+  }),
   loader: async ({ context, params }) => {
     const detail = await context.queryClient.ensureQueryData(branchQuery(params.slug));
     if (!detail) throw notFound();
