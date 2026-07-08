@@ -2706,6 +2706,44 @@ function RemindersDeliveryStatsTab() {
 // Delivery Trend Chart — hover tooltip + horizontal scroll + success-rate overlay
 // ============================================================================
 
+function ClickableStatCard({
+  label,
+  value,
+  icon: Icon,
+  onClick,
+  hint,
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  onClick: () => void;
+  hint?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint ?? "افتح السجل مع هذا الفلتر"}
+      className="group rounded-xl border border-border bg-card p-5 text-start transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/40"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums">
+            {value.toLocaleString("ar-EG")}
+          </div>
+        </div>
+        <div className="rounded-lg bg-primary/10 p-2 text-primary transition-colors group-hover:bg-primary/20">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <div className="mt-2 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+        اضغط للانتقال إلى السجل ←
+      </div>
+    </button>
+  );
+}
+
 function formatBucketLabel(label: string, bucket: "hour" | "day"): string {
   // label is ISO prefix: "yyyy-MM-dd" (day) or "yyyy-MM-ddTHH" (hour)
   if (bucket === "hour") {
@@ -2729,9 +2767,11 @@ function formatBucketLabel(label: string, bucket: "hour" | "day"): string {
 function DeliveryTrendChart({
   buckets,
   bucket,
+  onBucketClick,
 }: {
   buckets: Array<{ label: string; sent: number; failed: number }>;
   bucket: "hour" | "day";
+  onBucketClick?: (label: string) => void;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const maxBucket = Math.max(1, ...buckets.map((b) => b.sent + b.failed));
