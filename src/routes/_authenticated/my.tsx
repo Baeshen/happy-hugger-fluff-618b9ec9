@@ -21,6 +21,7 @@ import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 import { toast } from "sonner";
 import { ReminderHistoryForMyAppointmentModal } from "@/components/ReminderPreferenceHistory";
+import { getFriendlyDownloadError, DOWNLOAD_ERROR_MESSAGES } from "@/lib/download-error";
 
 export const Route = createFileRoute("/_authenticated/my")({
   component: MyPortal,
@@ -692,15 +693,7 @@ function DownloadFileButton({
         .from(bucket)
         .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
       if (signError || !data?.signedUrl) {
-        const msg = signError?.message ?? "";
-        let friendly = "تعذّر إنشاء رابط التنزيل";
-        if (/not.?found|404/i.test(msg)) {
-          friendly = "الملف غير متاح حاليًا، الرجاء التواصل مع الاستقبال";
-        } else if (/expired|انتهت/i.test(msg)) {
-          friendly = "انتهت صلاحية رابط التنزيل";
-        } else if (msg) {
-          friendly = msg;
-        }
+        const friendly = getFriendlyDownloadError(signError?.message);
         setError(friendly);
         toast.error(friendly);
         return;
@@ -710,7 +703,7 @@ function DownloadFileButton({
       try {
         const check = await fetch(data.signedUrl, { method: "HEAD", mode: "cors" });
         if (!check.ok) {
-          const friendly = "رابط التنزيل غير صالح أو انتهت صلاحيته";
+          const friendly = DOWNLOAD_ERROR_MESSAGES.invalidUrl;
           setError(friendly);
           toast.error(friendly);
           return;
@@ -726,9 +719,9 @@ function DownloadFileButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
-      toast.success("تم بدء تنزيل الملف بنجاح");
-    } catch (e) {
-      const friendly = "حدث خطأ غير متوقع أثناء التنزيل";
+      toast.success(DOWNLOAD_ERROR_MESSAGES.downloadStarted);
+    } catch {
+      const friendly = DOWNLOAD_ERROR_MESSAGES.unexpected;
       setError(friendly);
       toast.error(friendly);
     } finally {
