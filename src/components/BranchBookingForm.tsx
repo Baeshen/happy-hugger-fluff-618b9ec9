@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -7,7 +8,6 @@ import {
   Check,
   CalendarPlus,
   Loader2,
-  Search,
   ChevronRight,
   ChevronLeft,
   Stethoscope,
@@ -17,7 +17,6 @@ import {
   AlertCircle,
   RotateCcw,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { friendlyInsertError } from "@/lib/insert-errors";
 import type { BranchSpecialty } from "@/lib/branches.functions";
 
@@ -98,6 +97,7 @@ export function BranchBookingForm({
   preselectedSpecialtyId,
   preselectToken,
 }: Props) {
+  const navigate = useNavigate();
   const [step, setStep] = useState<StepId>("service");
   const [specialtyId, setSpecialtyId] = useState<string>("");
   const [doctorId, setDoctorId] = useState<string>("");
@@ -106,14 +106,12 @@ export function BranchBookingForm({
   const [form, setForm] = useState({ name: "", phone: "", gender: "male" as "male" | "female", reason: "" });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [ref, setRef] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     if (!preselectedSpecialtyId) return;
     if (!specialties.some((s) => s.id === preselectedSpecialtyId)) return;
-    setRef(null);
     setSpecialtyId(preselectedSpecialtyId);
     setDoctorId("");
     setDate("");
@@ -266,7 +264,11 @@ export function BranchBookingForm({
         return;
       }
       toast.success("تم إرسال الحجز بنجاح");
-      setRef(id.slice(0, 8).toUpperCase());
+      const ref = id.slice(0, 8).toUpperCase();
+      navigate({
+        to: "/booking-confirmation",
+        search: { ref, phone: v.phone, branch: branchNameAr },
+      });
     } catch (e) {
       const msg =
         e instanceof Error && e.message
@@ -280,7 +282,6 @@ export function BranchBookingForm({
   };
 
   const resetForm = () => {
-    setRef(null);
     setSpecialtyId("");
     setDoctorId("");
     setDate("");
@@ -289,35 +290,6 @@ export function BranchBookingForm({
     setSubmitError(null);
     setStep("service");
   };
-
-  if (ref) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center">
-        <div className="mx-auto h-12 w-12 rounded-full bg-primary/15 text-primary grid place-items-center">
-          <Check className="h-6 w-6" />
-        </div>
-        <h3 className="mt-4 text-lg font-bold">تم استلام حجزك في {branchNameAr}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">سنتواصل معك لتأكيد الموعد.</p>
-        <div className="mt-4 rounded-lg bg-muted p-3 text-sm">
-          رقم الحجز: <span className="font-mono font-bold text-primary">{ref}</span>
-        </div>
-        <div className="mt-4 flex justify-center gap-2">
-          <Link
-            to="/lookup"
-            className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-          >
-            <Search className="h-4 w-4" /> تتبّع الحجز
-          </Link>
-          <button
-            onClick={resetForm}
-            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
-          >
-            حجز جديد
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   const currentStepIdx = stepIndex(step);
   const progress = ((currentStepIdx + 1) / STEPS.length) * 100;

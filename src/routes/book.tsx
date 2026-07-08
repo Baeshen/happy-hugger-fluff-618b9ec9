@@ -1,13 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Check, ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar as CalIcon, Clock, User } from "lucide-react";
 import { friendlyInsertError } from "@/lib/insert-errors";
-import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 
 const search = z.object({
   specialty: z.string().optional(),
@@ -86,6 +85,7 @@ const WEEKDAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأ
 function BookPage() {
   const { specialty: initSpec, doctor: initDoc } = Route.useSearch();
   const { t, lang } = useI18n();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [specialtyId, setSpecialtyId] = useState<string | null>(null);
   const [doctorId, setDoctorId] = useState<string | null>(initDoc ?? null);
@@ -101,7 +101,6 @@ function BookPage() {
     reminder_2h: true,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [confirmed, setConfirmed] = useState<{ ref: string; share: ShareBooking } | null>(null);
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
@@ -234,69 +233,12 @@ function BookPage() {
       return;
     }
     const ref = newId.slice(0, 8).toUpperCase();
-    const doc = doctors?.find((x) => x.id === doctorId);
-    const spec = specialties?.find((x) => x.id === specialtyId);
-    const share: ShareBooking = {
-      ref,
-      patient_name: v.name,
-      patient_phone: v.phone,
-      appointment_date: date,
-      appointment_time: time,
-      doctor: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : undefined,
-      specialty: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : undefined,
-      reminder_24h: form.reminder_24h,
-      reminder_2h: form.reminder_2h,
-    };
-    setConfirmed({ ref, share });
+    navigate({
+      to: "/booking-confirmation",
+      search: { ref, phone: v.phone },
+    });
   };
 
-  if (confirmed) {
-    return (
-      <div className="container-app py-16">
-        <div className="max-w-lg mx-auto text-center rounded-3xl border border-border bg-card p-10">
-          <div className="mx-auto h-16 w-16 rounded-full bg-primary/15 text-primary grid place-items-center">
-            <Check className="h-8 w-8" />
-          </div>
-          <h1 className="mt-6 text-2xl font-bold">{t("booking_success")}</h1>
-          <p className="mt-2 text-muted-foreground">{t("booking_success_desc")}</p>
-          <div className="mt-6 rounded-lg bg-muted p-4 text-sm">
-            {t("booking_ref")}:{" "}
-            <span className="font-mono font-bold text-primary">{confirmed.ref}</span>
-          </div>
-          <div className="mt-6 grid gap-2 sm:grid-cols-2">
-            <button
-              onClick={() => downloadIcs(confirmed.share)}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-            >
-              <CalIcon className="h-4 w-4" /> {t("add_to_calendar")}
-            </button>
-            <a
-              href={whatsappShareUrl(confirmed.share)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-            >
-              {t("share_whatsapp")}
-            </a>
-          </div>
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <Link
-              to="/lookup"
-              className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-            >
-              <Search className="h-4 w-4" /> {t("track_booking")}
-            </Link>
-            <Link
-              to="/"
-              className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-            >
-              {t("nav_home")}
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container-app py-12">
