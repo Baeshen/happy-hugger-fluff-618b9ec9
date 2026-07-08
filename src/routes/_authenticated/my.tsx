@@ -21,6 +21,7 @@ import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, type ShareBooking } from "@/lib/booking-share";
 import { toast } from "sonner";
 import { ReminderHistoryForMyAppointmentModal } from "@/components/ReminderPreferenceHistory";
+import { getFriendlyDownloadError, DOWNLOAD_ERROR_MESSAGES } from "@/lib/download-error";
 
 export const Route = createFileRoute("/_authenticated/my")({
   component: MyPortal,
