@@ -583,9 +583,16 @@ function InvoicesTab({ patientId }: { patientId: string | null }) {
                 {r.paid_at && ` • دُفعت في ${new Date(r.paid_at).toLocaleDateString("ar-SA")}`}
               </div>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              {r.pdf_path && (
-                <DownloadFileButton bucket="invoice-pdfs" path={r.pdf_path} label="تنزيل PDF" />
+            <div className="flex gap-2 flex-wrap items-center">
+              {r.pdf_path ? (
+                <DownloadFileButton
+                  bucket="invoice-pdfs"
+                  path={r.pdf_path}
+                  label="تنزيل PDF"
+                  filename={`invoice-${r.invoice_number ?? r.id.slice(0, 8)}.pdf`}
+                />
+              ) : (
+                <NoFileHint />
               )}
               {r.status !== "paid" && r.status !== "cancelled" && (
                 <Link
@@ -639,9 +646,26 @@ function ReportRow({
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           {note && <p className="mt-2 text-sm text-foreground/80 leading-6">{note}</p>}
         </div>
-        {file_path && <DownloadFileButton bucket={bucket} path={file_path} label="تنزيل PDF" />}
+        {file_path ? (
+          <DownloadFileButton
+            bucket={bucket}
+            path={file_path}
+            label="تنزيل PDF"
+            filename={`${bucket}-${title}.pdf`.replace(/[^\w.\-]+/g, "_")}
+          />
+        ) : (
+          <NoFileHint />
+        )}
       </div>
     </div>
+  );
+}
+
+function NoFileHint() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground">
+      لا يوجد ملف مرفق
+    </span>
   );
 }
 
@@ -649,10 +673,12 @@ function DownloadFileButton({
   bucket,
   path,
   label,
+  filename,
 }: {
   bucket: "lab-reports" | "radiology-reports" | "invoice-pdfs";
   path: string;
   label: string;
+  filename?: string;
 }) {
   const [loading, setLoading] = useState(false);
   return (
@@ -661,10 +687,29 @@ function DownloadFileButton({
       disabled={loading}
       onClick={async () => {
         setLoading(true);
-        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
-        setLoading(false);
-        if (error || !data) return toast.error(error?.message ?? "تعذّر إنشاء الرابط");
-        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+        try {
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
+          if (error || !data?.signedUrl) {
+            const msg = error?.message ?? "";
+            if (/not.?found|404/i.test(msg)) {
+              toast.error("الملف غير متاح حاليًا، الرجاء التواصل مع الاستقبال");
+            } else {
+              toast.error(msg || "تعذّر إنشاء رابط التنزيل");
+            }
+            return;
+          }
+          const a = document.createElement("a");
+          a.href = data.signedUrl;
+          if (filename) a.download = filename;
+          a.rel = "noopener noreferrer";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        } finally {
+          setLoading(false);
+        }
       }}
       className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
     >
