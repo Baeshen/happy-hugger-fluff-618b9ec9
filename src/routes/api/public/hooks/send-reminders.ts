@@ -18,6 +18,7 @@ type PendingRow = {
   title: string;
   body: string | null;
   kind: string;
+  audience: string;
   metadata: Record<string, unknown> | null;
   appointment_id: string | null;
 };
@@ -30,6 +31,8 @@ type Sub = {
   user_id: string;
   failure_count: number;
 };
+
+const DEFAULT_STAFF_ROLES = ["admin", "reception", "super_admin"] as const;
 
 const MAX_PENDING_PER_RUN = 200;
 
