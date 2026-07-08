@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Search, MapPin, Stethoscope, X } from "lucide-react";
+import { Search, MapPin, Stethoscope, X, CalendarPlus } from "lucide-react";
 import type { BranchSpecialty, ExcellenceCenter, PublicBranch } from "@/lib/branches.functions";
 
 type Props = {
   branch: PublicBranch;
   specialties: BranchSpecialty[];
   centers: ExcellenceCenter[];
+  onBookService?: (payload: { specialtyId: string | null; label: string; kind: "specialty" | "center" }) => void;
 };
 
 function baseMapEmbed(b: PublicBranch): string | null {
