@@ -187,7 +187,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
           )}
 
           {selected && (
-            <div className="absolute top-3 start-3 end-3 rounded-lg bg-background/95 backdrop-blur border border-border shadow-lg p-3 flex items-center gap-3">
+            <div className="absolute top-3 start-3 end-3 rounded-lg bg-background/95 backdrop-blur border border-border shadow-lg p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <MapPin className="h-5 w-5 text-primary shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-muted-foreground">
@@ -199,15 +199,38 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
                     الموقع الدقيق للخدمة غير متوفر — يعرض موقع الفرع تقريبيًا.
                   </div>
                 )}
+                {selected.kind === "center" && !selected.specialtyId && onBookService && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    هذا المركز غير مرتبط بتخصص محدد — استخدم نموذج الحجز أدناه.
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="rounded-md p-1.5 hover:bg-muted"
-                aria-label="إلغاء التحديد"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                {canBookSelected && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onBookService!({
+                        specialtyId: selected!.specialtyId,
+                        label: selected!.label,
+                        kind: selected!.kind,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:opacity-95"
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5" />
+                    احجز هذه الخدمة
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  className="rounded-md p-1.5 hover:bg-muted"
+                  aria-label="إلغاء التحديد"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
