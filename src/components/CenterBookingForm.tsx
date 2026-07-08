@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CalendarPlus, CheckCircle2, Loader2, Copy, Download } from "lucide-react";
 import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
+import { submitBooking, type BookingSubmitKind } from "@/lib/booking-submit";
+import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
 
 /**
  * Compact booking form embedded on excellence center detail pages.
