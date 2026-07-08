@@ -16,6 +16,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Toaster } from "sonner";
 import { IntroOverlay } from "@/components/IntroOverlay";
+import { ChatbotBubble } from "@/components/ChatbotBubble";
 
 function NotFoundComponent() {
   return (
