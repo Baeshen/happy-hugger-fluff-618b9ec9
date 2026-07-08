@@ -47,7 +47,7 @@ export const updateSecondOpinionRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const patch: Record<string, unknown> = {};
+    const patch: { status?: SecondOpinionStatus; admin_notes?: string | null } = {};
     if (data.status) patch.status = data.status;
     if (data.admin_notes !== undefined) patch.admin_notes = data.admin_notes;
     if (Object.keys(patch).length === 0) return { ok: true };

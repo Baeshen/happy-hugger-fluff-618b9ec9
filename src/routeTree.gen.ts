@@ -50,6 +50,7 @@ import { Route as BranchesSlugRouteImport } from './routes/branches.$slug'
 import { Route as AuthenticatedTransitionsStatsRouteImport } from './routes/_authenticated/transitions-stats'
 import { Route as AuthenticatedTransitionAlertsRouteImport } from './routes/_authenticated/transition-alerts'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSecondOpinionAdminRouteImport } from './routes/_authenticated/second-opinion-admin'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRbacRouteImport } from './routes/_authenticated/rbac'
 import { Route as AuthenticatedRatingsRouteImport } from './routes/_authenticated/ratings'
@@ -280,6 +281,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSecondOpinionAdminRoute =
+  AuthenticatedSecondOpinionAdminRouteImport.update({
+    id: '/second-opinion-admin',
+    path: '/second-opinion-admin',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -451,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/second-opinion-admin': typeof AuthenticatedSecondOpinionAdminRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
@@ -516,6 +524,7 @@ export interface FileRoutesByTo {
   '/ratings': typeof AuthenticatedRatingsRoute
   '/rbac': typeof AuthenticatedRbacRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/second-opinion-admin': typeof AuthenticatedSecondOpinionAdminRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
@@ -583,6 +592,7 @@ export interface FileRoutesById {
   '/_authenticated/ratings': typeof AuthenticatedRatingsRoute
   '/_authenticated/rbac': typeof AuthenticatedRbacRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/second-opinion-admin': typeof AuthenticatedSecondOpinionAdminRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/_authenticated/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
@@ -650,6 +660,7 @@ export interface FileRouteTypes {
     | '/ratings'
     | '/rbac'
     | '/reports'
+    | '/second-opinion-admin'
     | '/settings'
     | '/transition-alerts'
     | '/transitions-stats'
@@ -715,6 +726,7 @@ export interface FileRouteTypes {
     | '/ratings'
     | '/rbac'
     | '/reports'
+    | '/second-opinion-admin'
     | '/settings'
     | '/transition-alerts'
     | '/transitions-stats'
@@ -781,6 +793,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ratings'
     | '/_authenticated/rbac'
     | '/_authenticated/reports'
+    | '/_authenticated/second-opinion-admin'
     | '/_authenticated/settings'
     | '/_authenticated/transition-alerts'
     | '/_authenticated/transitions-stats'
@@ -1134,6 +1147,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/second-opinion-admin': {
+      id: '/_authenticated/second-opinion-admin'
+      path: '/second-opinion-admin'
+      fullPath: '/second-opinion-admin'
+      preLoaderRoute: typeof AuthenticatedSecondOpinionAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -1316,6 +1336,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRatingsRoute: typeof AuthenticatedRatingsRoute
   AuthenticatedRbacRoute: typeof AuthenticatedRbacRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedSecondOpinionAdminRoute: typeof AuthenticatedSecondOpinionAdminRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTransitionAlertsRoute: typeof AuthenticatedTransitionAlertsRoute
   AuthenticatedTransitionsStatsRoute: typeof AuthenticatedTransitionsStatsRoute
@@ -1341,6 +1362,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRatingsRoute: AuthenticatedRatingsRoute,
   AuthenticatedRbacRoute: AuthenticatedRbacRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedSecondOpinionAdminRoute: AuthenticatedSecondOpinionAdminRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTransitionAlertsRoute: AuthenticatedTransitionAlertsRoute,
   AuthenticatedTransitionsStatsRoute: AuthenticatedTransitionsStatsRoute,
