@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -7,7 +8,6 @@ import {
   Check,
   CalendarPlus,
   Loader2,
-  Search,
   ChevronRight,
   ChevronLeft,
   Stethoscope,
@@ -17,7 +17,6 @@ import {
   AlertCircle,
   RotateCcw,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { friendlyInsertError } from "@/lib/insert-errors";
 import type { BranchSpecialty } from "@/lib/branches.functions";
 
