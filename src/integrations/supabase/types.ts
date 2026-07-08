@@ -1484,6 +1484,7 @@ export type Database = {
           published_at: string | null
           slug: string
           specialty: string | null
+          status: string
           title_ar: string
           title_en: string | null
           updated_at: string
@@ -1499,6 +1500,7 @@ export type Database = {
           published_at?: string | null
           slug: string
           specialty?: string | null
+          status?: string
           title_ar: string
           title_en?: string | null
           updated_at?: string
@@ -1514,6 +1516,7 @@ export type Database = {
           published_at?: string | null
           slug?: string
           specialty?: string | null
+          status?: string
           title_ar?: string
           title_en?: string | null
           updated_at?: string
