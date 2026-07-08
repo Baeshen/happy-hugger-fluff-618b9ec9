@@ -1141,3 +1141,123 @@ export const updateClinicSettings = createServerFn({ method: "POST" })
     if (error) throw new Error(humanizeSupabaseError(error));
     return { ok: true };
   });
+
+/* ---------------- Branches CRUD (admin quick-add wizard) ---------------- */
+
+const branchInput = z.object({
+  slug: z
+    .string()
+    .min(1)
+    .regex(/^[a-z0-9-]+$/i, "slug lowercase, digits, dashes"),
+  name_ar: z.string().min(1),
+  name_en: z.string().min(1),
+  city_ar: z.string().nullable().optional(),
+  city_en: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  emergency_phone: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional().or(z.literal("")),
+  address_ar: z.string().nullable().optional(),
+  address_en: z.string().nullable().optional(),
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional(),
+  description_ar: z.string().nullable().optional(),
+  description_en: z.string().nullable().optional(),
+  hero_image_url: z.string().url().nullable().optional().or(z.literal("")),
+  map_embed_url: z.string().nullable().optional(),
+  is_active: z.boolean().default(true),
+  sort_order: z.number().int().default(0),
+});
+
+export const listBranchesAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception", "pharmacy"]);
+    const { data, error } = await context.supabase
+      .from("branches")
+      .select("id, slug, name_ar, name_en, city_ar, is_active, sort_order")
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return data ?? [];
+  });
+
+export const createBranch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => branchInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin"]);
+    const payload: any = { ...data };
+    if (payload.email === "") payload.email = null;
+    if (payload.hero_image_url === "") payload.hero_image_url = null;
+    const { data: row, error } = await context.supabase
+      .from("branches")
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return row;
+  });
+
+/* ---------------- Admin appointment quick-create ---------------- */
+
+const appointmentAdminInput = z.object({
+  patient_name: z.string().trim().min(2).max(120),
+  patient_phone: z.string().trim().min(6).max(32),
+  national_id: z.string().trim().max(20).nullable().optional(),
+  gender: z.enum(["male", "female"]).nullable().optional(),
+  branch_id: z.string().uuid().nullable().optional(),
+  specialty_id: z.string().uuid().nullable().optional(),
+  doctor_id: z.string().uuid().nullable().optional(),
+  appointment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  appointment_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  reason: z.string().trim().max(500).nullable().optional(),
+  notes: z.string().trim().max(500).nullable().optional(),
+  status: z
+    .enum(["new", "confirmed"])
+    .default("confirmed"),
+});
+
+export const createAppointmentAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => appointmentAdminInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+    const payload: any = {
+      patient_name: data.patient_name,
+      patient_phone: data.patient_phone,
+      national_id: data.national_id ?? null,
+      gender: data.gender ?? null,
+      branch_id: data.branch_id ?? null,
+      specialty_id: data.specialty_id ?? null,
+      doctor_id: data.doctor_id ?? null,
+      appointment_date: data.appointment_date,
+      appointment_time: data.appointment_time,
+      reason: data.reason ?? null,
+      notes: data.notes ?? null,
+      status: data.status,
+    };
+    const { data: row, error } = await context.supabase
+      .from("appointments")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return row;
+  });
+
+/* ---------------- Doctors list for wizard ---------------- */
+
+export const listDoctorsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureRole(roles, ["admin", "reception"]);
+    const { data, error } = await context.supabase
+      .from("doctors")
+      .select("id, name_ar, specialty_id, branch_id, is_active")
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(humanizeSupabaseError(error));
+    return data ?? [];
+  });
