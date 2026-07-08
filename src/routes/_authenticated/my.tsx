@@ -832,6 +832,7 @@ function DownloadFileButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
+      setSignedAt(Date.now());
       headCheckStateByBucket.set(bucket, recordDownloadSuccess(getHeadCheckState(bucket)));
       // Reset per-button attempt counter after a fully successful download.
       attemptRef.current = 0;
