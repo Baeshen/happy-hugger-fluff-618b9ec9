@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -8,7 +9,14 @@ import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, googleCalendarUrl, type ShareBooking } from "@/lib/booking-share";
 import { ReminderHistoryByRefModal } from "@/components/ReminderPreferenceHistory";
 
+const lookupSearch = z.object({
+  ref: z.string().optional(),
+  phone: z.string().optional(),
+  action: z.enum(["cancel", "reschedule"]).optional(),
+});
+
 export const Route = createFileRoute("/lookup")({
+  validateSearch: lookupSearch,
   head: () => ({
     meta: [
       { title: "تتبع حجزك | مجمع باعشن الطبي" },
