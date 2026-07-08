@@ -31,6 +31,7 @@ import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as BookingConfirmationRouteImport } from './routes/booking-confirmation'
 import { Route as BookRouteImport } from './routes/book'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -178,6 +179,11 @@ const BookRoute = BookRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -386,6 +392,7 @@ const ApiPublicBookCreateRoute = ApiPublicBookCreateRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
   '/booking-confirmation': typeof BookingConfirmationRoute
@@ -447,6 +454,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
   '/booking-confirmation': typeof BookingConfirmationRoute
@@ -510,6 +518,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
   '/booking-confirmation': typeof BookingConfirmationRoute
@@ -573,6 +582,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/app'
     | '/auth'
     | '/book'
     | '/booking-confirmation'
@@ -634,6 +644,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/app'
     | '/auth'
     | '/book'
     | '/booking-confirmation'
@@ -696,6 +707,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/about'
+    | '/app'
     | '/auth'
     | '/book'
     | '/booking-confirmation'
@@ -759,6 +771,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
+  AppRoute: typeof AppRoute
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
   BookingConfirmationRoute: typeof BookingConfirmationRoute
@@ -948,6 +961,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -1300,6 +1320,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AboutRoute: AboutRoute,
+  AppRoute: AppRoute,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
   BookingConfirmationRoute: BookingConfirmationRoute,
