@@ -2192,6 +2192,26 @@ function RemindersDeliveryTab() {
                             {r.last_error}
                           </div>
                         )}
+                        {(r.send_status === "failed" || r.send_status === "skipped") && (
+                          <button
+                            onClick={async () => {
+                              setRetryingId(r.id);
+                              try {
+                                await retryFn({ data: { id: r.id } });
+                                toast.success("تمت إعادة جدولة التذكير للإرسال.");
+                                queryClient.invalidateQueries({ queryKey: ["reminders-log"] });
+                              } catch (e) {
+                                toast.error((e as Error)?.message ?? "تعذّرت إعادة الإرسال.");
+                              } finally {
+                                setRetryingId(null);
+                              }
+                            }}
+                            disabled={retryingId === r.id}
+                            className="mt-1 rounded-md border border-input px-2 py-0.5 text-[11px] hover:bg-muted disabled:opacity-60"
+                          >
+                            {retryingId === r.id ? "…" : "إعادة الإرسال"}
+                          </button>
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs">
                         {formatAuditDate(r.created_at)}
