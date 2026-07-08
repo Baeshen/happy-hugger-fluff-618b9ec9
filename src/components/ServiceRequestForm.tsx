@@ -262,6 +262,7 @@ export function ServiceRequestForm({
     <form
       onSubmit={onSubmit}
       noValidate
+      aria-busy={submitting}
       className="rounded-2xl border border-border bg-card p-6 space-y-3"
       aria-label={title}
     >
@@ -270,7 +271,17 @@ export function ServiceRequestForm({
         {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
       </div>
 
-      <div className="space-y-3 text-sm">
+      {submitError && (
+        <SubmitErrorBanner
+          kind={submitError.kind}
+          message={submitError.message}
+          onRetry={onRetry}
+          retrying={submitting}
+        />
+      )}
+
+      <fieldset disabled={submitting} className="space-y-3 text-sm border-0 p-0 m-0 disabled:opacity-70">
+
         <Field label="الاسم الكامل" error={errors.patient_name} htmlFor="srf-name">
           <input
             id="srf-name"
