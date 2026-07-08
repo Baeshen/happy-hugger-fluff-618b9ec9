@@ -243,6 +243,48 @@ export type Database = {
           },
         ]
       }
+      branch_excellence_centers: {
+        Row: {
+          branch_id: string
+          created_at: string
+          excellence_center_id: string
+          id: string
+          is_featured: boolean
+          sort_order: number
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          excellence_center_id: string
+          id?: string
+          is_featured?: boolean
+          sort_order?: number
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          excellence_center_id?: string
+          id?: string
+          is_featured?: boolean
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_excellence_centers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_excellence_centers_excellence_center_id_fkey"
+            columns: ["excellence_center_id"]
+            isOneToOne: false
+            referencedRelation: "excellence_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_mrn_counter: {
         Row: {
           branch_id: string
@@ -273,16 +315,24 @@ export type Database = {
           city_ar: string | null
           city_en: string | null
           created_at: string
+          description_ar: string | null
+          description_en: string | null
+          email: string | null
+          emergency_phone: string | null
+          hero_image_url: string | null
           id: string
           is_active: boolean
           lat: number | null
           lng: number | null
+          map_embed_url: string | null
           name_ar: string
           name_en: string
           phone: string | null
           settings: Json
           slug: string
+          sort_order: number
           updated_at: string
+          working_hours: Json
         }
         Insert: {
           address_ar?: string | null
@@ -290,16 +340,24 @@ export type Database = {
           city_ar?: string | null
           city_en?: string | null
           created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          email?: string | null
+          emergency_phone?: string | null
+          hero_image_url?: string | null
           id?: string
           is_active?: boolean
           lat?: number | null
           lng?: number | null
+          map_embed_url?: string | null
           name_ar: string
           name_en: string
           phone?: string | null
           settings?: Json
           slug: string
+          sort_order?: number
           updated_at?: string
+          working_hours?: Json
         }
         Update: {
           address_ar?: string | null
@@ -307,16 +365,24 @@ export type Database = {
           city_ar?: string | null
           city_en?: string | null
           created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          email?: string | null
+          emergency_phone?: string | null
+          hero_image_url?: string | null
           id?: string
           is_active?: boolean
           lat?: number | null
           lng?: number | null
+          map_embed_url?: string | null
           name_ar?: string
           name_en?: string
           phone?: string | null
           settings?: Json
           slug?: string
+          sort_order?: number
           updated_at?: string
+          working_hours?: Json
         }
         Relationships: []
       }
@@ -537,6 +603,71 @@ export type Database = {
           },
           {
             foreignKeyName: "doctors_specialty_id_fkey"
+            columns: ["specialty_id"]
+            isOneToOne: false
+            referencedRelation: "specialties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      excellence_centers: {
+        Row: {
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          hero_image_url: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          metadata: Json
+          name_ar: string
+          name_en: string
+          short_ar: string | null
+          short_en: string | null
+          slug: string
+          sort_order: number
+          specialty_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          hero_image_url?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name_ar: string
+          name_en: string
+          short_ar?: string | null
+          short_en?: string | null
+          slug: string
+          sort_order?: number
+          specialty_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          hero_image_url?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name_ar?: string
+          name_en?: string
+          short_ar?: string | null
+          short_en?: string | null
+          slug?: string
+          sort_order?: number
+          specialty_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "excellence_centers_specialty_id_fkey"
             columns: ["specialty_id"]
             isOneToOne: false
             referencedRelation: "specialties"
@@ -1752,6 +1883,29 @@ export type Database = {
           start_date: string
         }[]
       }
+      list_public_branches: {
+        Args: never
+        Returns: {
+          address_ar: string
+          address_en: string
+          city_ar: string
+          city_en: string
+          description_ar: string
+          description_en: string
+          emergency_phone: string
+          hero_image_url: string
+          id: string
+          lat: number
+          lng: number
+          map_embed_url: string
+          name_ar: string
+          name_en: string
+          phone: string
+          slug: string
+          sort_order: number
+          working_hours: Json
+        }[]
+      }
       list_public_branches_for_rating: {
         Args: never
         Returns: {
@@ -1768,6 +1922,23 @@ export type Database = {
           name_ar: string
           name_en: string
           specialty_name_ar: string
+        }[]
+      }
+      list_public_excellence_centers: {
+        Args: { _branch_id?: string }
+        Returns: {
+          description_ar: string
+          description_en: string
+          hero_image_url: string
+          icon: string
+          id: string
+          name_ar: string
+          name_en: string
+          short_ar: string
+          short_en: string
+          slug: string
+          sort_order: number
+          specialty_id: string
         }[]
       }
       list_reminder_preferences_by_ref: {
