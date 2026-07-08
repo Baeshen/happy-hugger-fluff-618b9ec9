@@ -268,6 +268,35 @@ export const retryReminderDelivery = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* -------- Bulk retry failed/skipped reminders -------- */
+
+export const retryReminderDeliveriesBulk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    ensureStaff(roles);
+    const { data: rows, error: rErr } = await context.supabase
+      .from("notifications")
+      .select("id, send_status")
+      .in("id", data.ids);
+    if (rErr) throw new Error(rErr.message);
+    const eligible = (rows ?? [])
+      .filter((r) => ["failed", "skipped"].includes(r.send_status as string))
+      .map((r) => r.id);
+    if (eligible.length === 0) {
+      return { ok: true, retried: 0, skipped: data.ids.length };
+    }
+    const { error } = await context.supabase
+      .from("notifications")
+      .update({ send_status: "pending", last_error: null, sent_at: null } as never)
+      .in("id", eligible);
+    if (error) throw new Error(error.message);
+    return { ok: true, retried: eligible.length, skipped: data.ids.length - eligible.length };
+  });
+
 /* -------- Export reminder deliveries as CSV -------- */
 
 function csvEscape(v: unknown): string {
