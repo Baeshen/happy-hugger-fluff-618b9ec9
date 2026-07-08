@@ -36,16 +36,45 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 
-function json(status: number, body: Record<string, unknown>) {
+function json(
+  status: number,
+  body: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {},
+) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      // 30s micro-cache is enough to smooth typing/step navigation without
-      // ever showing a stale "free" slot for more than one refresh cycle.
-      "Cache-Control": "public, max-age=0, s-maxage=30, must-revalidate",
+      // Short shared cache + stale-while-revalidate: edge/CDN can serve the
+      // cached body for 30s, and keep serving it (up to 60s more) while a
+      // background request refreshes it. The client also caches per-key
+      // (see React Query staleTime in /book).
+      "Cache-Control":
+        "public, max-age=0, s-maxage=30, stale-while-revalidate=60",
+      ...extraHeaders,
     },
   });
+}
+
+// Best-effort per-isolate memo. Workers run stateless per request, but the
+// same isolate is reused across requests for a while — this collapses
+// duplicate lookups (same date+scope) into a single DB round-trip within
+// the TTL window. Safe: only public availability data, no PII.
+const MEMO_TTL_MS = 20_000;
+const memo = new Map<string, { at: number; body: Record<string, unknown> }>();
+function memoGet(key: string) {
+  const hit = memo.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > MEMO_TTL_MS) {
+    memo.delete(key);
+    return null;
+  }
+  return hit.body;
+}
+function memoSet(key: string, body: Record<string, unknown>) {
+  // Prevent unbounded growth in long-lived isolates.
+  if (memo.size > 500) memo.clear();
+  memo.set(key, { at: Date.now(), body });
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -112,6 +141,27 @@ export const Route = createFileRoute("/api/public/book/availability")({
         // aggregate the entire clinic and return a meaningless union.
         if (!doctorId && !specialtyId) {
           return json(400, { ok: false, error: "missing_scope" });
+        }
+
+        // Cache key includes every parameter that changes the result. `date`
+        // is bucketed only per full day (safe) but same-day results include
+        // an implicit "now" cutoff — we keep the TTL tight (20s) so that
+        // cutoff can only drift by ~one slot's fraction at worst.
+        const cacheKey = `${date}|${doctorId ?? ""}|${specialtyId ?? ""}|${branchId ?? ""}`;
+        const cached = memoGet(cacheKey);
+        if (cached) {
+          const etag = `W/"${cacheKey}:${(cached as { _v?: number })._v ?? 0}"`;
+          if (request.headers.get("if-none-match") === etag) {
+            return new Response(null, {
+              status: 304,
+              headers: {
+                ETag: etag,
+                "Cache-Control":
+                  "public, max-age=0, s-maxage=30, stale-while-revalidate=60",
+              },
+            });
+          }
+          return json(200, cached, { ETag: etag });
         }
 
         const empty = { ok: true, times: [], booked: [], doctors_considered: 0 };
@@ -219,12 +269,29 @@ export const Route = createFileRoute("/api/public/book/availability")({
             }
           }
 
-          return json(200, {
+          const body = {
             ok: true,
             times,
             booked,
             doctors_considered: candidateDoctorIds.length,
-          });
+            // `_v` is a compact fingerprint used only to build the ETag;
+            // small counters are enough to distinguish results across the
+            // cache window without hashing the whole payload.
+            _v: times.length * 1000 + booked.length,
+          };
+          memoSet(cacheKey, body);
+          const etag = `W/"${cacheKey}:${body._v}"`;
+          if (request.headers.get("if-none-match") === etag) {
+            return new Response(null, {
+              status: 304,
+              headers: {
+                ETag: etag,
+                "Cache-Control":
+                  "public, max-age=0, s-maxage=30, stale-while-revalidate=60",
+              },
+            });
+          }
+          return json(200, body, { ETag: etag });
         } catch {
           return json(200, empty);
         }
