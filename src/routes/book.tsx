@@ -542,6 +542,16 @@ function BookPage() {
                 <p className="text-xs text-muted-foreground mb-5">
                   نحتاج هذه البيانات لتأكيد الموعد والتواصل معك.
                 </p>
+                {submitError && (
+                  <div className="mb-4">
+                    <SubmitErrorBanner
+                      kind={submitError.kind}
+                      message={submitError.message}
+                      onRetry={submit}
+                      retrying={submitting}
+                    />
+                  </div>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={t("name")} required error={errors.name}>
                     <input
