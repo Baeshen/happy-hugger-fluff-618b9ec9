@@ -1,114 +1,79 @@
+# المرحلة 4 — بوابة المريض + خدمات الجودة
 
-## الهدف
-تحويل موقع باعشن الحالي (عيادة واحدة) إلى **منظومة مجموعة طبية** بمعمار مشابه لمجموعة الحبيب (HMG) لكن أحدث تقنياً وأسرع وأسهل استخداماً، مع الاحتفاظ بكل ما بُني (RLS، QR، الحجز، الأدوار، لوحة الإدارة).
+بعد اكتمال المراحل 1-3 (البنية، الفروع، مراكز التميز، الخدمات المتقدمة) وصقل تجربة الحجز والتتبع، ننتقل لآخر مرحلة في الخطة الكبرى.
 
-## مقارنة سريعة — HMG مقابل الوضع الحالي
+## الحالة الحالية
 
-**موجود عندنا:** الرئيسية، من نحن، الأطباء، التخصصات، المجمع، الحجز، البحث عن حجز، الصيدلية، المقالات الصحية، الأسئلة الشائعة، تواصل، تقييم، تسجيل دخول، لوحة إدارة كاملة (تقارير، QR، RBAC، تدقيق…).
+موجود بالفعل: `/complaints`, `/emergency`, `/my` (نسخة أولية), `/careers`, `/telemedicine`, `/insurance`, `/home-care`, `/international-patients`, `/media/news`, `/packages`.
 
-**ناقص مقارنة بـHMG:**
-- تعدد الفروع / صفحة لكل مستشفى
-- مراكز التميز (Centers of Excellence)
-- الباقات والفحوصات الشاملة
-- الرعاية المنزلية
-- الاستشارات عن بُعد (Telemedicine)
-- شركات التأمين المعتمدة
-- خدمات الشركات / اتفاقيات القطاع
-- الوظائف / التوظيف
-- المركز الإعلامي (أخبار + قصص مرضى + أبحاث)
-- بوابة المريض الموسّعة (تقارير مختبر، أشعة، وصفات، ملف طبي كامل)
-- المرضى الدوليون / السياحة العلاجية
-- الشكاوى والمقترحات
-- الرأي الطبي الثاني
-- الطوارئ + خرائط + مواقيت
-- تنزيل التطبيق + WhatsApp float
+الناقص من المرحلة 4:
+- إعادة تصميم `/my` كبوابة تبويبية شاملة
+- `/second-opinion` — الرأي الطبي الثاني
+- `/app` — صفحة تنزيل التطبيق
+- Chatbot عائم بسيط
+- `/media/stories` — قصص المرضى (تبقّى من المرحلة 3)
+- `/corporate` — خدمات الشركات (تبقّى من المرحلة 3)
 
----
+## نطاق المرحلة
 
-## المرحلة 1 — البنية والهوية (يوم واحد)
+### 1) إعادة تصميم `/my` كبوابة تبويبية (الأولوية القصوى)
+5 تبويبات داخل الصفحة (تحت `_authenticated`):
+- **المواعيد** — الحالية + قادمة + سابقة (موجود جزئياً، يُنقل تحت تبويب).
+- **الوصفات النشطة** — قراءة من `prescriptions` (جديد).
+- **تقارير المختبر** — قراءة من `lab_reports` + رابط تحميل PDF من Storage bucket `lab-reports`.
+- **تقارير الأشعة** — من `radiology_reports` + رابط PDF من `radiology-reports`.
+- **الفواتير** — من `invoices` + زر "طلب مطالبة تأمين".
 
-**هدف:** يبان الموقع كمنظومة مجموعة، لا كعيادة.
+### 2) `/second-opinion`
+نموذج طلب رأي طبي ثاني: بيانات المريض، التخصص، ملخص الحالة، رفع تقارير سابقة (Storage bucket `second-opinion-uploads`، RLS: إدراج عام لمستخدم مسجّل، قراءة للأدمن).
+جدول `second_opinion_requests`.
 
-1. **Header جديد ثلاثي الطبقات:**
-   - Top bar: اختيار الفرع، اللغة، تسجيل دخول، طوارئ 937.
-   - Main nav: الرئيسية · عنّا · مستشفياتنا · التخصصات · مراكز التميز · الأطباء · الخدمات ▾ · المركز الإعلامي ▾.
-   - Sub nav ديناميكي حسب القسم.
-2. **Footer موسّع:** 4 أعمدة (عنّا، خدماتنا، بوابة المريض، تواصل) + التزامات الاعتماد + التطبيقات + التواصل الاجتماعي + خريطة الموقع.
-3. **Home hero جديد:**
-   - Slider بـ3 بطاقات (احجز موعد / استشارة عن بُعد / تقارير مختبر).
-   - شريط أرقام (أطباء / أَسِرَّة / تخصصات فرعية / اعتمادات) — مطابق لبنية HMG.
-   - Quick-action grid: احجز · دليل الأطباء · مواقع الفروع · تحقّق تأمين · فاتورة · طلب دواء.
-4. **Design tokens:** إضافة `--gradient-hero`, `--gradient-stat`, `--shadow-medical`, خط عربي أفضل (IBM Plex Arabic + Cairo fallback) عبر `<link>` في `__root.tsx` (بدون `@import` remote).
-5. **Dark mode toggle** ظاهر في التوب بار.
-6. **QuickBar** جانبي عائم: WhatsApp، طوارئ، رجوع للأعلى.
+### 3) `/app`
+صفحة تسويقية لتطبيق الجوال: hero + مزايا + بطاقات App Store / Google Play (روابط placeholders + QR code).
 
-## المرحلة 2 — طبقة الفروع + مراكز التميز (1.5 يوم)
+### 4) Chatbot عائم
+مكوّن `<ChatbotBubble />` في `__root.tsx`:
+- زر عائم أسفل يمين (يحترم `QuickBar` الموجود).
+- نافذة صغيرة تعرض أسئلة شائعة من `faqs` (قراءة عبر Supabase publishable).
+- fallback: زر "تحدث معنا على واتساب" يفتح `wa.me` برسالة مُعدّة.
+- بدون AI في هذه المرحلة (بحث نصي بسيط داخل عناوين `faqs`).
 
-**هدف:** الموقع يعمل كمجموعة فروع.
+### 5) `/media/stories` (تكميل المرحلة 3)
+قصص مرضى: جدول `patient_stories` + صفحة فهرس + صفحة تفصيلية `$slug`.
 
-1. **صفحة `/branches/index.tsx`**: قائمة الفروع (بطاقات + خريطة).
-2. **صفحة `/branches/$slug.tsx`**: صفحة كاملة لكل فرع (عرض، تخصصات، أطباء، مواعيد عمل، صور، خريطة، أرقام تواصل، خدمات الطوارئ).
-3. **Branch selector عام**: يُخزن الاختيار في localStorage ويصفّي نتائج `/doctors` و`/specialties` و`/book` تلقائياً.
-4. **صفحة `/excellence/index.tsx` (مراكز التميز)** + `/excellence/$slug.tsx`:
-   - جراحة العظام، القلب، التجميل، العيون، النساء والولادة، الأورام، طب الأسنان، الجهاز الهضمي — كل مركز بصفحته.
-5. **جداول DB جديدة (migration):**
-   - `hospital_branches` (موجود جزئياً كـ`branches`) — إضافة `hero_image_url`, `phone`, `emergency_phone`, `working_hours`, `slug`, `map_embed_url`, `description_ar`, `description_en`.
-   - `excellence_centers` (id, slug, name_ar/en, branch_id, specialty_id, description, hero_image_url, order).
-   - مع RLS: قراءة عامة، كتابة للأدمن، + `GRANT SELECT TO anon, authenticated`.
+### 6) `/corporate` (تكميل المرحلة 3)
+صفحة اتفاقيات الشركات + نموذج طلب اتفاقية → `corporate_requests`.
 
-## المرحلة 3 — الخدمات المتقدمة (2 يوم)
+## الجداول والـStorage الجديدة
 
-**هدف:** خدمات HMG الأساسية موجودة.
+```text
+prescriptions            (id, patient_id, doctor_id, medication, dosage, start_date, end_date, status, notes)
+lab_reports              (id, patient_id, title, ordered_by, report_date, file_path, status)
+radiology_reports        (id, patient_id, modality, body_part, report_date, file_path, findings)
+invoices                 (id, patient_id, appointment_id?, total, currency, status, issued_at, pdf_path)
+second_opinion_requests  (id, patient_name, phone, specialty, summary, uploads[], status, created_at)
+patient_stories          (id, slug, title_ar, excerpt, body_md, hero_image_url, published_at)
+corporate_requests       (id, company_name, contact_name, phone, email, employee_count, notes, status)
 
-1. **`/packages`** — الباقات والفحوصات الشاملة (فحص شامل، ما قبل الزواج، ما قبل التوظيف…).
-   - جدول `medical_packages` (name, price, includes[], category, branch_id).
-2. **`/home-care`** — الرعاية المنزلية: طلب زيارة ممرض، سحب عينات، فيزيوثيرابي في المنزل. نموذج طلب يُنشئ صفاً في `home_care_requests`.
-3. **`/telemedicine`** — الاستشارة عن بُعد: قائمة أطباء متاحين مع "احجز استشارة فيديو" (يستخدم نفس `appointments` مع flag `is_telemedicine`).
-4. **`/insurance`** — شركات التأمين المعتمدة (بطاقات شعارات + مستوى التغطية). جدول `insurance_providers`.
-5. **`/corporate`** — خدمات الشركات: نموذج طلب اتفاقية.
-6. **`/careers`** — الوظائف الشاغرة + نموذج تقديم مع رفع سيرة ذاتية إلى Storage bucket جديد `resumes` (RLS: عام للإدراج، قراءة للأدمن فقط).
-7. **`/media/news`** + `/media/news/$slug`** — أخبار المجموعة (جدول `news_articles`).
-8. **`/media/stories`** — قصص المرضى.
-9. **`/international-patients`** — صفحة المرضى الدوليين (خدمات ترجمة، حجز فندق، تأشيرة علاج).
+Storage buckets: lab-reports, radiology-reports, invoice-pdfs, second-opinion-uploads
+```
 
-## المرحلة 4 — بوابة المريض + جودة (1 يوم)
+## تفاصيل تقنية
 
-**هدف:** تجربة المريض بعد تسجيل الدخول تكتمل.
+- جميع الجداول الجديدة تتبع القاعدة الصارمة: `CREATE TABLE public.*` → `GRANT` لكل دور مسموح → `ENABLE ROW LEVEL SECURITY` → `CREATE POLICY`.
+- سياسات RLS للجداول الشخصية (`prescriptions`, `lab_reports`, `radiology_reports`, `invoices`): SELECT مقيّد بـ `patient_id = auth.uid()` + admin عبر `has_role`.
+- الجداول العامة (`patient_stories`): SELECT للـ `anon` عندما `published_at IS NOT NULL`.
+- كل ملف مسار تحت `src/routes/` بـ `head()` مستقل: title/description/og:title/og:description/canonical على `https://happy-hugger-fluff.lovable.app/...`.
+- Storage: buckets خاصة (غير عامة) — تُقدَّم عبر `createSignedUrl` من server function محمي بـ `requireSupabaseAuth`.
+- SSR: كل صفحة عامة تستخدم `loader` + `ensureQueryData` + `useSuspenseQuery`. الصفحات تحت `_authenticated` تستخدم `useServerFn` داخل `useQuery`.
+- Chatbot: مكوّن client-only يُلفّ بـ `useHydrated()` لتجنّب mismatch.
+- بيانات تجريبية (seed) للجداول الجديدة تُضاف عبر migration منفصلة (ليست في نفس migration الإنشاء).
 
-1. **إعادة تصميم `/my`** إلى بوابة تبويبية:
-   - المواعيد القادمة (موجود) + إضافة تقويم + Google/Apple Calendar sync.
-   - الوصفات الطبية النشطة (جدول `prescriptions` مربوط بـ`patient_visits`).
-   - تقارير المختبر (جدول `lab_reports` + PDF من Storage).
-   - تقارير الأشعة (جدول `radiology_reports`).
-   - الفواتير + طلب مطالبة تأمين.
-   - إعادة صرف دواء (يربط لصفحة الصيدلية مع pre-fill).
-2. **`/complaints`** — نموذج شكاوى ومقترحات (جدول `complaints` + تنبيه للأدمن).
-3. **`/second-opinion`** — طلب رأي طبي ثاني (رفع تقارير سابقة).
-4. **`/emergency`** — أرقام الطوارئ لكل فرع + خرائط + توجيهات فورية.
-5. **صفحة تنزيل التطبيق `/app`** — روابط App Store/Play (placeholders).
-6. **Chatbot عائم بسيط** (سؤال شائع → جواب من `faqs` + fallback WhatsApp).
+## التنفيذ التدريجي
 
----
+سأنفّذها بترتيب الأولوية:
+1. بوابة `/my` التبويبية + جداول الوصفات/المختبر/الأشعة/الفواتير (الأكبر أثراً).
+2. `/second-opinion` + `/app` + `/corporate` + `/media/stories` (صفحات جديدة مستقلة).
+3. Chatbot العائم (لمسة نهائية عبر الموقع كله).
 
-## تفاصيل تقنية (للمطور)
-
-- كل الصفحات الجديدة تلتزم بـ TanStack Start file-based routing: `src/routes/branches.$slug.tsx`، `src/routes/excellence.$slug.tsx`، إلخ.
-- كل مسار له `head()` مستقل بـtitle/description/og:title/og:description/canonical عبر `https://happy-hugger-fluff.lovable.app/...`.
-- كل استعلام SSR-friendly: `loader` + `context.queryClient.ensureQueryData` + `useSuspenseQuery` في المكوّن.
-- كل صفحة عامة تُقرأ عبر `SUPABASE_PUBLISHABLE_KEY` server client مع RLS `TO anon`.
-- كل جدول جديد يتبع القاعدة: CREATE → GRANT → ENABLE RLS → POLICY (+ `service_role`).
-- الطوابع الزمنية `created_at/updated_at` + trigger `set_updated_at`.
-- `sitemap.xml` يُحدَّث تلقائياً من routeTree + محتوى ديناميكي (فروع، مراكز، أطباء، تخصصات، أخبار، مقالات).
-- الحفاظ الكامل على: كل شيء تحت `_authenticated`، سياسات RLS الحالية، فحص الأمان branch isolation المُطبق، نظام QR، Audit log.
-- Tailwind v4 CSS-first فقط، لا `tailwind.config.js`.
-- كل الأصول الجديدة (Hero, صور مراكز التميز، شعارات تأمين) تُولَّد بـimagegen وتُستورد كـES6.
-
----
-
-## ما أحتاجه منك للانطلاق
-
-اختر أحد الخيارات:
-- **أ.** ابدأ بالمرحلة 1 (البنية والهوية) الآن ثم نمرّ على البقية مرحلة بمرحلة.
-- **ب.** ابدأ بالمرحلة 2 (الفروع + مراكز التميز) لأنها الأكثر تفريقاً عن الحالي.
-- **ج.** نفّذ المراحل 1 و2 معاً كدفعة واحدة (يوم ونصف).
-- **د.** ركّز على قسم محدد فقط (اكتبه لي).
+بعد الانتهاء يكون الموقع مطابقاً لنطاق HMG وظيفياً، مع صقل تجربة أحدث وأسرع.
