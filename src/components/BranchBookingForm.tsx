@@ -229,29 +229,54 @@ export function BranchBookingForm({
 
   const submit = async () => {
     const err = validateStep("patient", { specialtyId, doctorId, date, time, form });
-    if (err) return toast.error(err);
+    if (err) {
+      setSubmitError(err);
+      toast.error(err);
+      return;
+    }
     const parsed = schema.safeParse(form);
-    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? "بيانات غير صالحة");
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message ?? "بيانات غير صالحة";
+      setSubmitError(msg);
+      return toast.error(msg);
+    }
     const v = parsed.data;
     setSubmitting(true);
+    setSubmitError(null);
     const id = randomId();
-    const { error } = await supabase.from("appointments").insert({
-      id,
-      patient_name: v.name,
-      patient_phone: v.phone,
-      gender: v.gender,
-      branch_id: branchId,
-      specialty_id: specialtyId,
-      doctor_id: doctorId,
-      appointment_date: date,
-      appointment_time: time,
-      reason: v.reason || null,
-      reminder_24h: true,
-      reminder_2h: true,
-    });
-    setSubmitting(false);
-    if (error) return toast.error(friendlyInsertError(error));
-    setRef(id.slice(0, 8).toUpperCase());
+    try {
+      const { error } = await supabase.from("appointments").insert({
+        id,
+        patient_name: v.name,
+        patient_phone: v.phone,
+        gender: v.gender,
+        branch_id: branchId,
+        specialty_id: specialtyId,
+        doctor_id: doctorId,
+        appointment_date: date,
+        appointment_time: time,
+        reason: v.reason || null,
+        reminder_24h: true,
+        reminder_2h: true,
+      });
+      if (error) {
+        const msg = friendlyInsertError(error);
+        setSubmitError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success("تم إرسال الحجز بنجاح");
+      setRef(id.slice(0, 8).toUpperCase());
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message
+          ? e.message
+          : "تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.";
+      setSubmitError(msg);
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resetForm = () => {
