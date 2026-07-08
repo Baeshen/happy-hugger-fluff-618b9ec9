@@ -1857,22 +1857,46 @@ function reminderKindLabel(kind: string): string {
   return kind;
 }
 
-function RemindersDeliveryTab() {
+type LogChannel = "" | "in_app" | "web_push" | "sms" | "whatsapp" | "email";
+type LogStatus = "" | "pending" | "queued" | "sent" | "failed" | "skipped";
+const LOG_CHANNELS: LogChannel[] = ["", "in_app", "web_push", "sms", "whatsapp", "email"];
+const LOG_STATUSES: LogStatus[] = ["", "pending", "queued", "sent", "failed", "skipped"];
+const isDateStr = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+function RemindersDeliveryTab({
+  initialChannel = "",
+  initialStatus = "",
+  initialDateFrom = "",
+  initialDateTo = "",
+}: {
+  initialChannel?: string;
+  initialStatus?: string;
+  initialDateFrom?: string;
+  initialDateTo?: string;
+} = {}) {
   const listFn = useServerFn(listReminderDeliveries);
   const exportFn = useServerFn(exportReminderDeliveriesCsv);
   const retryFn = useServerFn(retryReminderDelivery);
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const safeCh: LogChannel = (LOG_CHANNELS.includes(initialChannel as LogChannel)
+    ? (initialChannel as LogChannel)
+    : "");
+  const safeSt: LogStatus = (LOG_STATUSES.includes(initialStatus as LogStatus)
+    ? (initialStatus as LogStatus)
+    : "");
+  const safeFrom = isDateStr(initialDateFrom) ? initialDateFrom : "";
+  const safeTo = isDateStr(initialDateTo) ? initialDateTo : "";
   const [appointmentIdInput, setAppointmentIdInput] = useState("");
   const [patientQuery, setPatientQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(safeFrom);
+  const [dateTo, setDateTo] = useState(safeTo);
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
-  const [channel, setChannel] = useState<"" | "in_app" | "web_push" | "sms" | "whatsapp" | "email">("");
+  const [channel, setChannel] = useState<LogChannel>(safeCh);
   const [audience, setAudience] = useState<"" | "user" | "staff">("");
-  const [status, setStatus] = useState<"" | "pending" | "queued" | "sent" | "failed" | "skipped">("");
+  const [status, setStatus] = useState<LogStatus>(safeSt);
   const [applied, setApplied] = useState<{
     appointmentId: string;
     patientQuery: string;
@@ -1886,13 +1910,13 @@ function RemindersDeliveryTab() {
   }>({
     appointmentId: "",
     patientQuery: "",
-    dateFrom: "",
-    dateTo: "",
+    dateFrom: safeFrom,
+    dateTo: safeTo,
     timeFrom: "",
     timeTo: "",
-    channel: "",
+    channel: safeCh,
     audience: "",
-    status: "",
+    status: safeSt,
   });
   const [uuidError, setUuidError] = useState<string | null>(null);
   const [rangeError, setRangeError] = useState<string | null>(null);
