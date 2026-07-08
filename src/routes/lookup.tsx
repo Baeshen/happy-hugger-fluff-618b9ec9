@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -8,7 +9,14 @@ import { WEEKDAYS_AR } from "@/lib/site";
 import { downloadIcs, whatsappShareUrl, googleCalendarUrl, type ShareBooking } from "@/lib/booking-share";
 import { ReminderHistoryByRefModal } from "@/components/ReminderPreferenceHistory";
 
+const lookupSearch = z.object({
+  ref: z.string().optional(),
+  phone: z.string().optional(),
+  action: z.enum(["cancel", "reschedule"]).optional(),
+});
+
 export const Route = createFileRoute("/lookup")({
+  validateSearch: lookupSearch,
   head: () => ({
     meta: [
       { title: "تتبع حجزك | مجمع باعشن الطبي" },
@@ -112,8 +120,9 @@ function countdown(dateStr: string, timeStr: string): string | null {
 
 function LookupPage() {
   const { t, lang } = useI18n();
-  const [ref, setRef] = useState("");
-  const [phone, setPhone] = useState("");
+  const routeSearch = Route.useSearch();
+  const [ref, setRef] = useState(routeSearch.ref ?? "");
+  const [phone, setPhone] = useState(routeSearch.phone ?? "");
   const [loading, setLoading] = useState(false);
   const [appt, setAppt] = useState<AppointmentRow | null>(null);
   const [searched, setSearched] = useState(false);
@@ -126,6 +135,8 @@ function LookupPage() {
   const [rescheduleReminder24h, setRescheduleReminder24h] = useState(true);
   const [rescheduleReminder2h, setRescheduleReminder2h] = useState(true);
   const [showReminderHistory, setShowReminderHistory] = useState(false);
+  const autoRan = useRef(false);
+
 
   const toggleReminder = async (which: "24h" | "2h", value: boolean) => {
     if (!appt) return;
@@ -314,6 +325,26 @@ function LookupPage() {
       toast.error(t("lookup_not_found"));
     }
   };
+
+  // Auto-search once when arriving from /booking-confirmation with
+  // ?ref=&phone= (and optionally &action=cancel|reschedule to open the
+  // corresponding dialog straight away).
+  useEffect(() => {
+    if (autoRan.current) return;
+    if (!routeSearch.ref || !routeSearch.phone) return;
+    autoRan.current = true;
+    void submit();
+  }, [routeSearch.ref, routeSearch.phone]);
+
+  useEffect(() => {
+    if (!appt) return;
+    if (routeSearch.action === "cancel" && (appt.status === "new" || appt.status === "confirmed")) {
+      setShowCancel(true);
+    } else if (routeSearch.action === "reschedule" && (appt.status === "new" || appt.status === "confirmed")) {
+      setShowReschedule(true);
+    }
+  }, [appt, routeSearch.action]);
+
 
   const doctorName = appt
     ? lang === "ar"
