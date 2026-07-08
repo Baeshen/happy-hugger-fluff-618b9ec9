@@ -39,6 +39,7 @@ import { Route as MediaNewsRouteImport } from './routes/media.news'
 import { Route as HealthSearchRouteImport } from './routes/health.search'
 import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
+import { Route as BranchesSlugRouteImport } from './routes/branches.$slug'
 import { Route as AuthenticatedTransitionsStatsRouteImport } from './routes/_authenticated/transitions-stats'
 import { Route as AuthenticatedTransitionAlertsRouteImport } from './routes/_authenticated/transition-alerts'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -210,6 +211,11 @@ const DoctorsSlugRoute = DoctorsSlugRouteImport.update({
   path: '/doctors/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BranchesSlugRoute = BranchesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => BranchesRoute,
+} as any)
 const AuthenticatedTransitionsStatsRoute =
   AuthenticatedTransitionsStatsRouteImport.update({
     id: '/transitions-stats',
@@ -331,7 +337,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
-  '/branches': typeof BranchesRoute
+  '/branches': typeof BranchesRouteWithChildren
   '/careers': typeof CareersRoute
   '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
@@ -366,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
+  '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
@@ -383,7 +390,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
-  '/branches': typeof BranchesRoute
+  '/branches': typeof BranchesRouteWithChildren
   '/careers': typeof CareersRoute
   '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
@@ -418,6 +425,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
+  '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
@@ -437,7 +445,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
-  '/branches': typeof BranchesRoute
+  '/branches': typeof BranchesRouteWithChildren
   '/careers': typeof CareersRoute
   '/complaints': typeof ComplaintsRoute
   '/complex': typeof ComplexRoute
@@ -472,6 +480,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/_authenticated/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
+  '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/health/$slug': typeof HealthSlugRoute
   '/health/search': typeof HealthSearchRoute
@@ -526,6 +535,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transition-alerts'
     | '/transitions-stats'
+    | '/branches/$slug'
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
@@ -578,6 +588,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transition-alerts'
     | '/transitions-stats'
+    | '/branches/$slug'
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
@@ -631,6 +642,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/transition-alerts'
     | '/_authenticated/transitions-stats'
+    | '/branches/$slug'
     | '/doctors/$slug'
     | '/health/$slug'
     | '/health/search'
@@ -650,7 +662,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
-  BranchesRoute: typeof BranchesRoute
+  BranchesRoute: typeof BranchesRouteWithChildren
   CareersRoute: typeof CareersRoute
   ComplaintsRoute: typeof ComplaintsRoute
   ComplexRoute: typeof ComplexRoute
@@ -890,6 +902,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DoctorsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/branches/$slug': {
+      id: '/branches/$slug'
+      path: '/$slug'
+      fullPath: '/branches/$slug'
+      preLoaderRoute: typeof BranchesSlugRouteImport
+      parentRoute: typeof BranchesRoute
+    }
     '/_authenticated/transitions-stats': {
       id: '/_authenticated/transitions-stats'
       path: '/transitions-stats'
@@ -1089,13 +1108,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface BranchesRouteChildren {
+  BranchesSlugRoute: typeof BranchesSlugRoute
+}
+
+const BranchesRouteChildren: BranchesRouteChildren = {
+  BranchesSlugRoute: BranchesSlugRoute,
+}
+
+const BranchesRouteWithChildren = BranchesRoute._addFileChildren(
+  BranchesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
-  BranchesRoute: BranchesRoute,
+  BranchesRoute: BranchesRouteWithChildren,
   CareersRoute: CareersRoute,
   ComplaintsRoute: ComplaintsRoute,
   ComplexRoute: ComplexRoute,
