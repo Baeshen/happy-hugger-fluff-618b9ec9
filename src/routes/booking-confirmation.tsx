@@ -25,6 +25,7 @@ const searchSchema = z.object({
   ref: z.string().optional(),
   phone: z.string().optional(),
   branch: z.string().optional(),
+  wa: z.string().optional(),
 });
 
 export const Route = createFileRoute("/booking-confirmation")({
