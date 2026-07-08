@@ -333,7 +333,7 @@ const doctorInput = z.object({
     .nullable()
     .optional(),
   name_ar: z.string().min(1),
-  name_en: z.string().min(1),
+  name_en: z.string().nullable().optional(),
   title_ar: z.string().nullable().optional(),
   title_en: z.string().nullable().optional(),
   photo_url: z.string().url().nullable().optional().or(z.literal("")),
