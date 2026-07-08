@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bell, Check, CheckCheck, Loader2 } from "lucide-react";
+import { Bell, BellOff, BellRing, Check, CheckCheck, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -9,6 +9,7 @@ import {
   markNotificationsRead,
   countUnreadNotifications,
 } from "@/lib/notifications.functions";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 type NotificationRow = {
   id: string;
