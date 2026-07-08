@@ -500,12 +500,23 @@ function BookPage() {
                 </div>
                 {date && (
                   <div className="mt-6">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2.5">
-                      <Clock className="h-3.5 w-3.5 text-primary" /> {t("time")}
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Clock className="h-3.5 w-3.5 text-primary" /> {t("time")}
+                      </div>
+                      {slotsFetching && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          تحديث الأوقات…
+                        </span>
+                      )}
                     </div>
-                    {availableTimes.length === 0 && (
-                      <div className="text-sm text-muted-foreground">
+                    {!slotsFetching && availableTimes.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
                         لا توجد أوقات متاحة في هذا اليوم.
+                        <span className="block text-[11px] mt-1 opacity-80">
+                          جرّب تاريخًا آخر أو طبيبًا مختلفًا.
+                        </span>
                       </div>
                     )}
                     {morningTimes.length > 0 && (
@@ -530,9 +541,9 @@ function BookPage() {
                         />
                       </div>
                     )}
-                    {doctorId && bookedSet.size > 0 && (
+                    {bookedSet.size > 0 && (
                       <p className="mt-3 text-[11px] text-muted-foreground">
-                        الأوقات الرمادية محجوزة بالفعل.
+                        الأوقات الرمادية محجوزة بالفعل — الأوقات المتاحة تُحدَّث تلقائيًا حسب الطبيب واليوم.
                       </p>
                     )}
                   </div>
