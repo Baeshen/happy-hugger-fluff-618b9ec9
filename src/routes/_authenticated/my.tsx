@@ -740,7 +740,7 @@ function DownloadFileButton({
       const signStartedAt = performance.now();
       const { data, error: signError } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 300, filename ? { download: filename } : undefined);
+        .createSignedUrl(path, SIGNED_URL_TTL_SECONDS, filename ? { download: filename } : undefined);
       if (signError || !data?.signedUrl) {
         const friendly = getFriendlyDownloadError(signError?.message);
         headCheckStateByBucket.set(bucket, recordDownloadFailure(getHeadCheckState(bucket)));
