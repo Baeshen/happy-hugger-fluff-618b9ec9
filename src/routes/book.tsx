@@ -206,6 +206,30 @@ function BookPage() {
     return Array.from(slots).sort();
   }, [date, availability]);
 
+  // Booked slots for the chosen (doctor, date) — used to grey out taken
+  // times BEFORE submit. Only meaningful when a specific doctor is chosen;
+  // "any_available" bookings can't be pre-checked so we skip the query.
+  const { data: bookedTimes } = useQuery<string[]>({
+    queryKey: ["booked_times", doctorId, date],
+    enabled: !!doctorId && !!date,
+    queryFn: async () => {
+      const url = `/api/public/book/availability?doctor_id=${encodeURIComponent(
+        doctorId!,
+      )}&date=${encodeURIComponent(date)}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const body = (await res.json()) as { ok?: boolean; booked?: string[] };
+      return body.ok && Array.isArray(body.booked) ? body.booked : [];
+    },
+    staleTime: 30_000,
+  });
+  const bookedSet = useMemo(() => new Set(bookedTimes ?? []), [bookedTimes]);
+
+  // If the currently-selected time becomes booked (query refresh), clear it.
+  useEffect(() => {
+    if (time && bookedSet.has(time)) setTime("");
+  }, [bookedSet, time]);
+
   const morningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) < 12);
   const eveningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) >= 12);
 
@@ -235,13 +259,8 @@ function BookPage() {
     }
     const v = bookingFormSchema.parse(form);
     setSubmitting(true);
-    // Client-side id avoids a read-back that anon can't perform under RLS.
-    const newId = randomId();
-    // NOTE: `status` and `notes` are intentionally omitted from the payload;
-    // even if a client injected them, `trg_force_appointment_defaults`
-    // rewrites them to 'new'/NULL for anon inserts.
-    const { error } = await supabase.from("appointments").insert({
-      id: newId,
+    setSubmitError(null);
+    const result = await submitBooking({
       patient_name: v.name,
       patient_phone: v.phone,
       national_id: v.national_id ? v.national_id : null,
@@ -250,16 +269,17 @@ function BookPage() {
       doctor_id: doctorId,
       appointment_date: date,
       appointment_time: time,
-      reason: v.reason ? v.reason : null,
+      reason: v.reason ? v.reason : undefined,
       reminder_24h: form.reminder_24h,
       reminder_2h: form.reminder_2h,
     });
     setSubmitting(false);
-    if (error) {
-      toast.error(friendlyInsertError(error));
+    if (!result.ok) {
+      setSubmitError(result);
+      toast.error(result.message);
       return;
     }
-    const ref = newId.slice(0, 8).toUpperCase();
+    const ref = result.reference ?? "";
     navigate({
       to: "/booking-confirmation",
       search: { ref, phone: v.phone },
