@@ -151,6 +151,27 @@ function BookingConfirmationPage() {
       }
     : null;
 
+  // Auto-open WhatsApp exactly once when arriving from a fresh booking
+  // (?wa=1). Guarded by a session flag so refresh doesn't re-trigger.
+  const [waAutoOpened, setWaAutoOpened] = useState(false);
+  useEffect(() => {
+    if (waAutoOpened) return;
+    if (wa !== "1" || !share) return;
+    const key = `wa-opened-${share.ref}`;
+    if (typeof window === "undefined") return;
+    if (window.sessionStorage.getItem(key)) {
+      setWaAutoOpened(true);
+      return;
+    }
+    window.sessionStorage.setItem(key, "1");
+    setWaAutoOpened(true);
+    // Small delay so the confirmation UI paints before the OS switches app.
+    const id = window.setTimeout(() => {
+      window.open(whatsappShareUrl(share), "_blank", "noopener,noreferrer");
+    }, 600);
+    return () => window.clearTimeout(id);
+  }, [wa, share, waAutoOpened]);
+
   return (
     <div className="container-app py-12">
       <div className="max-w-2xl mx-auto">
