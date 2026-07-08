@@ -155,7 +155,7 @@ export function CenterBookingForm({
         return;
       }
       setConfirmation({
-        reference: result.reference ?? shortReference(),
+        reference: result.reference,
         centerName,
         service: data.service,
         patient_name: data.patient_name,
