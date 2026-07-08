@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrackRouteImport } from './routes/track'
 import { Route as TelemedicineRouteImport } from './routes/telemedicine'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RateRouteImport } from './routes/rate'
@@ -65,8 +66,14 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
+import { Route as ApiPublicBookTrackRouteImport } from './routes/api/public/book/track'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 
+const TrackRoute = TrackRouteImport.update({
+  id: '/track',
+  path: '/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TelemedicineRoute = TelemedicineRouteImport.update({
   id: '/telemedicine',
   path: '/telemedicine',
@@ -359,6 +366,11 @@ const ApiPublicHooksSendRemindersRoute =
     path: '/api/public/hooks/send-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicBookTrackRoute = ApiPublicBookTrackRouteImport.update({
+  id: '/api/public/book/track',
+  path: '/api/public/book/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicBookCreateRoute = ApiPublicBookCreateRouteImport.update({
   id: '/api/public/book/create',
   path: '/api/public/book/create',
@@ -388,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telemedicine': typeof TelemedicineRoute
+  '/track': typeof TrackRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/appointments-queue': typeof AuthenticatedAppointmentsQueueRoute
   '/audit-export': typeof AuthenticatedAuditExportRoute
@@ -421,6 +434,7 @@ export interface FileRoutesByFullPath {
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
 export interface FileRoutesByTo {
@@ -446,6 +460,7 @@ export interface FileRoutesByTo {
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telemedicine': typeof TelemedicineRoute
+  '/track': typeof TrackRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/appointments-queue': typeof AuthenticatedAppointmentsQueueRoute
   '/audit-export': typeof AuthenticatedAuditExportRoute
@@ -479,6 +494,7 @@ export interface FileRoutesByTo {
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/patients': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
 export interface FileRoutesById {
@@ -506,6 +522,7 @@ export interface FileRoutesById {
   '/rate': typeof RateRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telemedicine': typeof TelemedicineRoute
+  '/track': typeof TrackRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/appointments-queue': typeof AuthenticatedAppointmentsQueueRoute
   '/_authenticated/audit-export': typeof AuthenticatedAuditExportRoute
@@ -539,6 +556,7 @@ export interface FileRoutesById {
   '/_authenticated/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
   '/_authenticated/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
 export interface FileRouteTypes {
@@ -566,6 +584,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/sitemap.xml'
     | '/telemedicine'
+    | '/track'
     | '/admin'
     | '/appointments-queue'
     | '/audit-export'
@@ -599,6 +618,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/patients/'
     | '/api/public/book/create'
+    | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -624,6 +644,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/sitemap.xml'
     | '/telemedicine'
+    | '/track'
     | '/admin'
     | '/appointments-queue'
     | '/audit-export'
@@ -657,6 +678,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/patients'
     | '/api/public/book/create'
+    | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
   id:
     | '__root__'
@@ -683,6 +705,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/sitemap.xml'
     | '/telemedicine'
+    | '/track'
     | '/_authenticated/admin'
     | '/_authenticated/appointments-queue'
     | '/_authenticated/audit-export'
@@ -716,6 +739,7 @@ export interface FileRouteTypes {
     | '/_authenticated/patients/$patientId'
     | '/_authenticated/patients/'
     | '/api/public/book/create'
+    | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
   fileRoutesById: FileRoutesById
 }
@@ -743,6 +767,7 @@ export interface RootRouteChildren {
   RateRoute: typeof RateRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TelemedicineRoute: typeof TelemedicineRoute
+  TrackRoute: typeof TrackRoute
   DoctorsSlugRoute: typeof DoctorsSlugRoute
   HealthSlugRoute: typeof HealthSlugRoute
   HealthSearchRoute: typeof HealthSearchRoute
@@ -752,11 +777,19 @@ export interface RootRouteChildren {
   HealthIndexRoute: typeof HealthIndexRoute
   SpecialtiesIndexRoute: typeof SpecialtiesIndexRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
+  ApiPublicBookTrackRoute: typeof ApiPublicBookTrackRoute
   ApiPublicHooksSendRemindersRoute: typeof ApiPublicHooksSendRemindersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/track': {
+      id: '/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/telemedicine': {
       id: '/telemedicine'
       path: '/telemedicine'
@@ -1149,6 +1182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSendRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/book/track': {
+      id: '/api/public/book/track'
+      path: '/api/public/book/track'
+      fullPath: '/api/public/book/track'
+      preLoaderRoute: typeof ApiPublicBookTrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/book/create': {
       id: '/api/public/book/create'
       path: '/api/public/book/create'
@@ -1260,6 +1300,7 @@ const rootRouteChildren: RootRouteChildren = {
   RateRoute: RateRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TelemedicineRoute: TelemedicineRoute,
+  TrackRoute: TrackRoute,
   DoctorsSlugRoute: DoctorsSlugRoute,
   HealthSlugRoute: HealthSlugRoute,
   HealthSearchRoute: HealthSearchRoute,
@@ -1269,6 +1310,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthIndexRoute: HealthIndexRoute,
   SpecialtiesIndexRoute: SpecialtiesIndexRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
+  ApiPublicBookTrackRoute: ApiPublicBookTrackRoute,
   ApiPublicHooksSendRemindersRoute: ApiPublicHooksSendRemindersRoute,
 }
 export const routeTree = rootRouteImport
