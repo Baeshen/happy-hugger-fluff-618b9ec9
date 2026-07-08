@@ -388,7 +388,7 @@ export function CenterBookingForm({
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
         </Field>
-      </div>
+      </fieldset>
 
       <button
         type="submit"
