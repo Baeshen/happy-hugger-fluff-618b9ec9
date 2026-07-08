@@ -93,7 +93,7 @@ function statusColor(s: string) {
 }
 
 function BookingConfirmationPage() {
-  const { ref, phone, branch } = Route.useSearch();
+  const { ref, phone, branch, wa } = Route.useSearch();
   const { t, lang } = useI18n();
   const [loading, setLoading] = useState(true);
   const [appt, setAppt] = useState<AppointmentSummary | null>(null);
