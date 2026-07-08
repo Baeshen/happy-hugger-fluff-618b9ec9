@@ -44,7 +44,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
 
   const totalCount = specialties.length + centers.length;
 
-  const items = useMemo(() => {
+  const allItems = useMemo(() => {
     const specs = specialties.map((s) => ({
       id: `s:${s.id}`,
       label: s.name_ar,
@@ -59,15 +59,30 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
       kind: "center" as const,
       specialtyId: c.specialty_id ?? null,
     }));
-    const all = [...cs, ...specs];
+    return [...cs, ...specs];
+  }, [specialties, centers]);
+
+  const searchMatches = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    return all
-      .filter((x) => (tab === "all" ? true : x.kind === tab))
-      .filter((x) => {
-        if (!q) return true;
-        return x.label.toLowerCase().includes(q) || (x.sub ?? "").toLowerCase().includes(q);
-      });
-  }, [specialties, centers, tab, deferredQuery]);
+    if (!q) return allItems;
+    return allItems.filter(
+      (x) => x.label.toLowerCase().includes(q) || (x.sub ?? "").toLowerCase().includes(q),
+    );
+  }, [allItems, deferredQuery]);
+
+  const counts = useMemo(
+    () => ({
+      all: searchMatches.length,
+      center: searchMatches.filter((x) => x.kind === "center").length,
+      specialty: searchMatches.filter((x) => x.kind === "specialty").length,
+    }),
+    [searchMatches],
+  );
+
+  const items = useMemo(
+    () => (tab === "all" ? searchMatches : searchMatches.filter((x) => x.kind === tab)),
+    [searchMatches, tab],
+  );
 
   const embed = selected ? serviceMapEmbed(branch, selected.label) : baseMapEmbed(branch);
   const hasCoords = branch.lat != null && branch.lng != null;
@@ -88,7 +103,7 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
         </h2>
         <span className="text-xs text-muted-foreground flex items-center gap-1.5" aria-live="polite">
           {isFiltering && <Loader2 className="h-3 w-3 animate-spin text-primary" aria-hidden />}
-          {items.length} من {totalCount}
+          {hasQuery ? `${items.length} نتيجة من ${totalCount}` : `${items.length} من ${totalCount}`}
         </span>
       </header>
 
@@ -121,24 +136,45 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
           <div role="tablist" aria-label="تصفية الخدمات" className="flex gap-1 rounded-lg bg-muted p-1 text-xs">
             {(
               [
-                { k: "all", label: `الكل (${totalCount})` },
-                { k: "center", label: `مراكز التميز (${centers.length})` },
-                { k: "specialty", label: `التخصصات (${specialties.length})` },
+                { k: "all", label: "الكل", count: counts.all, total: totalCount },
+                { k: "center", label: "مراكز التميز", count: counts.center, total: centers.length },
+                { k: "specialty", label: "التخصصات", count: counts.specialty, total: specialties.length },
               ] as const
-            ).map((t) => (
-              <button
-                key={t.k}
-                role="tab"
-                aria-selected={tab === t.k}
-                onClick={() => setTab(t.k)}
-                className={`flex-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
-                  tab === t.k ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+            ).map((t) => {
+              const isActive = tab === t.k;
+              const isEmptyCat = t.count === 0;
+              return (
+                <button
+                  key={t.k}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setTab(t.k)}
+                  className={`flex-1 rounded-md px-2.5 py-1.5 font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    isActive
+                      ? "bg-background text-primary shadow-sm"
+                      : isEmptyCat && hasQuery
+                      ? "text-muted-foreground/50"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className="truncate">{t.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold min-w-[1.4rem] text-center ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : isEmptyCat
+                        ? "bg-muted-foreground/10 text-muted-foreground/60"
+                        : "bg-background text-muted-foreground"
+                    }`}
+                    aria-label={hasQuery ? `${t.count} نتيجة من ${t.total}` : `${t.total}`}
+                  >
+                    {hasQuery ? `${t.count}/${t.total}` : t.total}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+
 
           <ul
             className={`max-h-[420px] overflow-y-auto space-y-1.5 pr-1 transition-opacity ${
