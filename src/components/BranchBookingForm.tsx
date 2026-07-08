@@ -26,6 +26,16 @@ const REASON_MAX = 500;
 const PHONE_ALLOWED_RE = /^[+0-9\s\-()]+$/;
 const NAME_RE = /^[\p{L}\s'’\-.]+$/u;
 
+const REMINDER_PRESETS: { minutes: number; label: string }[] = [
+  { minutes: 15, label: "قبل 15 دقيقة" },
+  { minutes: 30, label: "قبل 30 دقيقة" },
+  { minutes: 60, label: "قبل ساعة" },
+  { minutes: 120, label: "قبل ساعتين" },
+  { minutes: 240, label: "قبل 4 ساعات" },
+  { minutes: 1440, label: "قبل يوم" },
+  { minutes: 2880, label: "قبل يومين" },
+];
+
 const nameSchema = z
   .string()
   .trim()
@@ -146,6 +156,7 @@ export function BranchBookingForm({
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
   const [form, setForm] = useState({ name: "", phone: "", gender: "male" as "male" | "female", reason: "" });
+  const [reminderOffsets, setReminderOffsets] = useState<number[]>([1440, 120]);
   const [touched, setTouched] = useState<Record<"name" | "phone" | "gender" | "reason", boolean>>({
     name: false,
     phone: false,
@@ -180,6 +191,7 @@ export function BranchBookingForm({
         date?: string;
         time?: string;
         form?: { name?: string; phone?: string; gender?: "male" | "female"; reason?: string };
+        reminderOffsets?: number[];
         savedAt?: number;
       };
       // expire drafts older than 7 days
@@ -213,6 +225,12 @@ export function BranchBookingForm({
         }));
         if (d.form.name || d.form.phone || d.form.reason) restored = true;
       }
+      if (Array.isArray(d.reminderOffsets)) {
+        const cleaned = Array.from(
+          new Set(d.reminderOffsets.filter((n) => Number.isFinite(n) && n >= 1 && n <= 10080)),
+        ).sort((a, b) => b - a);
+        if (cleaned.length > 0) setReminderOffsets(cleaned);
+      }
       if (d.step && STEPS.some((s) => s.id === d.step)) {
         setStep(d.step);
       }
@@ -237,12 +255,12 @@ export function BranchBookingForm({
       }
       window.localStorage.setItem(
         draftKey,
-        JSON.stringify({ step, specialtyId, doctorId, date, time, form, savedAt: Date.now() }),
+        JSON.stringify({ step, specialtyId, doctorId, date, time, form, reminderOffsets, savedAt: Date.now() }),
       );
     } catch {
       // ignore quota / privacy errors
     }
-  }, [draftKey, step, specialtyId, doctorId, date, time, form]);
+  }, [draftKey, step, specialtyId, doctorId, date, time, form, reminderOffsets]);
 
   const clearDraft = () => {
     if (typeof window !== "undefined") {
@@ -402,8 +420,12 @@ export function BranchBookingForm({
         appointment_date: date,
         appointment_time: time,
         reason: v.reason || null,
-        reminder_24h: true,
-        reminder_2h: true,
+        reminder_24h: reminderOffsets.includes(1440),
+        reminder_2h: reminderOffsets.includes(120),
+        reminder_offsets_minutes:
+          reminderOffsets.length > 0
+            ? [...new Set(reminderOffsets)].sort((a, b) => b - a)
+            : [1440, 120],
       });
       if (error) {
         const msg = friendlyInsertError(error);
@@ -436,6 +458,7 @@ export function BranchBookingForm({
     setDate("");
     setTime("");
     setForm({ name: "", phone: "", gender: "male", reason: "" });
+    setReminderOffsets([1440, 120]);
     setTouched({ name: false, phone: false, gender: false, reason: false });
     setShowAllPatientErrors(false);
     setSubmitError(null);
@@ -829,6 +852,47 @@ export function BranchBookingForm({
                 </div>
               )}
             </div>
+
+            {/* Reminder times chooser */}
+            <fieldset className="rounded-lg border border-border p-3">
+              <legend className="px-1 text-xs font-semibold text-muted-foreground">
+                أوقات التذكير قبل الموعد
+              </legend>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {REMINDER_PRESETS.map((p) => {
+                  const active = reminderOffsets.includes(p.minutes);
+                  return (
+                    <button
+                      key={p.minutes}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() =>
+                        setReminderOffsets((prev) =>
+                          prev.includes(p.minutes)
+                            ? prev.filter((n) => n !== p.minutes)
+                            : [...prev, p.minutes].sort((a, b) => b - a),
+                        )
+                      }
+                      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                        active
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {active && <Check className="h-3 w-3" />}
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {reminderOffsets.length === 0
+                  ? "لن يتم إرسال أي تذكير — يفضّل اختيار وقت واحد على الأقل."
+                  : `سنرسل ${reminderOffsets.length} ${
+                      reminderOffsets.length === 1 ? "تذكيرًا" : "تذكيرات"
+                    } قبل الموعد.`}
+              </p>
+            </fieldset>
 
             {submitError && (
               <div
