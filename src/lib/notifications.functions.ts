@@ -214,7 +214,6 @@ export const listReminderDeliveries = createServerFn({ method: "POST" })
       appointment: r.appointment_id ? apptMap.get(r.appointment_id) ?? null : null,
     })) as unknown as ReminderDelivery[];
   });
-  });
 
 /* -------- Per-user notifications (bell) -------- */
 
