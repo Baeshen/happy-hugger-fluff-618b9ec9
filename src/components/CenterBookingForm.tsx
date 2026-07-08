@@ -1,63 +1,181 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { z } from "zod";
+import { CalendarPlus, CheckCircle2, Loader2, Copy } from "lucide-react";
 
 /**
  * Compact booking form embedded on excellence center detail pages.
- * Submits to the public API endpoint /api/public/book/create which
- * inserts into `appointments`; DB triggers enqueue the confirmation
- * notification for the patient (in-app / push / SMS per templates).
+ * Validates strictly client-side with Zod, then POSTs to
+ * /api/public/book/create which re-validates + inserts into `appointments`.
+ * DB triggers enqueue the patient's confirmation (in-app / push / SMS).
  */
-export function CenterBookingForm({ centerName }: { centerName: string }) {
-  const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
-  const [form, setForm] = useState({
-    patient_name: "",
-    patient_phone: "",
-    appointment_date: "",
-    appointment_time: "",
-    reason: "",
-  });
 
-  const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm((s) => ({ ...s, [k]: e.target.value }));
+const NAME_MIN = 2;
+const NAME_MAX = 120;
+const PHONE_MIN = 6;
+const PHONE_MAX = 32;
+const REASON_MAX = 400;
+const PHONE_RE = /^[+0-9\s\-()]+$/;
+// Saudi mobile validation: after stripping spaces/dashes/parens, accepts
+// +9665XXXXXXXX, 009665XXXXXXXX, or local 05XXXXXXXX.
+const SA_MOBILE_RE = /^(?:\+?966|00966|0)?5\d{8}$/;
+
+const schema = z.object({
+  patient_name: z
+    .string()
+    .trim()
+    .min(NAME_MIN, "الاسم قصير جدًا (حرفان على الأقل)")
+    .max(NAME_MAX, "الاسم طويل جدًا")
+    .regex(/^[\p{L}\s'’.-]+$/u, "الاسم يحتوي على رموز غير مسموحة"),
+  patient_phone: z
+    .string()
+    .trim()
+    .min(PHONE_MIN, "رقم الهاتف قصير جدًا")
+    .max(PHONE_MAX, "رقم الهاتف طويل جدًا")
+    .regex(PHONE_RE, "الهاتف يحتوي على أحرف غير مسموحة")
+    .refine((v) => SA_MOBILE_RE.test(v.replace(/[\s\-()]/g, "")), "أدخل رقم جوال سعودي صحيح (05XXXXXXXX)"),
+  service: z.string().trim().min(1, "اختر نوع الخدمة"),
+  appointment_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح")
+    .refine((v) => {
+      const d = new Date(v + "T00:00:00");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return d.getTime() >= today.getTime();
+    }, "لا يمكن اختيار تاريخ في الماضي")
+    .refine((v) => {
+      const d = new Date(v + "T00:00:00").getTime();
+      const max = Date.now() + 1000 * 60 * 60 * 24 * 120;
+      return d <= max;
+    }, "التاريخ خارج فترة الحجز المتاحة (٤ أشهر)"),
+  appointment_time: z.string().regex(/^\d{2}:\d{2}$/, "الوقت غير صالح"),
+  reason: z.string().trim().max(REASON_MAX, `السبب طويل جدًا (${REASON_MAX} حرفًا كحد أقصى)`).optional().or(z.literal("")),
+});
+
+type FormState = {
+  patient_name: string;
+  patient_phone: string;
+  service: string;
+  appointment_date: string;
+  appointment_time: string;
+  reason: string;
+};
+
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+
+type Confirmation = {
+  reference: string;
+  centerName: string;
+  service: string;
+  patient_name: string;
+  patient_phone: string;
+  appointment_date: string;
+  appointment_time: string;
+};
+
+const EMPTY: FormState = {
+  patient_name: "",
+  patient_phone: "",
+  service: "",
+  appointment_date: "",
+  appointment_time: "",
+  reason: "",
+};
+
+function shortReference(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  const bytes = new Uint8Array(4);
+  if (c?.getRandomValues) c.getRandomValues(bytes);
+  else for (let i = 0; i < 4; i++) bytes[i] = Math.floor(Math.random() * 256);
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+  return `BAA-${hex}`;
+}
+
+function formatArabicDate(iso: string): string {
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("ar-SA", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+export function CenterBookingForm({
+  centerName,
+  services,
+}: {
+  centerName: string;
+  services: string[];
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [form, setForm] = useState<FormState>(EMPTY);
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const update =
+    (k: keyof FormState) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      setForm((s) => ({ ...s, [k]: e.target.value }));
+      if (errors[k]) setErrors((prev) => ({ ...prev, [k]: undefined }));
+    };
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
+
+    const parsed = schema.safeParse(form);
+    if (!parsed.success) {
+      const fe: FieldErrors = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as keyof FormState | undefined;
+        if (key && !fe[key]) fe[key] = issue.message;
+      }
+      setErrors(fe);
+      toast.error(parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const reason = form.reason.trim()
-        ? `[${centerName}] ${form.reason.trim()}`
-        : `طلب حجز — ${centerName}`;
+      const data = parsed.data;
+      const reason = [`[${centerName}]`, `الخدمة: ${data.service}`, data.reason?.trim()]
+        .filter(Boolean)
+        .join(" — ");
       const res = await fetch("/api/public/book/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patient_name: form.patient_name.trim(),
-          patient_phone: form.patient_phone.trim(),
-          appointment_date: form.appointment_date,
-          appointment_time: form.appointment_time,
+          patient_name: data.patient_name,
+          patient_phone: data.patient_phone,
+          appointment_date: data.appointment_date,
+          appointment_time: data.appointment_time,
           reason,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        message?: string;
-      };
-      if (!res.ok || !data.ok) {
-        toast.error(data.message ?? "تعذّر إرسال الطلب");
+      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      if (!res.ok || !body.ok) {
+        toast.error(body.message ?? "تعذّر إرسال الطلب");
         return;
       }
-      setDone(true);
-      toast.success("تم استلام طلبك، سنرسل تأكيدًا برسالة قريبًا");
-      setForm({
-        patient_name: "",
-        patient_phone: "",
-        appointment_date: "",
-        appointment_time: "",
-        reason: "",
+      setConfirmation({
+        reference: shortReference(),
+        centerName,
+        service: data.service,
+        patient_name: data.patient_name,
+        patient_phone: data.patient_phone,
+        appointment_date: data.appointment_date,
+        appointment_time: data.appointment_time,
       });
+      setForm(EMPTY);
+      setErrors({});
+      toast.success("تم استلام طلبك، سنرسل تأكيدًا برسالة قريبًا");
     } catch {
       toast.error("تعذّر الاتصال بالخادم");
     } finally {
@@ -65,17 +183,60 @@ export function CenterBookingForm({ centerName }: { centerName: string }) {
     }
   }
 
-  if (done) {
+  if (confirmation) {
     return (
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-accent/5 p-6">
-        <h3 className="text-lg font-bold">تم استلام طلبك ✔︎</h3>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          سيصلك تأكيد بالموعد على رقم الجوال خلال دقائق.
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 to-accent/5 p-6"
+      >
+        <div className="flex items-center gap-3">
+          <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground">
+            <CheckCircle2 className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold">تم استلام طلب الحجز بنجاح</h3>
+            <p className="text-xs text-muted-foreground">سيصلك تأكيد نهائي عبر رسالة SMS خلال دقائق.</p>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border bg-background/60 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">رقم الطلب</span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(confirmation.reference).then(
+                  () => toast.success("تم نسخ رقم الطلب"),
+                  () => toast.error("تعذّر النسخ"),
+                );
+              }}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              <Copy className="h-3 w-3" />
+              نسخ
+            </button>
+          </div>
+          <div className="mt-1 text-lg font-mono font-bold tracking-wider">{confirmation.reference}</div>
+        </div>
+
+        <dl className="mt-4 grid gap-2 text-sm">
+          <Row label="المركز" value={confirmation.centerName} />
+          <Row label="الخدمة" value={confirmation.service} />
+          <Row label="الاسم" value={confirmation.patient_name} />
+          <Row label="الجوال" value={confirmation.patient_phone} />
+          <Row label="التاريخ المتوقّع" value={formatArabicDate(confirmation.appointment_date)} />
+          <Row label="الوقت المتوقّع" value={confirmation.appointment_time} />
+        </dl>
+
+        <p className="mt-4 rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
+          ملاحظة: قد يتواصل معك المركز لتأكيد التوقيت النهائي حسب توفر الطبيب.
         </p>
+
         <button
           type="button"
-          onClick={() => setDone(false)}
-          className="mt-4 inline-flex rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold hover:bg-muted"
+          onClick={() => setConfirmation(null)}
+          className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold hover:bg-muted"
         >
           حجز موعد آخر
         </button>
@@ -83,11 +244,10 @@ export function CenterBookingForm({ centerName }: { centerName: string }) {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-
   return (
     <form
       onSubmit={onSubmit}
+      noValidate
       className="rounded-2xl border border-border bg-card p-6 space-y-3"
       aria-label={`نموذج حجز موعد في ${centerName}`}
     >
@@ -98,67 +258,88 @@ export function CenterBookingForm({ centerName }: { centerName: string }) {
         </p>
       </div>
 
-      <div className="space-y-2 text-sm">
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold">الاسم الكامل</span>
+      <div className="space-y-3 text-sm">
+        <Field label="الاسم الكامل" error={errors.patient_name} htmlFor="ff-name">
           <input
+            id="ff-name"
             required
-            minLength={2}
-            maxLength={120}
             value={form.patient_name}
             onChange={update("patient_name")}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            aria-invalid={!!errors.patient_name}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold">رقم الجوال</span>
+        </Field>
+
+        <Field label="رقم الجوال" error={errors.patient_phone} htmlFor="ff-phone" hint="مثال: 05XXXXXXXX">
           <input
+            id="ff-phone"
             required
             type="tel"
             inputMode="tel"
-            pattern="[+0-9\s\-()]+"
-            minLength={6}
-            maxLength={32}
+            dir="ltr"
             value={form.patient_phone}
             onChange={update("patient_phone")}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            aria-invalid={!!errors.patient_phone}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
-        </label>
+        </Field>
+
+        <Field label="نوع الخدمة" error={errors.service} htmlFor="ff-service">
+          <select
+            id="ff-service"
+            required
+            value={form.service}
+            onChange={update("service")}
+            aria-invalid={!!errors.service}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
+          >
+            <option value="">— اختر الخدمة —</option>
+            {services.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+            <option value="استشارة عامة">استشارة عامة</option>
+          </select>
+        </Field>
+
         <div className="grid grid-cols-2 gap-2">
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold">التاريخ</span>
+          <Field label="التاريخ" error={errors.appointment_date} htmlFor="ff-date">
             <input
+              id="ff-date"
               required
               type="date"
               min={today}
               value={form.appointment_date}
               onChange={update("appointment_date")}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              aria-invalid={!!errors.appointment_date}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold">الوقت</span>
+          </Field>
+          <Field label="الوقت" error={errors.appointment_time} htmlFor="ff-time">
             <input
+              id="ff-time"
               required
               type="time"
               value={form.appointment_time}
               onChange={update("appointment_time")}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              aria-invalid={!!errors.appointment_time}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
             />
-          </label>
+          </Field>
         </div>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold">
-            سبب الزيارة <span className="text-muted-foreground">(اختياري)</span>
-          </span>
+
+        <Field label="سبب الزيارة (اختياري)" error={errors.reason} htmlFor="ff-reason">
           <textarea
+            id="ff-reason"
             rows={3}
-            maxLength={400}
+            maxLength={REASON_MAX}
             value={form.reason}
             onChange={update("reason")}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            aria-invalid={!!errors.reason}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm aria-[invalid=true]:border-destructive"
           />
-        </label>
+        </Field>
       </div>
 
       <button
@@ -170,5 +351,42 @@ export function CenterBookingForm({ centerName }: { centerName: string }) {
         {submitting ? "جاري الإرسال..." : "إرسال طلب الحجز"}
       </button>
     </form>
+  );
+}
+
+function Field({
+  label,
+  error,
+  hint,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  error?: string;
+  hint?: string;
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="mb-1 block text-xs font-semibold">
+        {label}
+      </label>
+      {children}
+      {error ? (
+        <p className="mt-1 text-xs text-destructive">{error}</p>
+      ) : hint ? (
+        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/50 pb-1.5 last:border-none last:pb-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm font-semibold text-right">{value}</dd>
+    </div>
   );
 }
