@@ -108,10 +108,12 @@ export const Route = createFileRoute("/api/public/book/create")({
           },
         });
 
-        // Pre-insert conflict check: when a specific doctor is chosen,
-        // reject if that (doctor_id, date, time) slot is already taken by
-        // a non-cancelled appointment. Uses admin client — the /book UI's
-        // availability endpoint mirrors the same rule for instant UX.
+        // Fast-path conflict check: same-doctor slot already taken by a
+        // non-cancelled appointment. This is just for a nice 409 message —
+        // the authoritative guard is the partial UNIQUE INDEX
+        // `appointments_doctor_slot_unique_active` which runs inside the
+        // INSERT's own transaction and makes the check atomic (no TOCTOU
+        // window between check and insert).
         if (parsed.data.doctor_id) {
           try {
             const { supabaseAdmin } = await import(
@@ -137,13 +139,15 @@ export const Route = createFileRoute("/api/public/book/create")({
               });
             }
           } catch {
-            // Fall through to insert — trigger/RLS will still guard.
+            // Fall through — DB unique index still guards atomically.
           }
         }
 
         // Keep the anon insert path exactly as before so triggers + RLS
         // behave identically to the /book UI. Anon has no SELECT policy, so
-        // we cannot use .select() here.
+        // we cannot use .select() here. If two requests race past the
+        // fast-path check above, the partial UNIQUE INDEX rejects the
+        // second insert with SQLSTATE 23505 which we surface as 409.
         const { error } = await supa.from("appointments").insert({
           patient_name: parsed.data.patient_name,
           patient_phone: parsed.data.patient_phone,
@@ -163,10 +167,23 @@ export const Route = createFileRoute("/api/public/book/create")({
         });
 
         if (error) {
+          const err = error as { message?: string; code?: string };
+          // Concurrent-booking race: unique index fired between fast-path
+          // check and insert. Return the same conflict shape as above.
+          if (
+            err.code === "23505" ||
+            (err.message ?? "").includes("duplicate key")
+          ) {
+            return json(409, {
+              ok: false,
+              kind: "conflict",
+              message: FRIENDLY_INSERT_MESSAGES.duplicate,
+            });
+          }
           return json(400, {
             ok: false,
             kind: "db",
-            message: friendlyInsertError(error as { message?: string; code?: string }),
+            message: friendlyInsertError(err),
           });
         }
 
