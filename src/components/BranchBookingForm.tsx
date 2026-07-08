@@ -412,6 +412,7 @@ export function BranchBookingForm({
         return;
       }
       toast.success("تم إرسال الحجز بنجاح");
+      clearDraft();
       const ref = id.slice(0, 8).toUpperCase();
       navigate({
         to: "/booking-confirmation",
