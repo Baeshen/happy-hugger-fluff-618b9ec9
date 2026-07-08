@@ -736,12 +736,14 @@ function TimeSection({
   icon,
   label,
   times,
+  booked,
   selected,
   onSelect,
 }: {
   icon: React.ReactNode;
   label: string;
   times: string[];
+  booked?: Set<string>;
   selected: string;
   onSelect: (t: string) => void;
 }) {
@@ -751,19 +753,28 @@ function TimeSection({
         {icon} {label}
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-        {times.map((tm) => (
-          <button
-            key={tm}
-            onClick={() => onSelect(tm)}
-            className={`rounded-lg border py-2 text-sm font-medium transition ${
-              selected === tm
-                ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                : "border-border hover:border-primary/50 hover:bg-muted/40"
-            }`}
-          >
-            {tm}
-          </button>
-        ))}
+        {times.map((tm) => {
+          const isBooked = booked?.has(tm) ?? false;
+          const isSelected = selected === tm;
+          return (
+            <button
+              key={tm}
+              onClick={() => onSelect(tm)}
+              disabled={isBooked}
+              aria-disabled={isBooked}
+              title={isBooked ? "محجوز" : undefined}
+              className={`rounded-lg border py-2 text-sm font-medium transition ${
+                isBooked
+                  ? "border-border bg-muted/40 text-muted-foreground/60 line-through cursor-not-allowed"
+                  : isSelected
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border hover:border-primary/50 hover:bg-muted/40"
+              }`}
+            >
+              {tm}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
