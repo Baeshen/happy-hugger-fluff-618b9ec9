@@ -17,12 +17,19 @@ export type BookingSubmitPayload = {
   appointment_date: string;
   appointment_time: string;
   reason?: string;
+  national_id?: string | null;
+  gender?: "male" | "female";
+  specialty_id?: string | null;
+  doctor_id?: string | null;
+  reminder_24h?: boolean;
+  reminder_2h?: boolean;
 };
 
 export type BookingSubmitKind =
   | "success"
   | "validation"
   | "db"
+  | "conflict"
   | "network"
   | "timeout"
   | "server"
@@ -37,6 +44,7 @@ const TIMEOUT_MS = 20_000;
 const FALLBACK_MESSAGES: Record<Exclude<BookingSubmitKind, "success">, string> = {
   validation: "تحقّق من صحة البيانات المدخلة وحاول مجددًا.",
   db: "تعذّر حفظ الطلب حاليًا. حاول بعد قليل أو تواصل مع الاستقبال.",
+  conflict: "الموعد محجوز مسبقًا. اختر وقتًا آخر.",
   network: "تعذّر الاتصال بالخادم. تحقّق من اتصال الإنترنت وحاول مرة أخرى.",
   timeout: "استغرقت العملية وقتًا أطول من المعتاد. حاول مرة أخرى.",
   server: "حدث خطأ مؤقت في الخادم. حاول مرة أخرى بعد قليل.",
@@ -88,7 +96,9 @@ export async function submitBooking(payload: BookingSubmitPayload): Promise<Book
   }
 
   const kind: Exclude<BookingSubmitKind, "success"> =
-    body.kind === "validation" || body.kind === "db"
+    body.kind === "validation" ||
+    body.kind === "db" ||
+    body.kind === "conflict"
       ? body.kind
       : res.status >= 500
         ? "server"

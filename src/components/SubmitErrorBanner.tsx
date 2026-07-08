@@ -13,6 +13,7 @@ const META: Record<
 > = {
   validation: { title: "بيانات غير مقبولة", icon: <ShieldAlert className="h-5 w-5" /> },
   db: { title: "تعذّر حفظ الطلب", icon: <ServerCrash className="h-5 w-5" /> },
+  conflict: { title: "الوقت لم يعد متاحًا", icon: <Clock className="h-5 w-5" /> },
   network: { title: "لا يوجد اتصال", icon: <WifiOff className="h-5 w-5" /> },
   timeout: { title: "انتهت مهلة الاتصال", icon: <Clock className="h-5 w-5" /> },
   server: { title: "خطأ في الخادم", icon: <ServerCrash className="h-5 w-5" /> },

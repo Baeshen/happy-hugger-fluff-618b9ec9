@@ -19,8 +19,9 @@ import {
   User,
   UserCircle2,
 } from "lucide-react";
-import { friendlyInsertError } from "@/lib/insert-errors";
 import { PageHero } from "@/components/PageShell";
+import { submitBooking, type BookingSubmitResult } from "@/lib/booking-submit";
+import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
 
 const search = z.object({
   specialty: z.string().optional(),
@@ -63,21 +64,8 @@ const bookingFormSchema = z.object({
     .or(z.literal("")),
 });
 
-/**
- * Generate an RFC-4122 v4 uuid client-side so we can set the appointment id
- * before insert and skip the returning-representation round trip (anon
- * cannot SELECT `appointments`). Uses `crypto.randomUUID` when available.
- */
-function randomId(): string {
-  const c = globalThis.crypto as Crypto | undefined;
-  if (c?.randomUUID) return c.randomUUID();
-  const bytes = new Uint8Array(16);
-  c!.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+// (client-side UUID generation removed — the server now assigns IDs and
+// returns a tracking reference from POST /api/public/book/create.)
 
 export const Route = createFileRoute("/book")({
   validateSearch: search,
@@ -124,6 +112,9 @@ function BookPage() {
   });
   const [errors, setErrors] = useState<StepErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<
+    Extract<BookingSubmitResult, { ok: false }> | null
+  >(null);
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
@@ -215,6 +206,30 @@ function BookPage() {
     return Array.from(slots).sort();
   }, [date, availability]);
 
+  // Booked slots for the chosen (doctor, date) — used to grey out taken
+  // times BEFORE submit. Only meaningful when a specific doctor is chosen;
+  // "any_available" bookings can't be pre-checked so we skip the query.
+  const { data: bookedTimes } = useQuery<string[]>({
+    queryKey: ["booked_times", doctorId, date],
+    enabled: !!doctorId && !!date,
+    queryFn: async () => {
+      const url = `/api/public/book/availability?doctor_id=${encodeURIComponent(
+        doctorId!,
+      )}&date=${encodeURIComponent(date)}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const body = (await res.json()) as { ok?: boolean; booked?: string[] };
+      return body.ok && Array.isArray(body.booked) ? body.booked : [];
+    },
+    staleTime: 30_000,
+  });
+  const bookedSet = useMemo(() => new Set(bookedTimes ?? []), [bookedTimes]);
+
+  // If the currently-selected time becomes booked (query refresh), clear it.
+  useEffect(() => {
+    if (time && bookedSet.has(time)) setTime("");
+  }, [bookedSet, time]);
+
   const morningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) < 12);
   const eveningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) >= 12);
 
@@ -244,13 +259,8 @@ function BookPage() {
     }
     const v = bookingFormSchema.parse(form);
     setSubmitting(true);
-    // Client-side id avoids a read-back that anon can't perform under RLS.
-    const newId = randomId();
-    // NOTE: `status` and `notes` are intentionally omitted from the payload;
-    // even if a client injected them, `trg_force_appointment_defaults`
-    // rewrites them to 'new'/NULL for anon inserts.
-    const { error } = await supabase.from("appointments").insert({
-      id: newId,
+    setSubmitError(null);
+    const result = await submitBooking({
       patient_name: v.name,
       patient_phone: v.phone,
       national_id: v.national_id ? v.national_id : null,
@@ -259,16 +269,17 @@ function BookPage() {
       doctor_id: doctorId,
       appointment_date: date,
       appointment_time: time,
-      reason: v.reason ? v.reason : null,
+      reason: v.reason ? v.reason : undefined,
       reminder_24h: form.reminder_24h,
       reminder_2h: form.reminder_2h,
     });
     setSubmitting(false);
-    if (error) {
-      toast.error(friendlyInsertError(error));
+    if (!result.ok) {
+      setSubmitError(result);
+      toast.error(result.message);
       return;
     }
-    const ref = newId.slice(0, 8).toUpperCase();
+    const ref = result.reference ?? "";
     navigate({
       to: "/booking-confirmation",
       search: { ref, phone: v.phone },
@@ -496,6 +507,7 @@ function BookPage() {
                         icon={<Sun className="h-3.5 w-3.5" />}
                         label="صباحًا"
                         times={morningTimes}
+                        booked={bookedSet}
                         selected={time}
                         onSelect={setTime}
                       />
@@ -506,10 +518,16 @@ function BookPage() {
                           icon={<Moon className="h-3.5 w-3.5" />}
                           label="مساءً"
                           times={eveningTimes}
+                          booked={bookedSet}
                           selected={time}
                           onSelect={setTime}
                         />
                       </div>
+                    )}
+                    {doctorId && bookedSet.size > 0 && (
+                      <p className="mt-3 text-[11px] text-muted-foreground">
+                        الأوقات الرمادية محجوزة بالفعل.
+                      </p>
                     )}
                   </div>
                 )}
@@ -524,6 +542,16 @@ function BookPage() {
                 <p className="text-xs text-muted-foreground mb-5">
                   نحتاج هذه البيانات لتأكيد الموعد والتواصل معك.
                 </p>
+                {submitError && (
+                  <div className="mb-4">
+                    <SubmitErrorBanner
+                      kind={submitError.kind}
+                      message={submitError.message}
+                      onRetry={submit}
+                      retrying={submitting}
+                    />
+                  </div>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={t("name")} required error={errors.name}>
                     <input
@@ -718,12 +746,14 @@ function TimeSection({
   icon,
   label,
   times,
+  booked,
   selected,
   onSelect,
 }: {
   icon: React.ReactNode;
   label: string;
   times: string[];
+  booked?: Set<string>;
   selected: string;
   onSelect: (t: string) => void;
 }) {
@@ -733,19 +763,28 @@ function TimeSection({
         {icon} {label}
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-        {times.map((tm) => (
-          <button
-            key={tm}
-            onClick={() => onSelect(tm)}
-            className={`rounded-lg border py-2 text-sm font-medium transition ${
-              selected === tm
-                ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                : "border-border hover:border-primary/50 hover:bg-muted/40"
-            }`}
-          >
-            {tm}
-          </button>
-        ))}
+        {times.map((tm) => {
+          const isBooked = booked?.has(tm) ?? false;
+          const isSelected = selected === tm;
+          return (
+            <button
+              key={tm}
+              onClick={() => onSelect(tm)}
+              disabled={isBooked}
+              aria-disabled={isBooked}
+              title={isBooked ? "محجوز" : undefined}
+              className={`rounded-lg border py-2 text-sm font-medium transition ${
+                isBooked
+                  ? "border-border bg-muted/40 text-muted-foreground/60 line-through cursor-not-allowed"
+                  : isSelected
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border hover:border-primary/50 hover:bg-muted/40"
+              }`}
+            >
+              {tm}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
