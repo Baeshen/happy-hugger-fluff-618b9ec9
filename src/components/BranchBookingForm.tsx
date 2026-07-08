@@ -290,35 +290,6 @@ export function BranchBookingForm({
     setStep("service");
   };
 
-  if (ref) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center">
-        <div className="mx-auto h-12 w-12 rounded-full bg-primary/15 text-primary grid place-items-center">
-          <Check className="h-6 w-6" />
-        </div>
-        <h3 className="mt-4 text-lg font-bold">تم استلام حجزك في {branchNameAr}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">سنتواصل معك لتأكيد الموعد.</p>
-        <div className="mt-4 rounded-lg bg-muted p-3 text-sm">
-          رقم الحجز: <span className="font-mono font-bold text-primary">{ref}</span>
-        </div>
-        <div className="mt-4 flex justify-center gap-2">
-          <Link
-            to="/lookup"
-            className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-          >
-            <Search className="h-4 w-4" /> تتبّع الحجز
-          </Link>
-          <button
-            onClick={resetForm}
-            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
-          >
-            حجز جديد
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const currentStepIdx = stepIndex(step);
   const progress = ((currentStepIdx + 1) / STEPS.length) * 100;
 
