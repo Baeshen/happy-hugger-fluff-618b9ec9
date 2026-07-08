@@ -142,7 +142,7 @@ export type ReminderDelivery = {
   created_at: string;
   sent_at: string | null;
   last_error: string | null;
-  metadata: Record<string, unknown> | null;
+  metadata: unknown;
   appointment: {
     id: string;
     patient_name: string | null;
