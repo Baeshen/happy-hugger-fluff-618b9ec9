@@ -30,6 +30,8 @@ function serviceMapEmbed(b: PublicBranch, serviceLabel: string): string | null {
 export function BranchServicesExplorer({ branch, specialties, centers, onBookService }: Props) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "specialty" | "center">("all");
+  const deferredQuery = useDeferredValue(query);
+  const isFiltering = query !== deferredQuery;
   const [selected, setSelected] = useState<
     | {
         id: string;
@@ -39,6 +41,8 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
       }
     | null
   >(null);
+
+  const totalCount = specialties.length + centers.length;
 
   const items = useMemo(() => {
     const specs = specialties.map((s) => ({
@@ -56,22 +60,24 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
       specialtyId: c.specialty_id ?? null,
     }));
     const all = [...cs, ...specs];
-    const filtered = all
+    const q = deferredQuery.trim().toLowerCase();
+    return all
       .filter((x) => (tab === "all" ? true : x.kind === tab))
       .filter((x) => {
-        if (!query.trim()) return true;
-        const q = query.trim().toLowerCase();
-        return (
-          x.label.toLowerCase().includes(q) || (x.sub ?? "").toLowerCase().includes(q)
-        );
+        if (!q) return true;
+        return x.label.toLowerCase().includes(q) || (x.sub ?? "").toLowerCase().includes(q);
       });
-    return filtered;
-  }, [specialties, centers, tab, query]);
+  }, [specialties, centers, tab, deferredQuery]);
 
   const embed = selected ? serviceMapEmbed(branch, selected.label) : baseMapEmbed(branch);
   const hasCoords = branch.lat != null && branch.lng != null;
   const canBookSelected = !!(selected && selected.specialtyId && onBookService);
-
+  const hasQuery = query.trim().length > 0;
+  const isEmpty = items.length === 0;
+  const resetAll = () => {
+    setQuery("");
+    setTab("all");
+  };
 
   return (
     <section className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -80,10 +86,12 @@ export function BranchServicesExplorer({ branch, specialties, centers, onBookSer
           <Stethoscope className="h-5 w-5 text-primary" />
           الخدمات المتوفرة في {branch.name_ar}
         </h2>
-        <span className="text-xs text-muted-foreground">
-          {items.length} من {specialties.length + centers.length}
+        <span className="text-xs text-muted-foreground flex items-center gap-1.5" aria-live="polite">
+          {isFiltering && <Loader2 className="h-3 w-3 animate-spin text-primary" aria-hidden />}
+          {items.length} من {totalCount}
         </span>
       </header>
+
 
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         {/* Filter panel */}
