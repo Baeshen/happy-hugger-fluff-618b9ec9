@@ -174,25 +174,37 @@ export function ServiceRequestForm({
     if (submitting) return;
 
     const parsed = schema.safeParse(form);
+    const fe: FieldErrors = {};
     if (!parsed.success) {
-      const fe: FieldErrors = {};
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as keyof FormState | undefined;
         if (key && !fe[key]) fe[key] = issue.message;
       }
-      if (extraRequired && !form.extra.trim()) {
-        fe.extra = "هذا الحقل مطلوب";
-      }
-      setErrors(fe);
-      const first = parsed.error.issues[0]?.message ?? "يرجى مراجعة الحقول";
-      setSubmitError({ kind: "validation", message: first });
-      toast.error(first);
-      return;
     }
-    if (extraRequired && !parsed.data.extra?.trim()) {
-      setErrors({ extra: "هذا الحقل مطلوب" });
-      setSubmitError({ kind: "validation", message: "هذا الحقل مطلوب" });
-      toast.error("هذا الحقل مطلوب");
+    if (extraRequired && !form.extra.trim()) {
+      fe.extra = "هذا الحقل مطلوب";
+    }
+    if (Object.keys(fe).length > 0) {
+      setErrors(fe);
+      const count = Object.keys(fe).length;
+      const summary =
+        count > 1
+          ? `يرجى تصحيح ${count} حقول قبل الإرسال — راجع الرسائل الحمراء أسفل كل حقل.`
+          : Object.values(fe)[0] ?? "يرجى مراجعة الحقول";
+      setSubmitError({ kind: "validation", message: summary });
+      toast.error(summary);
+      const firstKey = Object.keys(fe)[0] as keyof FormState | undefined;
+      if (firstKey) {
+        const idMap: Record<keyof FormState, string> = {
+          patient_name: "srf-name",
+          patient_phone: "srf-phone",
+          service: "srf-service",
+          appointment_date: "srf-date",
+          appointment_time: "srf-time",
+          extra: "srf-extra",
+        };
+        document.getElementById(idMap[firstKey])?.focus();
+      }
       return;
     }
 
