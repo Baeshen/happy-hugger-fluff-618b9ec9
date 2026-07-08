@@ -609,14 +609,38 @@ export function BranchBookingForm({
                 </div>
               )}
             </div>
+
+            {submitError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold mb-0.5">تعذّر إرسال الحجز</p>
+                  <p className="text-xs opacity-90">{submitError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={submitting}
+                  className="text-xs font-semibold underline hover:no-underline disabled:opacity-50"
+                >
+                  إعادة المحاولة
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               disabled={submitting}
               onClick={submit}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95 disabled:opacity-60"
+              aria-busy={submitting}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-95 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              تأكيد الحجز
+              {submitting ? "جارٍ إرسال الحجز…" : submitError ? "إعادة إرسال الحجز" : "تأكيد الحجز"}
             </button>
           </div>
         )}
@@ -627,7 +651,7 @@ export function BranchBookingForm({
         <button
           type="button"
           onClick={prevStep}
-          disabled={currentStepIdx === 0}
+          disabled={currentStepIdx === 0 || submitting}
           className="inline-flex items-center gap-1 rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <ChevronRight className="h-4 w-4" /> السابق
@@ -636,10 +660,12 @@ export function BranchBookingForm({
         <button
           type="button"
           onClick={resetForm}
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md px-2 py-1"
+          disabled={submitting}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RotateCcw className="h-3.5 w-3.5" /> إعادة البدء
         </button>
+
 
         {step !== "confirm" && (
           <button
