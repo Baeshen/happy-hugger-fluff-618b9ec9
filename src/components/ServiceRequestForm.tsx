@@ -137,7 +137,7 @@ export function ServiceRequestForm({
       }
       setConfirmation({
         ...d,
-        reference: result.reference ?? shortReference(refPrefix),
+        reference: result.reference,
       });
       setForm(EMPTY);
       setErrors({});
