@@ -109,13 +109,34 @@ export function ServiceRequestForm({
   const lastPayloadRef = useRef<FormState | null>(null);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
+  function validateField(k: keyof FormState, value: string): string | undefined {
+    if (k === "extra") {
+      if (extraRequired && !value.trim()) return "هذا الحقل مطلوب";
+      const r = schema.shape.extra.safeParse(value);
+      return r.success ? undefined : r.error.issues[0]?.message;
+    }
+    const fieldSchema = (schema.shape as Record<string, z.ZodTypeAny>)[k];
+    if (!fieldSchema) return undefined;
+    const r = fieldSchema.safeParse(value);
+    return r.success ? undefined : r.error.issues[0]?.message;
+  }
+
   const update =
     (k: keyof FormState) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setForm((s) => ({ ...s, [k]: e.target.value }));
-      if (errors[k]) setErrors((prev) => ({ ...prev, [k]: undefined }));
-      if (submitError) setSubmitError(null);
+      const value = e.target.value;
+      setForm((s) => ({ ...s, [k]: value }));
+      if (errors[k]) {
+        const msg = validateField(k, value);
+        setErrors((prev) => ({ ...prev, [k]: msg }));
+      }
+      if (submitError && submitError.kind === "validation") setSubmitError(null);
     };
+
+  const onBlur = (k: keyof FormState) => () => {
+    const msg = validateField(k, form[k]);
+    setErrors((prev) => ({ ...prev, [k]: msg }));
+  };
 
   async function doSubmit(d: FormState) {
     setSubmitting(true);
