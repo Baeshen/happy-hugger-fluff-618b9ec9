@@ -5,8 +5,10 @@
  * 2) Reads pending web_push rows, sends VAPID push to each subscription,
  *    marks the row `sent` or `failed`.
  *
- * Auth: guarded by requiring the Supabase anon key in the `apikey` header,
- * matching the canonical pg_cron pattern; nothing here reads user PII.
+ * Auth: requires a server-only `CRON_SECRET` (compared in constant time)
+ * via the `x-cron-secret` header (or `Authorization: Bearer …`). The
+ * Supabase publishable/anon key is explicitly NOT accepted here because it
+ * is shipped to every browser and would leave the endpoint effectively open.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
