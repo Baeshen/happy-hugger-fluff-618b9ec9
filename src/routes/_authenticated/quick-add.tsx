@@ -37,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/quick-add")({
   component: QuickAddPage,
 });
 
-type Tab = "branch" | "doctor" | "appointment";
+type Tab = "branch" | "doctor" | "appointment" | "import";
 
 function QuickAddPage() {
   const [tab, setTab] = useState<Tab>("branch");
