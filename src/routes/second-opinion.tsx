@@ -138,10 +138,30 @@ function SecondOpinionPage() {
     setSubmitting(true);
     const toastId = toast.loading("جاري إرسال طلبك...");
     try {
-      const folder = crypto.randomUUID();
+      // Insert the request row FIRST with a client-generated UUID so the
+      // storage RLS policy can tie every uploaded file back to a real,
+      // still-pending second_opinion_requests row.
+      const requestId = crypto.randomUUID();
+
+      const { error: insErr } = await supabase
+        .from("second_opinion_requests")
+        .insert({
+          id: requestId,
+          patient_name: parsed.data.patient_name,
+          phone: parsed.data.phone,
+          email: parsed.data.email || null,
+          specialty: parsed.data.specialty,
+          summary: parsed.data.summary,
+          upload_paths: [],
+        });
+      if (insErr) {
+        toast.error(insErr.message, { id: toastId });
+        return;
+      }
+
       const uploaded: string[] = [];
       for (const f of files) {
-        const path = `${folder}/${Date.now()}-${f.name.replace(/[^\w.\-]/g, "_")}`;
+        const path = `${requestId}/${Date.now()}-${f.name.replace(/[^\w.\-]/g, "_")}`;
         const { error: upErr } = await supabase.storage
           .from("second-opinion-uploads")
           .upload(path, f, { upsert: false, contentType: f.type || undefined });
@@ -153,26 +173,17 @@ function SecondOpinionPage() {
         uploaded.push(path);
       }
 
-      const { data, error } = await supabase
-        .from("second_opinion_requests")
-        .insert({
-          patient_name: parsed.data.patient_name,
-          phone: parsed.data.phone,
-          email: parsed.data.email || null,
-          specialty: parsed.data.specialty,
-          summary: parsed.data.summary,
-          upload_paths: uploaded,
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        toast.error(error.message, { id: toastId });
-        return;
+      if (uploaded.length > 0) {
+        // Best-effort — attachments are already stored under the request's
+        // folder; failing to persist the array shouldn't block success.
+        await supabase
+          .from("second_opinion_requests")
+          .update({ upload_paths: uploaded })
+          .eq("id", requestId);
       }
 
       toast.success("تم استلام طلبك", { id: toastId });
-      setDone(data.id);
+      setDone(requestId);
     } finally {
       setSubmitting(false);
     }
