@@ -16,7 +16,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { AlertCircle, Building2, Stethoscope, CalendarPlus, ChevronLeft } from "lucide-react";
+import { AlertCircle, Building2, Stethoscope, CalendarPlus, ChevronLeft, Upload, Download, CheckCircle2, XCircle } from "lucide-react";
 import {
   createBranch,
   createDoctor,
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/quick-add")({
   component: QuickAddPage,
 });
 
-type Tab = "branch" | "doctor" | "appointment";
+type Tab = "branch" | "doctor" | "appointment" | "import";
 
 function QuickAddPage() {
   const [tab, setTab] = useState<Tab>("branch");
@@ -60,7 +60,7 @@ function QuickAddPage() {
         </Link>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <TabButton active={tab === "branch"} onClick={() => setTab("branch")} icon={<Building2 className="h-4 w-4" />}>
           عيادة
         </TabButton>
@@ -70,12 +70,16 @@ function QuickAddPage() {
         <TabButton active={tab === "appointment"} onClick={() => setTab("appointment")} icon={<CalendarPlus className="h-4 w-4" />}>
           موعد
         </TabButton>
+        <TabButton active={tab === "import"} onClick={() => setTab("import")} icon={<Upload className="h-4 w-4" />}>
+          استيراد
+        </TabButton>
       </div>
 
       <div className="rounded-lg border border-input bg-card p-4 sm:p-6 shadow-sm">
         {tab === "branch" && <BranchForm />}
         {tab === "doctor" && <DoctorForm />}
         {tab === "appointment" && <AppointmentForm />}
+        {tab === "import" && <ImportPanel />}
       </div>
     </div>
   );
@@ -657,6 +661,319 @@ function SubmitBar({
       >
         {pending ? "جارٍ الحفظ..." : label}
       </button>
+    </div>
+  );
+}
+
+/* ---------------- CSV Import panel ---------------- */
+
+type ImportKind = "branch" | "doctor" | "appointment";
+
+type RowStatus = {
+  index: number;
+  ok: boolean;
+  message: string;
+  data: Record<string, string>;
+};
+
+const IMPORT_TEMPLATES: Record<ImportKind, { headers: string[]; sample: string[]; hint: string }> = {
+  branch: {
+    headers: ["slug", "name_ar", "name_en", "city_ar", "phone", "email", "address_ar"],
+    sample: ["jeddah-main", "فرع جدة الرئيسي", "Jeddah Main", "جدة", "+96612345678", "info@example.com", "شارع الملك عبدالعزيز"],
+    hint: "الأعمدة المطلوبة: slug, name_ar, name_en. الباقي اختياري.",
+  },
+  doctor: {
+    headers: ["name_ar", "name_en", "title_ar", "specialty", "branch", "slug"],
+    sample: ["د. أحمد علي", "Dr. Ahmed Ali", "استشاري", "أسنان", "جدة الرئيسي", "dr-ahmed-ali"],
+    hint: "specialty و branch يقبلان الاسم (سيتم البحث تلقائيًا). name_ar مطلوب.",
+  },
+  appointment: {
+    headers: ["patient_name", "patient_phone", "branch", "specialty", "doctor", "appointment_date", "appointment_time", "reason"],
+    sample: ["محمد سالم", "+966500000000", "جدة الرئيسي", "أسنان", "د. أحمد علي", "2026-07-20", "10:30", "فحص دوري"],
+    hint: "التنسيقات: التاريخ YYYY-MM-DD، الوقت HH:MM. حقول doctor/specialty/branch تُطابَق بالاسم.",
+  },
+};
+
+function parseCsv(text: string): Record<string, string>[] {
+  const clean = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim();
+  if (!clean) return [];
+  const rows: string[][] = [];
+  let cur: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < clean.length; i++) {
+    const c = clean[i];
+    if (inQuotes) {
+      if (c === '"' && clean[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') inQuotes = false;
+      else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ",") { cur.push(field); field = ""; }
+      else if (c === "\n") { cur.push(field); rows.push(cur); cur = []; field = ""; }
+      else field += c;
+    }
+  }
+  cur.push(field);
+  rows.push(cur);
+  const headers = rows.shift()!.map((h) => h.trim());
+  return rows
+    .filter((r) => r.some((v) => v.trim() !== ""))
+    .map((r) => {
+      const o: Record<string, string> = {};
+      headers.forEach((h, i) => { o[h] = (r[i] ?? "").trim(); });
+      return o;
+    });
+}
+
+function toCsvTemplate(kind: ImportKind): string {
+  const t = IMPORT_TEMPLATES[kind];
+  return "\uFEFF" + t.headers.join(",") + "\n" + t.sample.map((v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join(",") + "\n";
+}
+
+function downloadTemplate(kind: ImportKind) {
+  const blob = new Blob([toCsvTemplate(kind)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${kind}-template.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function findByName<T extends { id: string; name_ar?: string | null; name_en?: string | null }>(
+  list: T[] | undefined,
+  needle: string,
+): string | null {
+  if (!list || !needle) return null;
+  const n = needle.trim().toLowerCase();
+  const hit = list.find(
+    (x) =>
+      (x.name_ar ?? "").trim().toLowerCase() === n ||
+      (x.name_en ?? "").trim().toLowerCase() === n,
+  );
+  return hit?.id ?? null;
+}
+
+function ImportPanel() {
+  const submitBranch = useServerFn(createBranch);
+  const submitDoctor = useServerFn(createDoctor);
+  const submitAppt = useServerFn(createAppointmentAdmin);
+  const branchesQ = useQuery({ queryKey: ["qa", "branches"], queryFn: () => listBranchesAdmin() });
+  const specialtiesQ = useQuery({ queryKey: ["qa", "specs"], queryFn: () => listSpecialtiesFull() });
+  const doctorsQ = useQuery({ queryKey: ["qa", "doctors"], queryFn: () => listDoctorsAdmin() });
+
+  const [kind, setKind] = useState<ImportKind>("branch");
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const [fileName, setFileName] = useState<string>("");
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState<RowStatus[]>([]);
+
+  const template = IMPORT_TEMPLATES[kind];
+
+  const onFile = async (file: File) => {
+    setFileName(file.name);
+    setResults([]);
+    try {
+      const text = await file.text();
+      const parsed = parseCsv(text);
+      setRows(parsed);
+      if (parsed.length === 0) toast.error("الملف فارغ أو غير صالح");
+      else toast.success(`تم قراءة ${parsed.length} سطرًا`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "تعذّر قراءة الملف");
+    }
+  };
+
+  const runImport = async () => {
+    if (rows.length === 0) return;
+    setRunning(true);
+    const out: RowStatus[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      try {
+        if (kind === "branch") {
+          await submitBranch({
+            data: {
+              slug: r.slug,
+              name_ar: r.name_ar,
+              name_en: r.name_en,
+              city_ar: r.city_ar || null,
+              phone: r.phone || null,
+              email: r.email || null,
+              address_ar: r.address_ar || null,
+            } as any,
+          });
+        } else if (kind === "doctor") {
+          const specialty_id = r.specialty ? findByName(specialtiesQ.data as any, r.specialty) : null;
+          const branch_id = r.branch ? findByName(branchesQ.data as any, r.branch) : null;
+          if (r.specialty && !specialty_id) throw new Error(`تخصص غير موجود: ${r.specialty}`);
+          if (r.branch && !branch_id) throw new Error(`فرع غير موجود: ${r.branch}`);
+          await submitDoctor({
+            data: {
+              name_ar: r.name_ar,
+              name_en: r.name_en || null,
+              title_ar: r.title_ar || null,
+              specialty_id,
+              branch_id,
+              slug: r.slug || null,
+              languages: [],
+              is_active: true,
+              sort_order: 0,
+            } as any,
+          });
+        } else {
+          const specialty_id = r.specialty ? findByName(specialtiesQ.data as any, r.specialty) : null;
+          const branch_id = r.branch ? findByName(branchesQ.data as any, r.branch) : null;
+          const doctor_id = r.doctor ? findByName(doctorsQ.data as any, r.doctor) : null;
+          if (r.specialty && !specialty_id) throw new Error(`تخصص غير موجود: ${r.specialty}`);
+          if (r.branch && !branch_id) throw new Error(`فرع غير موجود: ${r.branch}`);
+          if (r.doctor && !doctor_id) throw new Error(`طبيب غير موجود: ${r.doctor}`);
+          const time = r.appointment_time?.length === 5 ? r.appointment_time + ":00" : r.appointment_time;
+          await submitAppt({
+            data: {
+              patient_name: r.patient_name,
+              patient_phone: r.patient_phone,
+              branch_id,
+              specialty_id,
+              doctor_id,
+              appointment_date: r.appointment_date,
+              appointment_time: time,
+              reason: r.reason || null,
+              status: "confirmed",
+            } as any,
+          });
+        }
+        out.push({ index: i + 1, ok: true, message: "تمت الإضافة", data: r });
+      } catch (e: any) {
+        out.push({ index: i + 1, ok: false, message: e?.message ?? "فشل", data: r });
+      }
+      setResults([...out]);
+    }
+    setRunning(false);
+    const okCount = out.filter((x) => x.ok).length;
+    const failCount = out.length - okCount;
+    if (failCount === 0) toast.success(`تم استيراد ${okCount} سطرًا بنجاح`);
+    else toast.error(`نجح ${okCount} • فشل ${failCount}`);
+    if (kind === "branch") branchesQ.refetch();
+    if (kind === "doctor") doctorsQ.refetch();
+  };
+
+  return (
+    <div className="grid gap-4">
+      <div>
+        <div className="mb-2 text-sm font-medium">نوع البيانات</div>
+        <div className="grid grid-cols-3 gap-2">
+          {(["branch", "doctor", "appointment"] as ImportKind[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => { setKind(k); setRows([]); setResults([]); setFileName(""); }}
+              className={
+                "rounded-md border px-3 py-2 text-sm " +
+                (kind === k ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted")
+              }
+            >
+              {k === "branch" ? "عيادات" : k === "doctor" ? "أطباء" : "مواعيد"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-md border border-dashed border-input bg-muted/30 p-3 text-sm">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="font-medium">قالب CSV</span>
+          <button
+            type="button"
+            onClick={() => downloadTemplate(kind)}
+            className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs hover:bg-muted"
+          >
+            <Download className="h-3.5 w-3.5" />
+            تنزيل النموذج
+          </button>
+        </div>
+        <div className="mb-2 text-xs text-muted-foreground">{template.hint}</div>
+        <code className="block overflow-x-auto rounded bg-background p-2 text-xs">
+          {template.headers.join(", ")}
+        </code>
+      </div>
+
+      <label className="grid gap-1 text-sm">
+        <span className="text-muted-foreground">ملف CSV</span>
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
+          className="block w-full text-sm file:me-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-primary-foreground hover:file:bg-primary/90"
+        />
+        {fileName && <span className="text-xs text-muted-foreground">الملف: {fileName} — {rows.length} سطر</span>}
+      </label>
+
+      {rows.length > 0 && (
+        <div className="rounded-md border border-input">
+          <div className="max-h-56 overflow-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="p-2 text-start">#</th>
+                  {template.headers.map((h) => (
+                    <th key={h} className="p-2 text-start">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 20).map((r, i) => (
+                  <tr key={i} className="border-t border-input">
+                    <td className="p-2 text-muted-foreground">{i + 1}</td>
+                    {template.headers.map((h) => (
+                      <td key={h} className="p-2">{r[h] ?? ""}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {rows.length > 20 && (
+            <div className="border-t border-input p-2 text-xs text-muted-foreground">
+              عرض أول 20 سطرًا من {rows.length}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          disabled={running || rows.length === 0}
+          onClick={runImport}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {running ? `جارٍ الاستيراد... (${results.length}/${rows.length})` : `استيراد ${rows.length} سطر`}
+        </button>
+      </div>
+
+      {results.length > 0 && (
+        <div className="rounded-md border border-input">
+          <div className="border-b border-input bg-muted/40 p-2 text-sm">
+            نتائج: نجح {results.filter((r) => r.ok).length} • فشل {results.filter((r) => !r.ok).length}
+          </div>
+          <div className="max-h-64 overflow-auto">
+            <ul className="divide-y divide-input">
+              {results.map((r) => (
+                <li key={r.index} className="flex items-start gap-2 p-2 text-xs">
+                  {r.ok ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  ) : (
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                  )}
+                  <span className="text-muted-foreground">سطر {r.index}:</span>
+                  <span className={r.ok ? "" : "text-destructive"}>{r.message}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
