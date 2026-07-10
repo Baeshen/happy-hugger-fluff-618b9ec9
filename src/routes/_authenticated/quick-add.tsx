@@ -60,7 +60,7 @@ function QuickAddPage() {
         </Link>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <TabButton active={tab === "branch"} onClick={() => setTab("branch")} icon={<Building2 className="h-4 w-4" />}>
           عيادة
         </TabButton>
@@ -70,12 +70,16 @@ function QuickAddPage() {
         <TabButton active={tab === "appointment"} onClick={() => setTab("appointment")} icon={<CalendarPlus className="h-4 w-4" />}>
           موعد
         </TabButton>
+        <TabButton active={tab === "import"} onClick={() => setTab("import")} icon={<Upload className="h-4 w-4" />}>
+          استيراد
+        </TabButton>
       </div>
 
       <div className="rounded-lg border border-input bg-card p-4 sm:p-6 shadow-sm">
         {tab === "branch" && <BranchForm />}
         {tab === "doctor" && <DoctorForm />}
         {tab === "appointment" && <AppointmentForm />}
+        {tab === "import" && <ImportPanel />}
       </div>
     </div>
   );
