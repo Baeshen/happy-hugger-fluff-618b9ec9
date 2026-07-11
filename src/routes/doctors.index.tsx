@@ -323,6 +323,25 @@ function DoctorsPage() {
   const start = (safePage - 1) * PER_PAGE;
   const paged = filtered.slice(start, start + PER_PAGE);
 
+  // Fetch next available slot for currently visible doctors only.
+  const pagedIds = useMemo(() => paged.map((d) => d.id).sort(), [paged]);
+  const { data: nextSlotMap = {} as Record<string, string> } = useQuery({
+    queryKey: ["doctors-next-slots", pagedIds],
+    enabled: pagedIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_doctors_next_slot", {
+        _doctor_ids: pagedIds,
+      });
+      if (error) return {};
+      const out: Record<string, string> = {};
+      for (const row of (data ?? []) as Array<{ doctor_id: string; next_slot_at: string }>) {
+        out[row.doctor_id] = row.next_slot_at;
+      }
+      return out;
+    },
+  });
+
   const goPage = (p: number) => {
     const clamped = Math.max(1, Math.min(totalPages, p));
     navigate({ search: (prev: SearchParams) => ({ ...prev, page: clamped }) });
@@ -596,7 +615,7 @@ function DoctorsPage() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               {paged.map((d) => (
-                <DoctorCard key={d.id} d={d} lang={lang} />
+                <DoctorCard key={d.id} d={d} lang={lang} nextSlotIso={nextSlotMap[d.id]} />
               ))}
             </div>
 
@@ -720,7 +739,7 @@ function CheckItem({
   );
 }
 
-function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
+function DoctorCard({ d, lang, nextSlotIso }: { d: DoctorRow; lang: "ar" | "en"; nextSlotIso?: string }) {
   const name = lang === "ar" ? d.name_ar : d.name_en;
   const title = lang === "ar" ? d.title_ar : d.title_en;
   const specName = lang === "ar" ? d.specialty_name_ar : d.specialty_name_en;
@@ -730,6 +749,27 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
       ? branchNames[0]
       : `${branchNames[0]} +${branchNames.length - 1}`
     : null;
+
+  const nextSlotLabel = useMemo(() => {
+    if (!nextSlotIso) return null;
+    const dt = new Date(nextSlotIso);
+    if (isNaN(dt.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isToday = dt >= today && dt < tomorrow;
+    const isTomorrow = dt >= tomorrow && dt < new Date(tomorrow.getTime() + 86400000);
+    const timeStr = dt.toLocaleTimeString(lang === "ar" ? "ar-SA" : "en-US", {
+      hour: "2-digit", minute: "2-digit",
+    });
+    if (isToday) return lang === "ar" ? `اليوم ${timeStr}` : `Today ${timeStr}`;
+    if (isTomorrow) return lang === "ar" ? `غدًا ${timeStr}` : `Tomorrow ${timeStr}`;
+    const dateStr = dt.toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US", {
+      weekday: "short", day: "numeric", month: "short",
+    });
+    return `${dateStr} · ${timeStr}`;
+  }, [nextSlotIso, lang]);
 
   return (
     <article className="group rounded-2xl border border-border bg-card overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all flex flex-col">
@@ -778,6 +818,16 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
           )}
         </div>
       </div>
+
+      {nextSlotLabel && d.booking_enabled && (
+        <div className="mx-5 mb-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 flex items-center gap-2 text-xs">
+          <Calendar className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
+          <span className="text-emerald-800 dark:text-emerald-300">
+            {lang === "ar" ? "أقرب موعد: " : "Next slot: "}
+            <span className="font-semibold">{nextSlotLabel}</span>
+          </span>
+        </div>
+      )}
 
       <div className="px-5 pb-4 space-y-1.5 text-xs text-muted-foreground">
         {branchLabel && (
