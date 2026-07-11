@@ -169,8 +169,10 @@ function TrackPage() {
   const [error, setError] = useState<LookupError | null>(null);
   const lastQueryRef = useRef<{ reference: string; phone_last4: string } | null>(null);
   const autoRanRef = useRef(false);
+  const [autoSearching, setAutoSearching] = useState(false);
+  const [autoFailed, setAutoFailed] = useState(false);
 
-  async function runLookup(payload: { reference: string; phone_last4: string }) {
+  async function runLookup(payload: { reference: string; phone_last4: string }): Promise<boolean> {
     setLoading(true);
     setError(null);
     setAppointment(null);
@@ -194,7 +196,7 @@ function TrackPage() {
         const msg = ERROR_META[kind].title;
         setError({ kind, message: msg });
         toast.error(msg, { id: toastId });
-        return;
+        return false;
       }
 
       let body: { ok?: boolean; appointment?: Appointment; message?: string } = {};
@@ -204,13 +206,13 @@ function TrackPage() {
         const kind: LookupErrorKind = res.status >= 500 ? "server" : "unknown";
         setError({ kind, message: ERROR_META[kind].title });
         toast.error(ERROR_META[kind].title, { id: toastId });
-        return;
+        return false;
       }
 
       if (res.ok && body.ok && body.appointment) {
         setAppointment(body.appointment);
         toast.success("تم العثور على طلبك", { id: toastId });
-        return;
+        return true;
       }
 
       const kind: LookupErrorKind =
@@ -224,6 +226,7 @@ function TrackPage() {
       const message = body.message?.trim() || ERROR_META[kind].title;
       setError({ kind, message });
       toast.error(message, { id: toastId });
+      return false;
     } finally {
       clearTimeout(timer);
       setLoading(false);
@@ -233,6 +236,7 @@ function TrackPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
+    setAutoFailed(false);
 
     const parsed = schema.safeParse({ reference, phone_last4: phone4 });
     if (!parsed.success) {
@@ -260,9 +264,18 @@ function TrackPage() {
     if (!initialRef || !initialPhone4) return;
     autoRanRef.current = true;
     const parsed = schema.safeParse({ reference: initialRef, phone_last4: initialPhone4 });
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      setAutoFailed(true);
+      setError({ kind: "validation", message: parsed.error.issues[0]?.message ?? "بيانات غير صالحة في الرابط" });
+      return;
+    }
     lastQueryRef.current = parsed.data;
-    void runLookup(parsed.data);
+    setAutoSearching(true);
+    setAutoFailed(false);
+    void runLookup(parsed.data).then((found) => {
+      setAutoSearching(false);
+      if (!found) setAutoFailed(true);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRef, initialPhone4]);
 
@@ -344,12 +357,45 @@ function TrackPage() {
           </p>
         </form>
 
-        <div>
+        <div className="space-y-4">
+          {autoSearching && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center gap-3 text-sm text-primary"
+            >
+              <Loader2 className="h-5 w-5 animate-spin shrink-0" />
+              <div>
+                <div className="font-semibold">جاري فتح طلبك تلقائيًا…</div>
+                <div className="text-xs text-primary/80 mt-0.5">
+                  نبحث عن الطلب <span className="font-mono">{initialRef}</span> باستخدام آخر 4 أرقام من جوالك.
+                </div>
+              </div>
+            </div>
+          )}
+          {autoFailed && !autoSearching && error && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 flex items-start gap-3 text-sm"
+            >
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-semibold text-amber-700 dark:text-amber-300">
+                  تعذّر فتح الطلب تلقائيًا من الرابط
+                </div>
+                <p className="text-xs text-foreground/80 mt-1 leading-5">
+                  {error.message} — يمكنك تعديل البيانات في النموذج ثم الضغط على «عرض حالة الطلب».
+                </p>
+              </div>
+            </div>
+          )}
+
           {loading && !appointment && (
             <div
               role="status"
               aria-live="polite"
-              className="rounded-2xl border border-border bg-card p-8 h-full"
+              className="rounded-2xl border border-border bg-card p-8"
             >
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
