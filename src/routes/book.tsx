@@ -23,12 +23,13 @@ import { z } from "zod";
 import { toast } from "sonner";
 import {
   ArrowLeft, ArrowRight, Building2, Calendar as CalIcon, Check, CheckCircle2,
-  ChevronLeft, ChevronRight, Clock, Loader2, MapPin, Star, Stethoscope,
+  ChevronLeft, ChevronRight, Clock, Loader2, MapPin, Phone, Star, Stethoscope,
   User, UserCircle2, ClipboardList, TestTube, Scan, Activity,
 } from "lucide-react";
 import { submitBooking } from "@/lib/booking-submit";
 import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
 import { Button } from "@/components/ui/button";
+import { SITE } from "@/lib/site";
 
 import { fallback } from "@tanstack/zod-adapter";
 const search = z.object({
@@ -414,7 +415,7 @@ function BookPage() {
             {state.step === 2 && <StepBranch lang={lang} branches={branches} value={state.branchId} onPick={(v) => { dispatch({ t: "set", p: { branchId: v } }); dispatch({ t: "goto", step: 3 }); }}/>}
             {state.step === 3 && <StepSpecialty lang={lang} specialties={specialties} value={state.specialtyId} onPick={(v) => { dispatch({ t: "set", p: { specialtyId: v, doctorId: null } }); dispatch({ t: "goto", step: 4 }); }}/>}
             {state.step === 4 && <StepDoctor lang={lang} doctors={doctors} value={state.doctorId} onPick={(v) => { dispatch({ t: "set", p: { doctorId: v, date: null, time: null } }); dispatch({ t: "goto", step: 5 }); }}/>}
-            {state.step === 5 && <StepDate lang={lang} value={state.date} onPick={(v) => { dispatch({ t: "set", p: { date: v, time: null } }); dispatch({ t: "goto", step: 6 }); }} doctorId={state.doctorId} specialtyId={state.specialtyId} branchId={state.branchId}/>}
+            {state.step === 5 && <StepDate lang={lang} value={state.date} onPick={(v) => { dispatch({ t: "set", p: { date: v, time: null } }); dispatch({ t: "goto", step: 6 }); }} doctorId={state.doctorId} specialtyId={state.specialtyId} branchId={state.branchId} onChangeDoctor={() => dispatch({ t: "goto", step: 4 })} onChangeBranch={() => dispatch({ t: "goto", step: 2 })}/>}
             {state.step === 6 && <StepTime lang={lang} value={state.time} avail={avail} onPick={(v) => { dispatch({ t: "set", p: { time: v } }); dispatch({ t: "goto", step: 7 }); }}/>}
             {state.step === 7 && <StepPatient lang={lang} value={state.patient} errors={patientValidation.errors} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
             {state.step === 8 && <StepReview lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} errorMsg={errorMsg} submitting={submitting} onSubmit={handleSubmit} patientValid={patientValidation.ok} onEditPatient={() => dispatch({ t: "goto", step: 7 })}/>}
@@ -662,10 +663,12 @@ function StepDoctor({ lang, doctors, value, onPick }: { lang: "ar"|"en"; doctors
 /* ------------ Calendar / Date step ------------ */
 
 function StepDate({
-  lang, value, onPick, doctorId, specialtyId, branchId,
+  lang, value, onPick, doctorId, specialtyId, branchId, onChangeDoctor, onChangeBranch,
 }: {
   lang: "ar"|"en"; value: string | null; onPick: (v: string) => void;
   doctorId: string | null; specialtyId: string | null; branchId: string | null;
+  onChangeDoctor?: () => void;
+  onChangeBranch?: () => void;
 }) {
   const today = new Date(); today.setHours(0,0,0,0);
   const [monthStart, setMonthStart] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -683,6 +686,12 @@ function StepDate({
     : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
   const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 60);
+  // 30-day horizon used for the "no availability" empty state.
+  const horizonEnd = new Date(); horizonEnd.setDate(horizonEnd.getDate() + 30);
+  const horizonEndIso = iso(horizonEnd);
+  const todayIso = iso(today);
+
+  const enabled = !!(doctorId || specialtyId);
 
   // Fetch dates in this month that have at least one bookable slot.
   const year = monthStart.getFullYear();
@@ -698,14 +707,105 @@ function StepDate({
       if (!res.ok) return { ok: false, dates: [] as string[] };
       return (await res.json()) as { ok: boolean; dates: string[] };
     },
-    enabled: !!(doctorId || specialtyId),
+    enabled,
     staleTime: 60_000,
   });
+
+  // Peek at the next month too so we can honestly answer "any slot in the
+  // next 30 days?" when the current month is empty near month-end.
+  const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const nextYear = nextMonthDate.getFullYear();
+  const nextMonth = nextMonthDate.getMonth() + 1;
+  const { data: nextMonthAvail, isLoading: loadingNextMonth } = useQuery({
+    queryKey: ["month-avail", nextYear, nextMonth, doctorId, specialtyId, branchId],
+    queryFn: async () => {
+      const p = new URLSearchParams({ year: String(nextYear), month: String(nextMonth) });
+      if (doctorId) p.set("doctor_id", doctorId);
+      else if (specialtyId) p.set("specialty_id", specialtyId);
+      if (branchId) p.set("branch_id", branchId);
+      const res = await fetch(`/api/public/book/month-availability?${p.toString()}`);
+      if (!res.ok) return { ok: false, dates: [] as string[] };
+      return (await res.json()) as { ok: boolean; dates: string[] };
+    },
+    enabled,
+    staleTime: 60_000,
+  });
+
   const availableDates = useMemo(
     () => new Set(monthAvail?.dates ?? []),
     [monthAvail],
   );
   const hasAvailData = (monthAvail?.dates?.length ?? 0) > 0 || monthAvail?.ok === true;
+
+  // Union of dates within the next 30 days across both months.
+  const bothLoaded = !loadingMonth && !loadingNextMonth && enabled;
+  const datesInHorizon = useMemo(() => {
+    const all = [...(monthAvail?.dates ?? []), ...(nextMonthAvail?.dates ?? [])];
+    return all.filter((d) => d >= todayIso && d <= horizonEndIso);
+  }, [monthAvail, nextMonthAvail, todayIso, horizonEndIso]);
+  const noSlotsIn30Days = bothLoaded && datesInHorizon.length === 0
+    && monthAvail?.ok !== false && nextMonthAvail?.ok !== false;
+
+  // Build WhatsApp fallback message.
+  const waMsg = lang === "ar"
+    ? `مرحبًا، لم أجد مواعيد متاحة خلال 30 يومًا لهذا الطبيب/التخصص. أرجو مساعدتي بحجز أقرب موعد.`
+    : `Hi, I couldn't find any appointment within 30 days for this doctor/specialty. Please help me book the earliest available slot.`;
+  const waHref = `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(waMsg)}`;
+  const telHref = `tel:${SITE.phone}`;
+
+  if (noSlotsIn30Days) {
+    return (
+      <StepShell lang={lang} title={lang === "ar" ? "اختر التاريخ" : "Choose date"}>
+        <div className="max-w-lg mx-auto text-center">
+          <div className="mx-auto mb-4 h-14 w-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+            <CalIcon className="h-7 w-7" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">
+            {lang === "ar"
+              ? "لا توجد مواعيد متاحة خلال 30 يومًا"
+              : "No appointments available within the next 30 days"}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            {lang === "ar"
+              ? "جدول هذا الطبيب/التخصص ممتلئ حاليًا. يمكنك تجربة أحد الخيارات التالية:"
+              : "This doctor/specialty is fully booked for now. Try one of the options below:"}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {onChangeDoctor && (
+              <Button variant="outline" onClick={onChangeDoctor} className="justify-start">
+                <User className="h-4 w-4 me-2" />
+                {lang === "ar" ? "اختر طبيبًا آخر" : "Pick another doctor"}
+              </Button>
+            )}
+            {onChangeBranch && (
+              <Button variant="outline" onClick={onChangeBranch} className="justify-start">
+                <Building2 className="h-4 w-4 me-2" />
+                {lang === "ar" ? "غيّر الفرع" : "Change branch"}
+              </Button>
+            )}
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-start rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 transition"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4 me-2" fill="currentColor" aria-hidden="true">
+                <path d="M20.52 3.48A11.94 11.94 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.12.55 4.12 1.6 5.92L0 24l6.24-1.63A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.2-3.48-8.52ZM12 22a9.94 9.94 0 0 1-5.06-1.38l-.36-.21-3.7.97.99-3.61-.24-.37A9.94 9.94 0 1 1 22 12c0 5.52-4.48 10-10 10Zm5.47-7.38c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.66.15s-.76.97-.93 1.17c-.17.2-.34.22-.63.07-.3-.15-1.26-.46-2.4-1.47-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.13.3-.34.44-.51.15-.17.2-.29.29-.49.1-.2.05-.37-.02-.52-.07-.15-.66-1.6-.9-2.19-.24-.58-.48-.5-.66-.51h-.56c-.19 0-.5.07-.76.37-.26.3-1 1-1 2.42s1.02 2.81 1.17 3.01c.15.2 2.02 3.08 4.9 4.32.69.3 1.22.48 1.64.61.69.22 1.31.19 1.8.12.55-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.19-.56-.34Z"/>
+              </svg>
+              {lang === "ar" ? "تواصل عبر واتساب" : "Contact on WhatsApp"}
+            </a>
+            <a
+              href={telHref}
+              className="inline-flex items-center justify-start rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted transition"
+            >
+              <Phone className="h-4 w-4 me-2" />
+              {lang === "ar" ? `اتصل بنا · ${SITE.phoneDisplay}` : `Call us · ${SITE.phoneDisplay}`}
+            </a>
+          </div>
+        </div>
+      </StepShell>
+    );
+  }
 
   return (
     <StepShell lang={lang} title={lang === "ar" ? "اختر التاريخ" : "Choose date"}>
