@@ -30,48 +30,63 @@ VIEWPORTS = [
 
 async def run_full_wizard(page):
     """Complete steps 1..8 and land on the success screen."""
+    import re
     await page.goto(f"{BASE}/book", wait_until="domcontentloaded")
     try:
-        await page.locator("button", has_text="تخطي").first.click(timeout=2000)
+        await page.get_by_role("button", name=re.compile(r"تخطي|Skip")).click(timeout=2000)
     except Exception:
         pass
 
-    await page.wait_for_selector("text=عيادات تخصصية", timeout=10_000)
-    await page.locator("button", has_text="عيادات تخصصية").first.click()
+    await page.locator("button", has_text=re.compile(r"عيادات تخصصية|Specialty Clinics")).first.click()
+    await page.wait_for_timeout(700)
 
-    await page.wait_for_selector("text=اختر الفرع", timeout=10_000)
-    await page.locator("button:has(div.font-semibold)").first.click()
+    await page.locator("button.text-start.rounded-xl.border-2").first.click()
+    await page.wait_for_timeout(400)
 
-    await page.wait_for_selector("text=اختر التخصص", timeout=10_000)
-    await page.locator("button:has(div.font-semibold)").first.click()
+    await page.locator("button.rounded-xl.border-2.p-4.text-center").first.click()
+    await page.wait_for_timeout(500)
 
-    await page.wait_for_selector("text=اختر الطبيب", timeout=10_000)
-    await page.locator("button:has(div.font-semibold)").first.click()
+    doc_btn = page.locator("button.text-start.rounded-xl.border-2:not([disabled])").first
+    await doc_btn.click()
+    await page.wait_for_timeout(1500)
 
-    await page.wait_for_selector("text=اختر التاريخ", timeout=15_000)
-    # Pick first enabled calendar day
-    day = page.locator("button[aria-label*='2026']:not([disabled])").first
-    await day.click(timeout=10_000)
+    day_buttons = page.locator("div.grid.grid-cols-7 > button:not([disabled])")
+    n_days = await day_buttons.count()
+    if n_days == 0:
+        raise AssertionError("no available day on the calendar this month")
 
-    await page.wait_for_selector("text=اختر الوقت", timeout=15_000)
-    slot = page.locator("button:not([disabled])").filter(has_text=":").first
-    await slot.click()
+    picked = False
+    for i in range(min(n_days, 7)):
+        await day_buttons.nth(i).click()
+        await page.wait_for_timeout(900)
+        time_btn = page.locator(
+            "div.grid.grid-cols-3 > button:not([disabled]), "
+            "div.grid.grid-cols-5 > button:not([disabled])"
+        ).first
+        if await time_btn.count() > 0:
+            picked = True
+            break
+        await page.get_by_role("button", name=re.compile(r"^السابق|^Back")).click()
+        await page.wait_for_timeout(400)
+        day_buttons = page.locator("div.grid.grid-cols-7 > button:not([disabled])")
+    if not picked:
+        raise AssertionError("no available time slot on any day")
 
-    await page.wait_for_selector("text=بياناتك", timeout=10_000)
-    await page.fill('input[name="patient_name"]', "أحمد محمد التجريبي")
-    await page.fill('input[name="patient_phone"]', "0501234567")
-    # Gender male
-    male = page.locator("button", has_text="ذكر").first
-    if await male.count():
-        await male.click()
+    await page.locator(
+        "div.grid.grid-cols-3 > button:not([disabled]), "
+        "div.grid.grid-cols-5 > button:not([disabled])"
+    ).first.click()
+    await page.wait_for_timeout(400)
 
-    # Advance to review
-    await page.locator("button", has_text="التالي").first.click()
-    await page.wait_for_selector("text=مراجعة", timeout=10_000)
-    # Submit
-    await page.locator("button", has_text="تأكيد الحجز").first.click()
+    await page.get_by_placeholder(re.compile("الاسم كما في الهوية|Full name")).fill("محمد أحمد الاختبار")
+    await page.get_by_placeholder("05XXXXXXXX").fill("0501234567")
+    await page.locator("button", has_text=re.compile(r"^ذكر$|^Male$")).first.click()
+    await page.wait_for_timeout(200)
+    await page.get_by_role("button", name=re.compile("^التالي|^Next")).click()
+    await page.wait_for_timeout(500)
 
-    await page.wait_for_selector("text=تم تأكيد حجزك", timeout=20_000)
+    await page.get_by_role("button", name=re.compile("تأكيد الحجز|Confirm booking")).click()
+    await page.wait_for_selector("text=/تم تأكيد حجزك|Your booking is confirmed/", timeout=20_000)
 
 
 async def check_success_ui(page, label):
