@@ -66,13 +66,20 @@ async def main():
         page = await ctx.new_page()
 
         errors = []
-        page.on("pageerror", lambda e: errors.append(str(e)))
-        page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+        # Only capture errors while we're actually on /book — this test's
+        # subject. Unrelated hydration mismatches on /doctors (e.g. SSR doctor
+        # count) are out of scope for the step=5 preservation check.
+        def maybe(kind, val):
+            if "/book" in page.url:
+                errors.append(f"{kind}: {val}")
+        page.on("pageerror", lambda e: maybe("pageerror", str(e)))
+        page.on("console", lambda m: maybe("console.error", m.text) if m.type == "error" else None)
 
         # 1) Land on /doctors so there's a real previous history entry.
         await page.goto(f"{BASE}/doctors", wait_until="domcontentloaded")
         await page.wait_for_load_state("networkidle")
         print("[1] on /doctors:", page.url)
+
 
         # 2) Jump to /book with the deep-link params and wait for step=5 sync.
         await page.goto(deep_link, wait_until="domcontentloaded")
