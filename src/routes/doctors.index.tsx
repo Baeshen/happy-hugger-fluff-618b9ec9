@@ -1,13 +1,15 @@
 /**
  * صفحة الأطباء — Doctors listing (UDH-style)
- * Hero + sidebar filters (specialty/branch/gender/language) + big cards.
+ * Hero + sidebar filters (specialty/branch/gender/language) + sort + pagination.
+ * All filter/search/sort/page state is synced with URL for shareable links,
+ * RTL-aware controls, and browser back/forward navigation.
  * Powered by public RPC list_public_doctors() (multi-branch aware).
  */
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Star,
@@ -19,19 +21,33 @@ import {
   Filter,
   X,
   Users,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
 } from "lucide-react";
 import { z } from "zod";
+import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
-const search = z.object({
-  specialty: z.string().optional(),
-  branch: z.string().optional(),
-  gender: z.enum(["male", "female"]).optional(),
-  language: z.string().optional(),
-  q: z.string().optional(),
+const PER_PAGE = 12;
+const SORT_KEYS = ["rating", "experience", "name"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+
+const searchSchema = z.object({
+  q: fallback(z.string(), "").default(""),
+  specialty: fallback(z.string(), "").default(""), // CSV of ids
+  branch: fallback(z.string(), "").default(""),    // CSV of ids
+  gender: fallback(z.string(), "").default(""),    // "male" | "female" | ""
+  language: fallback(z.string(), "").default(""),
+  sort: fallback(z.string(), "rating").default("rating"),
+  page: fallback(z.number().int(), 1).default(1),
 });
+
+const csvToList = (v: string): string[] =>
+  v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
+const listToCsv = (l: string[]): string => l.join(",");
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 const PAGE_URL = `${SITE_URL}/doctors`;
@@ -72,7 +88,7 @@ async function fetchDoctors(): Promise<DoctorRow[]> {
 }
 
 export const Route = createFileRoute("/doctors/")({
-  validateSearch: search,
+  validateSearch: zodValidator(searchSchema),
   loader: async ({ context }) =>
     context.queryClient.ensureQueryData({
       queryKey: ["public-doctors"],
@@ -133,12 +149,54 @@ const LANG_LABELS: Record<string, { ar: string; en: string }> = {
 
 function DoctorsPage() {
   const params = Route.useSearch();
+  const navigate = useNavigate({ from: "/doctors/" });
   const { lang } = useI18n();
-  const [q, setQ] = useState(params.q ?? "");
-  const [selSpec, setSelSpec] = useState<string[]>(params.specialty ? [params.specialty] : []);
-  const [selBranch, setSelBranch] = useState<string[]>(params.branch ? [params.branch] : []);
-  const [selGender, setSelGender] = useState<string | null>(params.gender ?? null);
-  const [selLang, setSelLang] = useState<string | null>(params.language ?? null);
+  const ar = lang === "ar";
+
+  // Clamp `sort` after read (schema uses fallback so `sort` is always string).
+  const sort = (SORT_KEYS as readonly string[]).includes(params.sort)
+    ? (params.sort as SortKey)
+    : "rating";
+  const page = Math.max(1, params.page);
+
+  const selSpec = useMemo(() => csvToList(params.specialty), [params.specialty]);
+  const selBranch = useMemo(() => csvToList(params.branch), [params.branch]);
+  const selGender = params.gender === "male" || params.gender === "female" ? params.gender : "";
+  const selLang = params.language;
+  const qUrl = params.q;
+
+  // Local search state so typing doesn't hit history on every keystroke.
+  // We debounce writes to the URL to preserve back/forward semantics.
+  const [qLocal, setQLocal] = useState(qUrl);
+  useEffect(() => {
+    // Sync from URL when it changes externally (browser back/forward).
+    setQLocal(qUrl);
+  }, [qUrl]);
+  const qTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (qLocal === qUrl) return;
+    if (qTimerRef.current) window.clearTimeout(qTimerRef.current);
+    qTimerRef.current = window.setTimeout(() => {
+      navigate({
+        search: (prev) => ({ ...prev, q: qLocal, page: 1 }),
+        replace: true,
+      });
+    }, 300);
+    return () => {
+      if (qTimerRef.current) window.clearTimeout(qTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qLocal]);
+
+  const setSearch = (patch: Record<string, unknown>) => {
+    navigate({
+      search: (prev) => ({ ...prev, ...patch, page: 1 }),
+      replace: true,
+    });
+  };
+
+  const toggleInCsv = (current: string[], id: string): string =>
+    listToCsv(current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
 
   const { data: doctors = [], isLoading } = useQuery({
     queryKey: ["public-doctors"],
@@ -175,8 +233,10 @@ function DoctorsPage() {
   }, [doctors]);
 
   const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    return doctors.filter((d) => {
+    // Filter uses the URL-persisted `q` so bookmarks/shares work; the local
+    // input value stays in sync via the debounce effect above.
+    const query = qUrl.trim().toLowerCase();
+    const list = doctors.filter((d) => {
       if (selSpec.length && (!d.specialty_id || !selSpec.includes(d.specialty_id))) return false;
       if (selBranch.length) {
         const ids = d.branch_ids ?? [];
@@ -186,22 +246,63 @@ function DoctorsPage() {
       if (selLang && !(d.languages ?? []).includes(selLang)) return false;
       if (query) {
         const name = `${d.name_ar} ${d.name_en}`.toLowerCase();
-        if (!name.includes(query)) return false;
+        const spec = `${d.specialty_name_ar ?? ""} ${d.specialty_name_en ?? ""}`.toLowerCase();
+        if (!name.includes(query) && !spec.includes(query)) return false;
       }
       return true;
     });
-  }, [doctors, q, selSpec, selBranch, selGender, selLang]);
 
-  const clearAll = () => {
-    setSelSpec([]);
-    setSelBranch([]);
-    setSelGender(null);
-    setSelLang(null);
-    setQ("");
+    // Sort (RTL-safe locale-aware compare for names).
+    const collator = new Intl.Collator(ar ? "ar" : "en", { sensitivity: "base" });
+    list.sort((a, b) => {
+      if (sort === "rating") {
+        const diff = Number(b.avg_rating ?? 0) - Number(a.avg_rating ?? 0);
+        if (diff !== 0) return diff;
+        return (b.ratings_count ?? 0) - (a.ratings_count ?? 0);
+      }
+      if (sort === "experience") {
+        return (b.years_experience ?? 0) - (a.years_experience ?? 0);
+      }
+      // name
+      const an = ar ? a.name_ar : a.name_en || a.name_ar;
+      const bn = ar ? b.name_ar : b.name_en || b.name_ar;
+      return collator.compare(an, bn);
+    });
+    return list;
+  }, [doctors, qUrl, selSpec, selBranch, selGender, selLang, sort, ar]);
+
+  // Pagination — clamp page to available range after filters change.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  useEffect(() => {
+    if (safePage !== page) {
+      navigate({ search: (prev) => ({ ...prev, page: safePage }), replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safePage, page]);
+  const start = (safePage - 1) * PER_PAGE;
+  const paged = filtered.slice(start, start + PER_PAGE);
+
+  const goPage = (p: number) => {
+    const clamped = Math.max(1, Math.min(totalPages, p));
+    navigate({ search: (prev) => ({ ...prev, page: clamped }) });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
+  const clearAll = () =>
+    navigate({
+      search: () => ({ q: "", specialty: "", branch: "", gender: "", language: "", sort, page: 1 }),
+      replace: true,
+    });
+
   const activeCount =
-    selSpec.length + selBranch.length + (selGender ? 1 : 0) + (selLang ? 1 : 0) + (q ? 1 : 0);
+    selSpec.length +
+    selBranch.length +
+    (selGender ? 1 : 0) +
+    (selLang ? 1 : 0) +
+    (qUrl ? 1 : 0);
 
   const FiltersPanel = (
     <div className="space-y-6">
@@ -211,54 +312,50 @@ function DoctorsPage() {
           className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
         >
           <X className="h-3.5 w-3.5" />
-          {lang === "ar" ? `مسح كل الفلاتر (${activeCount})` : `Clear filters (${activeCount})`}
+          {ar ? `مسح كل الفلاتر (${activeCount})` : `Clear filters (${activeCount})`}
         </button>
       )}
 
-      <FilterGroup title={lang === "ar" ? "التخصص" : "Specialty"}>
+      <FilterGroup title={ar ? "التخصص" : "Specialty"}>
         {specialties.map((s) => (
           <CheckItem
             key={s.id}
             checked={selSpec.includes(s.id)}
-            onChange={(v) =>
-              setSelSpec((prev) => (v ? [...prev, s.id] : prev.filter((x) => x !== s.id)))
-            }
-            label={lang === "ar" ? s.name_ar : s.name_en}
+            onChange={() => setSearch({ specialty: toggleInCsv(selSpec, s.id) })}
+            label={ar ? s.name_ar : s.name_en}
           />
         ))}
       </FilterGroup>
 
-      <FilterGroup title={lang === "ar" ? "الفرع" : "Branch"}>
+      <FilterGroup title={ar ? "الفرع" : "Branch"}>
         {branches.map((b) => (
           <CheckItem
             key={b.id}
             checked={selBranch.includes(b.id)}
-            onChange={(v) =>
-              setSelBranch((prev) => (v ? [...prev, b.id] : prev.filter((x) => x !== b.id)))
-            }
-            label={lang === "ar" ? b.name_ar : b.name_en}
+            onChange={() => setSearch({ branch: toggleInCsv(selBranch, b.id) })}
+            label={ar ? b.name_ar : b.name_en}
           />
         ))}
       </FilterGroup>
 
-      <FilterGroup title={lang === "ar" ? "الجنس" : "Gender"}>
+      <FilterGroup title={ar ? "الجنس" : "Gender"}>
         {(["male", "female"] as const).map((g) => (
           <CheckItem
             key={g}
             checked={selGender === g}
-            onChange={(v) => setSelGender(v ? g : null)}
-            label={g === "male" ? (lang === "ar" ? "طبيب" : "Male") : lang === "ar" ? "طبيبة" : "Female"}
+            onChange={(v) => setSearch({ gender: v ? g : "" })}
+            label={g === "male" ? (ar ? "طبيب" : "Male") : ar ? "طبيبة" : "Female"}
           />
         ))}
       </FilterGroup>
 
       {allLangs.length > 0 && (
-        <FilterGroup title={lang === "ar" ? "اللغة" : "Language"}>
+        <FilterGroup title={ar ? "اللغة" : "Language"}>
           {allLangs.map((l) => (
             <CheckItem
               key={l}
               checked={selLang === l}
-              onChange={(v) => setSelLang(v ? l : null)}
+              onChange={(v) => setSearch({ language: v ? l : "" })}
               label={LANG_LABELS[l]?.[lang] ?? l}
             />
           ))}
@@ -270,9 +367,22 @@ function DoctorsPage() {
   const totalDoctors = doctors.length;
   const totalSpecs = specialties.length;
 
+  const sortLabel = (s: SortKey): string =>
+    ar
+      ? s === "rating"
+        ? "الأعلى تقييمًا"
+        : s === "experience"
+          ? "الأكثر خبرة"
+          : "الاسم (أ-ي)"
+      : s === "rating"
+        ? "Top rated"
+        : s === "experience"
+          ? "Most experienced"
+          : "Name (A-Z)";
+
   return (
     <div className="bg-muted/30 min-h-screen">
-      {/* Hero — larger, UDH-inspired */}
+      {/* Hero */}
       <section className="relative overflow-hidden border-b border-border bg-gradient-to-br from-primary/10 via-primary/5 to-background">
         <div
           className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -287,13 +397,13 @@ function DoctorsPage() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold mb-4">
               <Users className="h-3.5 w-3.5" />
-              {lang === "ar" ? "الفريق الطبي" : "Medical team"}
+              {ar ? "الفريق الطبي" : "Medical team"}
             </div>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.1]">
-              {lang === "ar" ? "أطباؤنا الاستشاريون" : "Our Consultant Doctors"}
+              {ar ? "أطباؤنا الاستشاريون" : "Our Consultant Doctors"}
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl">
-              {lang === "ar"
+              {ar
                 ? "نخبة من الأطباء الاستشاريين والأخصائيين في مختلف التخصصات. ابحث عن طبيبك، تعرف على خبرته، واحجز موعدك في دقائق."
                 : "A selection of consultants and specialists across many specialties. Find your doctor, review their expertise, and book in minutes."}
             </p>
@@ -301,44 +411,37 @@ function DoctorsPage() {
             <div className="mt-8 relative">
               <Search className="absolute top-1/2 -translate-y-1/2 start-5 h-5 w-5 text-muted-foreground pointer-events-none" />
               <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={
-                  lang === "ar" ? "ابحث بالاسم أو التخصص…" : "Search by name or specialty…"
-                }
+                value={qLocal}
+                onChange={(e) => setQLocal(e.target.value)}
+                placeholder={ar ? "ابحث بالاسم أو التخصص…" : "Search by name or specialty…"}
                 className="w-full h-16 rounded-2xl border border-border bg-card shadow-md ps-14 pe-4 text-base focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label={lang === "ar" ? "بحث" : "Search"}
+                aria-label={ar ? "بحث" : "Search"}
               />
-              {q && (
+              {qLocal && (
                 <button
-                  onClick={() => setQ("")}
+                  onClick={() => setQLocal("")}
                   className="absolute top-1/2 -translate-y-1/2 end-4 rounded-full p-1.5 text-muted-foreground hover:bg-muted"
-                  aria-label={lang === "ar" ? "مسح" : "Clear"}
+                  aria-label={ar ? "مسح" : "Clear"}
                 >
                   <X className="h-4 w-4" />
                 </button>
               )}
             </div>
 
-            {/* Stats strip */}
             <div className="mt-8 flex flex-wrap gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-primary">{totalDoctors}+</span>
                 <span className="text-muted-foreground">
-                  {lang === "ar" ? "طبيب واستشاري" : "Doctors & consultants"}
+                  {ar ? "طبيب واستشاري" : "Doctors & consultants"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-primary">{totalSpecs}+</span>
-                <span className="text-muted-foreground">
-                  {lang === "ar" ? "تخصص طبي" : "Specialties"}
-                </span>
+                <span className="text-muted-foreground">{ar ? "تخصص طبي" : "Specialties"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-primary">{branches.length}</span>
-                <span className="text-muted-foreground">
-                  {lang === "ar" ? "فروع" : "Branches"}
-                </span>
+                <span className="text-muted-foreground">{ar ? "فروع" : "Branches"}</span>
               </div>
             </div>
           </div>
@@ -347,57 +450,81 @@ function DoctorsPage() {
 
       <div className="container-app py-8">
         <div className="grid lg:grid-cols-[300px_1fr] gap-8">
-          {/* Sidebar (desktop) — RTL-aware: sits on the right in Arabic, left in English */}
           <aside className="hidden lg:block">
             <div className="sticky top-24 rounded-2xl border border-border bg-card p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold flex items-center gap-2">
                   <Filter className="h-4 w-4 text-primary" />
-                  {lang === "ar" ? "تصفية النتائج" : "Filter results"}
+                  {ar ? "تصفية النتائج" : "Filter results"}
                 </h3>
               </div>
               {FiltersPanel}
             </div>
           </aside>
 
-          {/* Results */}
           <main>
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
               <p className="text-sm text-muted-foreground">
-                {lang === "ar" ? (
+                {ar ? (
                   <>
-                    عرض <span className="font-semibold text-foreground">{filtered.length}</span> من
-                    أصل {doctors.length}
+                    عرض{" "}
+                    <span className="font-semibold text-foreground">
+                      {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + PER_PAGE, filtered.length)}
+                    </span>{" "}
+                    من أصل <span className="font-semibold text-foreground">{filtered.length}</span>
                   </>
                 ) : (
                   <>
-                    Showing <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
-                    of {doctors.length}
+                    Showing{" "}
+                    <span className="font-semibold text-foreground">
+                      {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + PER_PAGE, filtered.length)}
+                    </span>{" "}
+                    of <span className="font-semibold text-foreground">{filtered.length}</span>
                   </>
                 )}
               </p>
 
-              {/* Mobile filters trigger */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="lg:hidden gap-2">
-                    <Filter className="h-4 w-4" />
-                    {lang === "ar" ? "تصفية" : "Filters"}
-                    {activeCount > 0 && (
-                      <span className="rounded-full bg-primary text-primary-foreground text-xs px-2 py-0.5">
-                        {activeCount}
-                      </span>
-                    )}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side={lang === "ar" ? "right" : "left"} className="overflow-y-auto">
-                  <h3 className="font-bold mb-4 mt-4 flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-primary" />
-                    {lang === "ar" ? "تصفية النتائج" : "Filter results"}
-                  </h3>
-                  {FiltersPanel}
-                </SheetContent>
-              </Sheet>
+              <div className="flex items-center gap-2">
+                {/* Sort */}
+                <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <ArrowUpDown className="h-4 w-4" />
+                  <span className="hidden sm:inline">{ar ? "الترتيب" : "Sort"}</span>
+                  <select
+                    value={sort}
+                    onChange={(e) => setSearch({ sort: e.target.value })}
+                    className="rounded-lg border border-border bg-card px-2 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                    aria-label={ar ? "الترتيب" : "Sort"}
+                  >
+                    {SORT_KEYS.map((s) => (
+                      <option key={s} value={s}>
+                        {sortLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {/* Mobile filters trigger */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="sm" className="lg:hidden gap-2">
+                      <Filter className="h-4 w-4" />
+                      {ar ? "تصفية" : "Filters"}
+                      {activeCount > 0 && (
+                        <span className="rounded-full bg-primary text-primary-foreground text-xs px-2 py-0.5">
+                          {activeCount}
+                        </span>
+                      )}
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side={ar ? "right" : "left"} className="overflow-y-auto">
+                    <h3 className="font-bold mb-4 mt-4 flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-primary" />
+                      {ar ? "تصفية النتائج" : "Filter results"}
+                    </h3>
+                    {FiltersPanel}
+                  </SheetContent>
+                </Sheet>
+              </div>
             </div>
 
             {isLoading && (
@@ -415,29 +542,110 @@ function DoctorsPage() {
             {!isLoading && filtered.length === 0 && (
               <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
                 <Search className="h-8 w-8 mx-auto mb-3 opacity-40" />
-                {lang === "ar"
-                  ? "لا يوجد أطباء يطابقون معايير البحث."
-                  : "No doctors match your filters."}
+                {ar ? "لا يوجد أطباء يطابقون معايير البحث." : "No doctors match your filters."}
                 {activeCount > 0 && (
                   <button
                     onClick={clearAll}
                     className="block mx-auto mt-3 text-sm text-primary hover:underline"
                   >
-                    {lang === "ar" ? "مسح الفلاتر" : "Clear filters"}
+                    {ar ? "مسح الفلاتر" : "Clear filters"}
                   </button>
                 )}
               </div>
             )}
 
             <div className="grid gap-5 sm:grid-cols-2">
-              {filtered.map((d) => (
+              {paged.map((d) => (
                 <DoctorCard key={d.id} d={d} lang={lang} />
               ))}
             </div>
+
+            {totalPages > 1 && (
+              <Pagination
+                page={safePage}
+                totalPages={totalPages}
+                onGo={goPage}
+                ar={ar}
+              />
+            )}
           </main>
         </div>
       </div>
     </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onGo,
+  ar,
+}: {
+  page: number;
+  totalPages: number;
+  onGo: (p: number) => void;
+  ar: boolean;
+}) {
+  // Build a compact page list: [1, …, page-1, page, page+1, …, total]
+  const pages = useMemo(() => {
+    const set = new Set<number>([1, totalPages, page - 1, page, page + 1]);
+    return Array.from(set)
+      .filter((p) => p >= 1 && p <= totalPages)
+      .sort((a, b) => a - b);
+  }, [page, totalPages]);
+
+  // In RTL, keep visual order matching reading order — a horizontal flex
+  // in an RTL container already flips; icons use dir-safe rotation.
+  return (
+    <nav
+      className="mt-8 flex items-center justify-center gap-1"
+      role="navigation"
+      aria-label={ar ? "التنقل بين الصفحات" : "Pagination"}
+    >
+      <button
+        type="button"
+        onClick={() => onGo(page - 1)}
+        disabled={page <= 1}
+        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
+        aria-label={ar ? "السابق" : "Previous"}
+      >
+        {ar ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        <span className="hidden sm:inline">{ar ? "السابق" : "Previous"}</span>
+      </button>
+
+      {pages.map((p, i) => {
+        const prev = pages[i - 1];
+        const gap = prev != null && p - prev > 1;
+        return (
+          <span key={p} className="flex items-center gap-1">
+            {gap && <span className="px-1 text-muted-foreground">…</span>}
+            <button
+              type="button"
+              onClick={() => onGo(p)}
+              aria-current={p === page ? "page" : undefined}
+              className={`h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold transition ${
+                p === page
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card hover:border-primary hover:text-primary"
+              }`}
+            >
+              {p.toLocaleString(ar ? "ar-SA" : "en-US")}
+            </button>
+          </span>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={() => onGo(page + 1)}
+        disabled={page >= totalPages}
+        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
+        aria-label={ar ? "التالي" : "Next"}
+      >
+        <span className="hidden sm:inline">{ar ? "التالي" : "Next"}</span>
+        {ar ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      </button>
+    </nav>
   );
 }
 
@@ -480,9 +688,7 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
   const branchLabel = branchNames.length
     ? branchNames.length === 1
       ? branchNames[0]
-      : lang === "ar"
-        ? `${branchNames[0]} +${branchNames.length - 1}`
-        : `${branchNames[0]} +${branchNames.length - 1}`
+      : `${branchNames[0]} +${branchNames.length - 1}`
     : null;
 
   return (
