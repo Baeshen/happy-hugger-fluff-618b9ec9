@@ -708,7 +708,26 @@ function DoctorRatings({ doctorId, lang }: { doctorId: string; lang: string }) {
   );
 }
 
+// Module-level cache of image URLs known to be fully loaded or successfully
+// prefetched during this session. Prevents redundant preload fetches when the
+// user re-navigates to a photo they've already seen. Bounded to avoid unbounded
+// memory growth on very large galleries — oldest entries are evicted first.
+const IMAGE_READY_CACHE = new Set<string>();
+const IMAGE_READY_LIMIT = 200;
+function isImageReady(src: string): boolean {
+  return IMAGE_READY_CACHE.has(src);
+}
+function markImageReady(src: string): void {
+  if (IMAGE_READY_CACHE.has(src)) return;
+  if (IMAGE_READY_CACHE.size >= IMAGE_READY_LIMIT) {
+    const oldest = IMAGE_READY_CACHE.values().next().value;
+    if (oldest) IMAGE_READY_CACHE.delete(oldest);
+  }
+  IMAGE_READY_CACHE.add(src);
+}
+
 function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: string; alt: string; lang: string }) {
+
   const ar = lang === "ar";
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
