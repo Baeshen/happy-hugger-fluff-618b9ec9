@@ -156,13 +156,6 @@ export const Route = createFileRoute("/doctors/")({
   component: DoctorsPage,
 });
 
-const LANG_LABELS: Record<string, { ar: string; en: string }> = {
-  ar: { ar: "العربية", en: "Arabic" },
-  en: { ar: "الإنجليزية", en: "English" },
-  ur: { ar: "الأوردو", en: "Urdu" },
-  hi: { ar: "الهندية", en: "Hindi" },
-  fr: { ar: "الفرنسية", en: "French" },
-};
 
 function DoctorsPage() {
   const params = Route.useSearch();
