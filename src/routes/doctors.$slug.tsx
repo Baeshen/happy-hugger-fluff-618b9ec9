@@ -402,8 +402,11 @@ function DoctorDetail() {
               </div>
             )}
 
+            <DoctorRatings doctorId={d.id} lang={lang} />
+
             <BookingPolicy lang={lang} />
           </div>
+
 
 
           <aside className="space-y-6">
