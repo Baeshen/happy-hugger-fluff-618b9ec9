@@ -25,8 +25,10 @@ type Doctor = {
   languages: string[] | null;
   gender: string | null;
   years_experience: number | null;
-  education: string | null;
-  experience: string | null;
+  education_ar: string | null;
+  education_en: string | null;
+  experience_ar: string | null;
+  experience_en: string | null;
   booking_enabled: boolean | null;
   branch_id: string | null;
   specialties: {
@@ -48,7 +50,7 @@ const doctorQuery = (slug: string) => ({
     const { data, error } = await supabase
       .from("doctors")
       .select(
-        "id, slug, name_ar, name_en, title_ar, title_en, bio_ar, bio_en, photo_url, photos, languages, gender, years_experience, education, experience, booking_enabled, branch_id, specialties(id, slug, name_ar, name_en), branches(id, name_ar, name_en)",
+        "id, slug, name_ar, name_en, title_ar, title_en, bio_ar, bio_en, photo_url, photos, languages, gender, years_experience, education_ar, education_en, experience_ar, experience_en, booking_enabled, branch_id, specialties(id, slug, name_ar, name_en), branches!doctors_branch_id_fkey(id, name_ar, name_en)",
       )
       .eq("slug", slug)
       .eq("is_active", true)
@@ -74,7 +76,7 @@ function addDaysIso(iso: string, days: number): string {
 function formatDateLabel(iso: string, lang: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
-  const locale = lang === "ar" ? "ar-SA" : "en-US";
+  const locale = lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US";
   return dt.toLocaleDateString(locale, {
     weekday: "short",
     day: "numeric",
@@ -849,8 +851,8 @@ function DoctorDetail() {
                   specSlug={d.specialties?.slug ?? null}
                   yearsExperience={d.years_experience}
                   languages={d.languages}
-                  education={d.education}
-                  experience={d.experience}
+                  education={ar ? d.education_ar : d.education_en}
+                  experience={ar ? d.experience_ar : d.experience_en}
                 />
               </TabsContent>
 

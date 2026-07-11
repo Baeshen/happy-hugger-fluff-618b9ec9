@@ -2531,75 +2531,41 @@ export type Database = {
           staff_reply_at: string
         }[]
       }
-      list_public_doctors:
-        | {
-            Args: {
-              _branch?: string
-              _gender?: string
-              _language?: string
-              _limit?: number
-              _offset?: number
-              _q?: string
-              _specialty?: string
-            }
-            Returns: {
-              avg_rating: number
-              booking_enabled: boolean
-              branch_ids: string[]
-              branch_names_ar: string[]
-              branch_slugs: string[]
-              gender: string
-              id: string
-              languages: string[]
-              name_ar: string
-              name_en: string
-              photo_url: string
-              ratings_count: number
-              slug: string
-              specialty_id: string
-              specialty_name_ar: string
-              specialty_name_en: string
-              title_ar: string
-              title_en: string
-              total_count: number
-              years_experience: number
-            }[]
-          }
-        | {
-            Args: {
-              _branch_id?: string
-              _gender?: string
-              _language?: string
-              _limit?: number
-              _offset?: number
-              _q?: string
-              _specialty_slug?: string
-            }
-            Returns: {
-              avg_rating: number
-              bio_ar: string
-              bio_en: string
-              booking_enabled: boolean
-              branch_id: string
-              branch_name_ar: string
-              branch_name_en: string
-              gender: string
-              id: string
-              languages: string[]
-              name_ar: string
-              name_en: string
-              photo_url: string
-              ratings_count: number
-              slug: string
-              specialty_id: string
-              specialty_name_ar: string
-              specialty_name_en: string
-              specialty_slug: string
-              title_ar: string
-              title_en: string
-              years_experience: number
-            }[]
-          }
+      list_public_doctors: {
+        Args: {
+          _branch_id?: string
+          _gender?: string
+          _language?: string
+          _limit?: number
+          _offset?: number
+          _q?: string
+          _specialty_slug?: string
+        }
+        Returns: {
+          avg_rating: number
+          bio_ar: string
+          bio_en: string
+          booking_enabled: boolean
+          branch_id: string
+          branch_name_ar: string
+          branch_name_en: string
+          gender: string
+          id: string
+          languages: string[]
+          name_ar: string
+          name_en: string
+          photo_url: string
+          ratings_count: number
+          slug: string
+          specialty_id: string
+          specialty_name_ar: string
+          specialty_name_en: string
+          specialty_slug: string
+          title_ar: string
+          title_en: string
+          years_experience: number
+        }[]
+      }
       list_public_doctors_for_rating: {
         Args: { _branch_id?: string }
         Returns: {
