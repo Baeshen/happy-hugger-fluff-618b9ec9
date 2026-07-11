@@ -516,6 +516,23 @@ function BookPage() {
         <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           {/* Main card */}
           <div className="rounded-2xl border border-border bg-card p-6 md:p-8 shadow-sm">
+            {draftRestored && (
+              <div className="mb-5 flex items-start justify-between gap-3 rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs">
+                <div className="flex items-start gap-2 text-foreground">
+                  <CheckCircle2 className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                  <span>
+                    استعدنا بياناتك من جلسة سابقة لتكمل من حيث توقفت.
+                  </span>
+                </div>
+                <button
+                  onClick={clearDraft}
+                  className="text-primary font-semibold hover:underline shrink-0"
+                >
+                  بدء من جديد
+                </button>
+              </div>
+            )}
+
             {step === 1 && (
               <div>
                 <h2 className="text-lg font-bold mb-1">{t("choose_specialty")}</h2>
