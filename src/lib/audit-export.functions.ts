@@ -198,16 +198,27 @@ export const fetchAuditExport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertStaff(context.supabase, context.userId);
     const supabase = context.supabase;
+    let rows: unknown[] = [];
     switch (data.kind) {
       case "appointment_audit":
-        return await fetchAppointmentAudit(supabase, data);
+        rows = await fetchAppointmentAudit(supabase, data); break;
       case "security_audit_log":
-        return await fetchSecurityAudit(supabase, data);
+        rows = await fetchSecurityAudit(supabase, data); break;
       case "reminder_preference_audit":
-        return await fetchReminderAudit(supabase, data);
+        rows = await fetchReminderAudit(supabase, data); break;
       case "dashboard_recent_activity":
-        return await fetchDashboardRecent(supabase, data);
+        rows = await fetchDashboardRecent(supabase, data); break;
     }
+    await logAppEvent(supabase, "audit.export", {
+      kind: data.kind,
+      from: data.from ?? null,
+      to: data.to ?? null,
+      branch_id: data.branch_id ?? null,
+      actor_id: data.actor_id ?? null,
+      event: data.event ?? null,
+      row_count: rows.length,
+    });
+    return rows;
   });
 
 export const listBranchesForAudit = createServerFn({ method: "GET" })
