@@ -111,7 +111,7 @@ function reducer(s: State, a: Action): State {
   switch (a.t) {
     case "set":         return { ...s, ...a.p };
     case "setPatient":  return { ...s, patient: { ...s.patient, ...a.p } };
-    case "goto":        return { ...s, step: Math.max(1, Math.min(8, a.step)) };
+    case "goto":        return { ...s, step: Math.max(1, Math.min(9, a.step)) };
     case "reset":       return { ...INITIAL };
   }
 }
@@ -192,6 +192,7 @@ function BookPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [result, setResult] = useState<{ reference: string | null; phone: string } | null>(null);
 
   const { data: branches = [] }    = useQuery({ queryKey: ["branches"], queryFn: fetchBranches, staleTime: 5*60_000 });
   const { data: specialties = [] } = useQuery({ queryKey: ["specialties-active"], queryFn: fetchSpecialties, staleTime: 5*60_000 });
@@ -259,18 +260,24 @@ function BookPage() {
     if (res.ok) {
       try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
       toast.success(lang === "ar" ? "تم إنشاء الحجز بنجاح" : "Booking created");
-      navigate({
-        to: "/booking-confirmation",
-        search: { ref: res.reference ?? undefined, phone: p.phone.trim() },
-      });
+      setResult({ reference: res.reference, phone: p.phone.trim() });
+      dispatch({ t: "goto", step: 9 });
     } else {
       setErrorMsg(res.message);
     }
   }
 
+  function handleReset() {
+    setResult(null);
+    setErrorMsg(null);
+    dispatch({ t: "reset" });
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+    navigate({ to: "/book", search: {} });
+  }
+
   const STEPS = lang === "ar"
-    ? ["نوع الخدمة", "الفرع", "التخصص", "الطبيب", "التاريخ", "الوقت", "بياناتك", "المراجعة"]
-    : ["Service", "Branch", "Specialty", "Doctor", "Date", "Time", "Your info", "Review"];
+    ? ["نوع الخدمة", "الفرع", "التخصص", "الطبيب", "التاريخ", "الوقت", "بياناتك", "المراجعة", "التأكيد"]
+    : ["Service", "Branch", "Specialty", "Doctor", "Date", "Time", "Your info", "Review", "Confirmed"];
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -287,7 +294,8 @@ function BookPage() {
         </header>
 
         <Stepper steps={STEPS} current={state.step} onJump={(i) => {
-          // Allow jumping back only.
+          // Allow jumping back only, and never off the success step.
+          if (state.step === 9) return;
           if (i + 1 < state.step) dispatch({ t: "goto", step: i + 1 });
         }}/>
 
@@ -300,28 +308,31 @@ function BookPage() {
           {state.step === 6 && <StepTime lang={lang} value={state.time} avail={avail} onPick={(v) => { dispatch({ t: "set", p: { time: v } }); dispatch({ t: "goto", step: 7 }); }}/>}
           {state.step === 7 && <StepPatient lang={lang} value={state.patient} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
           {state.step === 8 && <StepReview lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} errorMsg={errorMsg} submitting={submitting} onSubmit={handleSubmit}/>}
+          {state.step === 9 && result && <StepSuccess lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} reference={result.reference} phone={result.phone} onNewBooking={handleReset}/>}
         </div>
 
-        <div className="mt-4 flex items-center justify-between">
-          <Button
-            variant="outline"
-            disabled={state.step === 1}
-            onClick={() => dispatch({ t: "goto", step: state.step - 1 })}
-            className="gap-1"
-          >
-            {lang === "ar" ? <><ChevronRight className="h-4 w-4"/>السابق</> : <><ChevronLeft className="h-4 w-4"/>Back</>}
-          </Button>
-
-          {state.step < 8 && (
+        {state.step < 9 && (
+          <div className="mt-4 flex items-center justify-between">
             <Button
-              disabled={!canNext}
-              onClick={() => dispatch({ t: "goto", step: state.step + 1 })}
+              variant="outline"
+              disabled={state.step === 1}
+              onClick={() => dispatch({ t: "goto", step: state.step - 1 })}
               className="gap-1"
             >
-              {lang === "ar" ? <>التالي<ChevronLeft className="h-4 w-4"/></> : <>Next<ChevronRight className="h-4 w-4"/></>}
+              {lang === "ar" ? <><ChevronRight className="h-4 w-4"/>السابق</> : <><ChevronLeft className="h-4 w-4"/>Back</>}
             </Button>
-          )}
-        </div>
+
+            {state.step < 8 && (
+              <Button
+                disabled={!canNext}
+                onClick={() => dispatch({ t: "goto", step: state.step + 1 })}
+                className="gap-1"
+              >
+                {lang === "ar" ? <>التالي<ChevronLeft className="h-4 w-4"/></> : <>Next<ChevronRight className="h-4 w-4"/></>}
+              </Button>
+            )}
+          </div>
+        )}
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           {lang === "ar" ? "لديك حجز مسبق؟" : "Already booked?"}{" "}
@@ -812,6 +823,104 @@ function StepShell({ lang, title, children }: { lang: "ar"|"en"; title: string; 
     <div>
       <h2 className="text-xl md:text-2xl font-bold mb-5 text-center">{title}</h2>
       {children}
+    </div>
+  );
+}
+
+/* ================================================================
+   Step 9 — Success / booking confirmation (inline)
+   ================================================================ */
+
+function StepSuccess({
+  lang, state, branches, specialties, doctors, reference, phone, onNewBooking,
+}: {
+  lang: "ar"|"en"; state: State; branches: any[]; specialties: any[]; doctors: any[];
+  reference: string | null; phone: string; onNewBooking: () => void;
+}) {
+  const branch = branches.find((b) => b.id === state.branchId);
+  const spec   = specialties.find((s) => s.id === state.specialtyId);
+  const doc    = doctors.find((d: any) => d.id === state.doctorId);
+  const rows = [
+    { label: lang === "ar" ? "الفرع" : "Branch", value: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : "—" },
+    { label: lang === "ar" ? "التخصص" : "Specialty", value: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : "—" },
+    { label: lang === "ar" ? "الطبيب" : "Doctor", value: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : "—" },
+    { label: lang === "ar" ? "التاريخ" : "Date", value: state.date ?? "—" },
+    { label: lang === "ar" ? "الوقت" : "Time", value: state.time ?? "—" },
+    { label: lang === "ar" ? "الاسم" : "Name", value: state.patient.name },
+    { label: lang === "ar" ? "الجوال" : "Phone", value: phone },
+  ];
+
+  async function copyRef() {
+    if (!reference) return;
+    try {
+      await navigator.clipboard.writeText(reference);
+      toast.success(lang === "ar" ? "تم نسخ رقم الحجز" : "Reference copied");
+    } catch {
+      toast.error(lang === "ar" ? "تعذّر النسخ" : "Copy failed");
+    }
+  }
+
+  return (
+    <div className="max-w-xl mx-auto text-center">
+      <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 grid place-items-center mb-4">
+        <CheckCircle2 className="h-12 w-12 text-emerald-600 dark:text-emerald-400"/>
+      </div>
+      <h2 className="text-2xl md:text-3xl font-bold">
+        {lang === "ar" ? "تم تأكيد حجزك" : "Your booking is confirmed"}
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {lang === "ar"
+          ? "سنتواصل معك لتأكيد الموعد. احتفظ برقم الحجز لأي استفسار."
+          : "We'll contact you to confirm. Keep your reference for any inquiry."}
+      </p>
+
+      {reference && (
+        <div className="mt-6 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-4">
+          <div className="text-xs text-muted-foreground mb-1">
+            {lang === "ar" ? "رقم الحجز" : "Booking reference"}
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <span className="text-2xl md:text-3xl font-mono font-bold tracking-wider text-primary">
+              {reference}
+            </span>
+            <Button variant="outline" size="sm" onClick={copyRef} className="gap-1">
+              <ClipboardList className="h-4 w-4"/>
+              {lang === "ar" ? "نسخ" : "Copy"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <dl className="mt-6 rounded-xl border border-border divide-y divide-border overflow-hidden text-start">
+        {rows.map((r) => (
+          <div key={r.label} className="grid grid-cols-3 p-3 text-sm">
+            <dt className="text-muted-foreground col-span-1">{r.label}</dt>
+            <dd className="col-span-2 font-medium">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <Link
+          to="/booking-confirmation"
+          search={{ ref: reference ?? undefined, phone } as never}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-bold hover:opacity-90"
+        >
+          <CheckCircle2 className="h-4 w-4"/>
+          {lang === "ar" ? "عرض التفاصيل الكاملة" : "View full details"}
+        </Link>
+        <Button variant="outline" onClick={onNewBooking} className="gap-2 h-auto py-3">
+          <CalIcon className="h-4 w-4"/>
+          {lang === "ar" ? "حجز جديد" : "New booking"}
+        </Button>
+      </div>
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        {lang === "ar" ? "لديك استفسار؟ " : "Questions? "}
+        <Link to="/track" className="text-primary hover:underline">
+          {lang === "ar" ? "تتبع حجزك" : "Track your booking"}
+        </Link>
+      </p>
     </div>
   );
 }
