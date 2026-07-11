@@ -293,7 +293,7 @@ function InlineBookingWidget({
   // Success state.
   if (step === 5) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+      <div id="book" ref={widgetRef} className="rounded-2xl border border-border bg-card p-6 text-center scroll-mt-24">
         <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-emerald-600">
           <ClipboardCheck className="h-6 w-6" />
         </div>
