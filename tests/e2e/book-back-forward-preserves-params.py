@@ -121,13 +121,9 @@ async def main():
         if "step=5" not in restored:
             raise AssertionError(f"[4] Forward missing step=5: {restored}")
 
-        # Filter benign noise (missing assets, unrelated hydration mismatches).
-        real = [
-            e for e in errors
-            if "Failed to load resource" not in e
-            and "Hydration failed" not in e
-            and "hydration" not in e.lower()
-        ]
+        # Filter only benign missing-asset noise.
+        real = [e for e in errors if "Failed to load resource" not in e]
+
         if real:
             print("console/page errors:", real)
             raise AssertionError("unexpected errors on page")
