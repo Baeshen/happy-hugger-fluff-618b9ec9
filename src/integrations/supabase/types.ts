@@ -2480,6 +2480,14 @@ export type Database = {
           start_date: string
         }[]
       }
+      list_doctors_next_slot: {
+        Args: { _doctor_ids: string[] }
+        Returns: {
+          doctor_id: string
+          next_slot_at: string
+          next_slot_branch_id: string
+        }[]
+      }
       list_public_branches: {
         Args: never
         Returns: {
