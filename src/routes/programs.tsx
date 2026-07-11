@@ -3,7 +3,7 @@ import {
   HeartPulse,
   Building2,
   Home,
-  Stethoscope,
+  Stethoscope as _Stethoscope,
   Baby,
   Plane,
   Video,
