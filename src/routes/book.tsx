@@ -269,7 +269,7 @@ function BookPage() {
     const t = window.setTimeout(() => {
       navigate({
         to: "/book",
-        search: (prev) => ({ ...prev, step: state.step }),
+        search: (prev: Record<string, unknown>) => ({ ...prev, step: state.step }),
         replace: true,
       });
     }, 50);
