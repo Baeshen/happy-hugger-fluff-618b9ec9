@@ -5,28 +5,71 @@ import { useI18n } from "@/lib/i18n";
 import { PageHero } from "@/components/PageShell";
 import { accreditationsQuery, type Accreditation } from "@/lib/accreditations";
 
-const SITE_URL = "https://happy-hugger-fluff.lovable.app";
+const SITE_URL = "https://bashenmedical.com";
 const PAGE_URL = `${SITE_URL}/accreditations`;
+const PAGE_TITLE = "الاعتمادات والجوائز الطبية | مجمع باعشن الطبي";
+const PAGE_DESC =
+  "شهادات واعتمادات مجمع باعشن الطبي المحلية والدولية: CBAHI، ACHSI، HIMSS، CAP، ISO 9001 و14001 — دليل التزامنا بأعلى معايير جودة الرعاية الصحية والسلامة.";
+const OG_TITLE = "الاعتمادات والجوائز الطبية | مجمع باعشن";
+const OG_DESC =
+  "اعتمادات محلية ودولية معتمدة (CBAHI، ACHSI، HIMSS، CAP، ISO) تؤكد جودة الرعاية والسلامة في مجمع باعشن الطبي.";
 
 export const Route = createFileRoute("/accreditations")({
   loader: ({ context }) => context.queryClient.ensureQueryData(accreditationsQuery()),
   head: () => ({
     meta: [
-      { title: "الاعتمادات والجوائز — مجمع باعشن الطبي" },
+      { title: PAGE_TITLE },
+      { name: "description", content: PAGE_DESC },
       {
-        name: "description",
+        name: "keywords",
         content:
-          "الشهادات والاعتمادات المحلية والدولية التي حصل عليها مجمع باعشن الطبي: CBAHI، ACHSI، HIMSS، CAP، ISO وغيرها.",
+          "اعتمادات مجمع باعشن, شهادات جودة طبية, CBAHI, ACHSI, HIMSS, CAP, ISO 9001, ISO 14001, جودة الرعاية الصحية, مستشفى معتمد جدة",
       },
-      { property: "og:title", content: "الاعتمادات والجوائز — مجمع باعشن" },
-      {
-        property: "og:description",
-        content: "معايير جودة عالمية واعتمادات معتمدة تُثبت التزامنا بأعلى مستويات الرعاية.",
-      },
+      { property: "og:title", content: OG_TITLE },
+      { property: "og:description", content: OG_DESC },
       { property: "og:type", content: "website" },
       { property: "og:url", content: PAGE_URL },
+      { property: "og:site_name", content: "مجمع باعشن الطبي" },
+      { property: "og:locale", content: "ar_SA" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: OG_TITLE },
+      { name: "twitter:description", content: OG_DESC },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: PAGE_TITLE,
+          description: PAGE_DESC,
+          url: PAGE_URL,
+          inLanguage: "ar",
+          isPartOf: { "@type": "WebSite", name: "مجمع باعشن الطبي", url: SITE_URL },
+          about: {
+            "@type": "MedicalOrganization",
+            name: "مجمع باعشن الطبي",
+            url: SITE_URL,
+            hasCredential: [
+              "CBAHI Accreditation",
+              "ACHSI International Accreditation",
+              "HIMSS Analytics",
+              "College of American Pathologists (CAP)",
+              "ISO 9001 Quality Management",
+              "ISO 14001 Environmental Management",
+            ],
+          },
+          breadcrumb: {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "الرئيسية", item: SITE_URL },
+              { "@type": "ListItem", position: 2, name: "الاعتمادات والجوائز", item: PAGE_URL },
+            ],
+          },
+        }),
+      },
+    ],
   }),
   component: AccreditationsPage,
   errorComponent: ({ error, reset }) => (
