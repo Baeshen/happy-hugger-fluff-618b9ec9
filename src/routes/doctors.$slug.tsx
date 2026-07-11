@@ -877,6 +877,37 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
  * Progressive image with a skeleton shimmer that fades away once the
  * image has loaded. Uses native lazy loading + async decoding by default.
  */
+/**
+ * Rewrites a Supabase Storage public object URL to the on-the-fly render
+ * endpoint with a width query. Returns the original URL for any other host
+ * so external images still work (browser will just ignore the srcset entry).
+ */
+function withWidth(src: string, width: number): string {
+  try {
+    const u = new URL(src, typeof window !== "undefined" ? window.location.href : "http://localhost");
+    if (u.pathname.includes("/storage/v1/object/public/")) {
+      u.pathname = u.pathname.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/");
+    }
+    if (u.pathname.includes("/storage/v1/render/image/public/")) {
+      u.searchParams.set("width", String(width));
+      u.searchParams.set("quality", "80");
+      return u.toString();
+    }
+  } catch {
+    /* ignore malformed URL */
+  }
+  return src;
+}
+
+function buildSrcSet(src: string, widths: number[]): string | undefined {
+  const rewritten = widths.map((w) => `${withWidth(src, w)} ${w}w`);
+  // Only emit srcset when at least one entry actually differs from the src
+  // (i.e. the URL supports transformation) — otherwise skip to avoid
+  // repeating the same URL at every descriptor.
+  const usable = widths.some((w) => withWidth(src, w) !== src);
+  return usable ? rewritten.join(", ") : undefined;
+}
+
 function ProgressiveImage({
   src,
   alt,
@@ -886,6 +917,8 @@ function ProgressiveImage({
   fetchPriority,
   ariaHidden,
   spinnerLight,
+  widths,
+  sizes,
 }: {
   src: string;
   alt: string;
@@ -895,6 +928,10 @@ function ProgressiveImage({
   fetchPriority?: "high" | "low" | "auto";
   ariaHidden?: boolean;
   spinnerLight?: boolean;
+  /** Candidate widths in px. When provided, an srcSet is built. */
+  widths?: number[];
+  /** CSS `sizes` attribute — required for `widths` to be effective. */
+  sizes?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -903,6 +940,8 @@ function ProgressiveImage({
     setLoaded(false);
     setFailed(false);
   }, [src]);
+
+  const srcSet = widths && widths.length ? buildSrcSet(src, widths) : undefined;
 
   return (
     <div className={`relative overflow-hidden bg-muted ${className}`}>
@@ -916,6 +955,8 @@ function ProgressiveImage({
       )}
       <img
         src={src}
+        srcSet={srcSet}
+        sizes={srcSet ? sizes : undefined}
         alt={alt}
         aria-hidden={ariaHidden || undefined}
         loading={loading}
