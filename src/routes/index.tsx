@@ -11,14 +11,18 @@ import { StatsBar } from "@/components/home/StatsBar";
 import { AwardsMarquee } from "@/components/home/AwardsMarquee";
 import { HeroSlider } from "@/components/home/HeroSlider";
 import { WhyChooseUs } from "@/components/home/WhyChooseUs";
+import ogHomeAsset from "@/assets/og-home.jpg.asset.json";
 
 const HOME_URL = "https://bashenmedical.com/";
 const HOME_TITLE =
   "مجمع باعشن الطبي بصبيا جازان — حجز أطباء استشاريين وصيدلية | Baeshen Medical";
 const HOME_DESC =
   "مجمع باعشن الطبي في صبيا، جازان — معتمد من CBAHI. احجز موعدك مع استشاريين في الباطنة والأطفال والنساء والولادة والأسنان والعيون، واطلب دواءك من صيدلياتنا مع خدمة رعاية منزلية.";
-const HOME_OG_IMAGE =
-  "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/da5ecdb6-8fc6-4806-a4f3-419040820761/id-preview-7a856abf--550c7bc5-80b4-4118-853f-28cc7bd42f26.lovable.app-1783385951418.png";
+const HOME_OG_IMAGE = `https://bashenmedical.com${ogHomeAsset.url}`;
+const OG_IMAGE_ALT_AR =
+  "بطاقة مشاركة مجمع باعشن الطبي في صبيا، جازان — معتمد من CBAHI مع اسم المجمع وشعار الهلال والسمّاعة";
+const OG_IMAGE_ALT_EN =
+  "Baeshen Medical Complex share card — Sabya, Jazan, Saudi Arabia — CBAHI accredited";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(clinicSettingsQuery()),
@@ -43,13 +47,18 @@ export const Route = createFileRoute("/")({
       { property: "og:locale", content: "ar_SA" },
       { property: "og:locale:alternate", content: "en_US" },
       { property: "og:image", content: HOME_OG_IMAGE },
-      { property: "og:image:alt", content: "مجمع باعشن الطبي بصبيا، جازان" },
+      { property: "og:image:secure_url", content: HOME_OG_IMAGE },
+      { property: "og:image:type", content: "image/jpeg" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: OG_IMAGE_ALT_AR },
       // Twitter
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@BaeshenMedical" },
       { name: "twitter:title", content: HOME_TITLE },
       { name: "twitter:description", content: HOME_DESC },
       { name: "twitter:image", content: HOME_OG_IMAGE },
-      { name: "twitter:image:alt", content: "مجمع باعشن الطبي بصبيا، جازان" },
+      { name: "twitter:image:alt", content: OG_IMAGE_ALT_EN },
     ],
     links: [
       { rel: "canonical", href: HOME_URL },
