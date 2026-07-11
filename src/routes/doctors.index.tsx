@@ -178,7 +178,7 @@ function DoctorsPage() {
     if (qTimerRef.current) window.clearTimeout(qTimerRef.current);
     qTimerRef.current = window.setTimeout(() => {
       navigate({
-        search: (prev) => ({ ...prev, q: qLocal, page: 1 }),
+        search: (prev: SearchParams) => ({ ...prev, q: qLocal, page: 1 }),
         replace: true,
       });
     }, 300);
@@ -190,7 +190,7 @@ function DoctorsPage() {
 
   const setSearch = (patch: Record<string, unknown>) => {
     navigate({
-      search: (prev) => ({ ...prev, ...patch, page: 1 }),
+      search: (prev: SearchParams) => ({ ...prev, ...patch, page: 1 }),
       replace: true,
     });
   };
@@ -276,7 +276,7 @@ function DoctorsPage() {
   const safePage = Math.min(page, totalPages);
   useEffect(() => {
     if (safePage !== page) {
-      navigate({ search: (prev) => ({ ...prev, page: safePage }), replace: true });
+      navigate({ search: (prev: SearchParams) => ({ ...prev, page: safePage }), replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safePage, page]);
@@ -285,7 +285,7 @@ function DoctorsPage() {
 
   const goPage = (p: number) => {
     const clamped = Math.max(1, Math.min(totalPages, p));
-    navigate({ search: (prev) => ({ ...prev, page: clamped }) });
+    navigate({ search: (prev: SearchParams) => ({ ...prev, page: clamped }) });
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
