@@ -310,6 +310,25 @@ function DoctorDetail() {
   const gallery = Array.from(
     new Set([d.photo_url, ...(d.photos ?? [])].filter((u): u is string => !!u)),
   );
+  const hasPhoto = gallery.length > 0;
+
+  // Descriptive alt text: doctor + title + specialty.
+  const photoAlt = [
+    lang === "ar" ? `صورة ${name}` : `Photo of ${name}`,
+    jobTitle,
+    specName,
+  ]
+    .filter(Boolean)
+    .join(" — ");
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0))
+    .join("");
+  const noPhotoLabel =
+    lang === "ar" ? "لا تتوفر صورة لهذا الطبيب" : "No photo available for this doctor";
+
 
   return (
     <div>
