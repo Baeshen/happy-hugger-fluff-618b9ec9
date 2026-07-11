@@ -98,18 +98,56 @@ export const Route = createFileRoute("/doctors/")({
     }),
   head: ({ loaderData }) => {
     const list = (loaderData as DoctorRow[] | undefined) ?? [];
+    const listed = list.filter((d) => d.slug);
+
+    const buildPhysician = (d: DoctorRow) => {
+      const url = `${SITE_URL}/doctors/${encodeURIComponent(d.slug!)}`;
+      const node: Record<string, unknown> = {
+        "@context": "https://schema.org",
+        "@type": "Physician",
+        "@id": url,
+        name: d.name_ar,
+        alternateName: d.name_en || undefined,
+        url,
+      };
+      if (d.photo_url) node.image = d.photo_url;
+      if (d.specialty_name_ar || d.specialty_name_en) {
+        node.medicalSpecialty = d.specialty_name_en || d.specialty_name_ar;
+      }
+      if (d.languages && d.languages.length > 0) node.knowsLanguage = d.languages;
+      if (d.gender === "male" || d.gender === "female") node.gender = d.gender;
+      if (d.branch_names_ar && d.branch_names_ar.length > 0) {
+        node.affiliation = d.branch_names_ar.map((name) => ({
+          "@type": "Hospital",
+          name,
+        }));
+      }
+      if (d.ratings_count > 0 && d.avg_rating > 0) {
+        node.aggregateRating = {
+          "@type": "AggregateRating",
+          ratingValue: Number(d.avg_rating).toFixed(1),
+          reviewCount: d.ratings_count,
+          bestRating: "5",
+          worstRating: "1",
+        };
+      }
+      return node;
+    };
+
     const itemList = {
       "@context": "https://schema.org",
       "@type": "ItemList",
-      itemListElement: list
-        .filter((d) => d.slug)
-        .map((d, i) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          name: d.name_ar,
-          url: `${SITE_URL}/doctors/${encodeURIComponent(d.slug!)}`,
-        })),
+      name: PAGE_TITLE,
+      numberOfItems: listed.length,
+      itemListOrder: "https://schema.org/ItemListOrderAscending",
+      itemListElement: listed.map((d, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${SITE_URL}/doctors/${encodeURIComponent(d.slug!)}`,
+        item: buildPhysician(d),
+      })),
     };
+
     return {
       meta: [
         { title: PAGE_TITLE },
@@ -132,7 +170,7 @@ export const Route = createFileRoute("/doctors/")({
             ]),
           ),
         },
-        ...(itemList.itemListElement.length > 0
+        ...(listed.length > 0
           ? [{ type: "application/ld+json", children: JSON.stringify(itemList) }]
           : []),
       ],
