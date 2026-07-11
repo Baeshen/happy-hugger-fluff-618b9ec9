@@ -784,7 +784,7 @@ function StepReview({
           ))}
         </dl>
 
-        {errorMsg && <div className="mt-4"><SubmitErrorBanner message={errorMsg}/></div>}
+        {errorMsg && <div className="mt-4"><SubmitErrorBanner kind="unknown" message={errorMsg}/></div>}
 
         <Button
           onClick={onSubmit}
