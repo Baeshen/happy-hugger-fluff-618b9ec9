@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.list_public_doctors(uuid, uuid, text, text, text, integer, integer);
