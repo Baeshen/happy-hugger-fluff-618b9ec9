@@ -1003,12 +1003,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
               // Touch is handled by onTouchStart/End; only track mouse/pen drag here.
               if (e.pointerType === "touch") return;
               swipeStartRef.current = { x: e.clientX, y: e.clientY };
+              // Cancel neighbor prefetches: the drag may go either direction.
+              abortInflightPrefetch();
               try {
                 (e.currentTarget as Element).setPointerCapture(e.pointerId);
               } catch {
                 /* no-op */
               }
             }}
+
             onPointerUp={(e) => {
               if (e.pointerType === "touch") return;
               const start = swipeStartRef.current;
