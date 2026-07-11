@@ -832,6 +832,7 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   useEffect(() => {
     if (!open || total <= 1) return;
     const controller = new AbortController();
+    prefetchAbortRef.current = controller;
     const neighbors = Array.from(
       new Set([
         photos[(active + 1) % total],
@@ -861,7 +862,11 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
 
     return () => {
       controller.abort();
+      if (prefetchAbortRef.current === controller) {
+        prefetchAbortRef.current = null;
+      }
     };
+
   }, [open, active, total, photos]);
 
 
