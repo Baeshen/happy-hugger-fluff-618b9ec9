@@ -222,6 +222,8 @@ function HomePage() {
         </div>
       </section>
 
+      <AwardsMarquee />
+
       {/* Map/Location */}
       <section className="py-16 bg-muted/40">
         <div className="container-app grid gap-8 md:grid-cols-2 items-center">
