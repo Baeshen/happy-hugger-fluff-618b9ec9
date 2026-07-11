@@ -951,22 +951,29 @@ function ProgressiveImage({
 
   const srcSet = widths && widths.length ? buildSrcSet(src, widths) : undefined;
 
+  const isLoading = !loaded && !failed;
+
   return (
-    <div className={`relative overflow-hidden bg-muted ${className}`}>
-      {!loaded && !failed && (
+    <div
+      className={`relative overflow-hidden bg-muted ${className}`}
+      aria-busy={isLoading || undefined}
+    >
+      {isLoading && (
         <div
-          className={`absolute inset-0 animate-pulse ${
-            spinnerLight ? "bg-white/10" : "bg-gradient-to-br from-muted via-muted/60 to-muted"
+          className={`absolute inset-0 ${
+            spinnerLight ? "skeleton-shimmer-light" : "skeleton-shimmer"
           }`}
-          aria-hidden
+          aria-hidden="true"
+          role="presentation"
         />
       )}
       <img
         src={src}
         srcSet={srcSet}
         sizes={srcSet ? sizes : undefined}
-        alt={alt}
+        alt={ariaHidden ? "" : alt}
         aria-hidden={ariaHidden || undefined}
+        role={ariaHidden ? "presentation" : undefined}
         loading={loading}
         decoding="async"
         // React types accept the camelCase prop; DOM lowercases at render.
@@ -979,4 +986,5 @@ function ProgressiveImage({
       />
     </div>
   );
+
 }
