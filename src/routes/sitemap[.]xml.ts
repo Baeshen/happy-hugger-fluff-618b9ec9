@@ -133,6 +133,30 @@ export const Route = createFileRoute("/sitemap.xml")({
                 priority: "0.8",
               });
             }
+            for (const a of (accreditationsRes as Array<{ id: string; created_at: string }>) ?? []) {
+              entries.push({
+                path: `/accreditations/${encodeURIComponent(a.id)}`,
+                lastmod: a.created_at?.slice(0, 10),
+                changefreq: "yearly",
+                priority: "0.6",
+              });
+            }
+            for (const e of (excellenceRes as Array<{ slug: string; created_at: string }>) ?? []) {
+              entries.push({
+                path: `/excellence/${encodeURIComponent(e.slug)}`,
+                lastmod: e.created_at?.slice(0, 10),
+                changefreq: "monthly",
+                priority: "0.7",
+              });
+            }
+            for (const s of (storiesRes as Array<{ slug: string; updated_at: string | null; created_at: string }>) ?? []) {
+              entries.push({
+                path: `/media/stories/${encodeURIComponent(s.slug)}`,
+                lastmod: (s.updated_at || s.created_at || "").slice(0, 10) || undefined,
+                changefreq: "monthly",
+                priority: "0.6",
+              });
+            }
           }
         } catch (err) {
           console.error("sitemap: failed to load dynamic entries", err);
