@@ -253,6 +253,19 @@ function TrackPage() {
     if (last) void runLookup(last);
   }
 
+  // Auto-lookup on mount when both ?ref & ?phone4 arrive from the wizard's
+  // "متابعة إلى حجوزاتي" button — user shouldn't re-type what we already know.
+  useEffect(() => {
+    if (autoRanRef.current) return;
+    if (!initialRef || !initialPhone4) return;
+    autoRanRef.current = true;
+    const parsed = schema.safeParse({ reference: initialRef, phone_last4: initialPhone4 });
+    if (!parsed.success) return;
+    lastQueryRef.current = parsed.data;
+    void runLookup(parsed.data);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRef, initialPhone4]);
+
   const status = appointment ? STATUS[appointment.status] ?? STATUS.new : null;
   const errorMeta = error ? ERROR_META[error.kind] : null;
 
