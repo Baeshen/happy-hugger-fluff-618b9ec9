@@ -124,7 +124,132 @@ export function buildLocalBusinessSchema({
         : []),
     ],
     isAcceptingNewPatients: true,
-  };
+    potentialAction: [
+      {
+        "@type": "ReserveAction",
+        name: "حجز موعد مع طبيب",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: "https://bashenmedical.com/book",
+          inLanguage: ["ar-SA", "en"],
+          actionPlatform: [
+            "https://schema.org/DesktopWebPlatform",
+            "https://schema.org/MobileWebPlatform",
+          ],
+        },
+        result: { "@type": "Reservation", name: "Doctor appointment reservation" },
+      },
+      {
+        "@type": "OrderAction",
+        name: "طلب دواء من الصيدلية",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: "https://bashenmedical.com/pharmacy",
+          inLanguage: ["ar-SA", "en"],
+          actionPlatform: [
+            "https://schema.org/DesktopWebPlatform",
+            "https://schema.org/MobileWebPlatform",
+          ],
+        },
+        deliveryMethod: ["http://purl.org/goodrelations/v1#DeliveryModeOwnFleet"],
+      },
+      {
+        "@type": "CommunicateAction",
+        name: "تواصل عبر واتساب",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: `https://wa.me/${(mobile ?? phone ?? "").replace(/[^\d]/g, "")}`,
+          inLanguage: ["ar-SA", "en"],
+          actionPlatform: ["https://schema.org/MobileWebPlatform"],
+        },
+      },
+      {
+        "@type": "ScheduleAction",
+        name: "طلب رعاية منزلية",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: "https://bashenmedical.com/home-care",
+          inLanguage: ["ar-SA", "en"],
+          actionPlatform: [
+            "https://schema.org/DesktopWebPlatform",
+            "https://schema.org/MobileWebPlatform",
+          ],
+        },
+      },
+    ],
+    makesOffer: [
+      {
+        "@type": "Offer",
+        name: "حجز موعد استشاري",
+        category: "MedicalConsultation",
+        url: "https://bashenmedical.com/book",
+        availability: "https://schema.org/InStock",
+        priceCurrency: currencies,
+      },
+      {
+        "@type": "Offer",
+        name: "طلب دواء وتوصيل",
+        category: "Pharmacy",
+        url: "https://bashenmedical.com/pharmacy",
+        availability: "https://schema.org/InStock",
+        priceCurrency: currencies,
+      },
+      {
+        "@type": "Offer",
+        name: "الرعاية الصحية المنزلية",
+        category: "HomeHealthCare",
+        url: "https://bashenmedical.com/home-care",
+        availability: "https://schema.org/InStock",
+        priceCurrency: currencies,
+      },
+      {
+        "@type": "Offer",
+        name: "الرأي الطبي الثاني",
+        category: "MedicalConsultation",
+        url: "https://bashenmedical.com/second-opinion",
+        availability: "https://schema.org/InStock",
+        priceCurrency: currencies,
+      },
+    ],
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "الخدمات الرئيسية — Baeshen Medical",
+      itemListElement: [
+        {
+          "@type": "OfferCatalog",
+          name: "العيادات والاستشاريون",
+          url: "https://bashenmedical.com/doctors",
+          itemListElement: specialties.map((sp) => ({
+            "@type": "Offer",
+            itemOffered: { "@type": "MedicalSpecialty", name: sp },
+          })),
+        },
+        {
+          "@type": "Offer",
+          name: "الصيدلية",
+          url: "https://bashenmedical.com/pharmacy",
+          itemOffered: { "@type": "Service", name: "Pharmacy & medication delivery" },
+        },
+        {
+          "@type": "Offer",
+          name: "الرعاية المنزلية",
+          url: "https://bashenmedical.com/home-care",
+          itemOffered: { "@type": "Service", name: "Home healthcare services" },
+        },
+        {
+          "@type": "Offer",
+          name: "الرأي الطبي الثاني",
+          url: "https://bashenmedical.com/second-opinion",
+          itemOffered: { "@type": "Service", name: "Second medical opinion" },
+        },
+        {
+          "@type": "Offer",
+          name: "خدمات الشركات",
+          url: "https://bashenmedical.com/corporate",
+          itemOffered: { "@type": "Service", name: "Corporate healthcare partnerships" },
+        },
+      ],
+    },
 
   if (amenities && amenities.length > 0) {
     base.amenityFeature = amenities.map((a) => ({
