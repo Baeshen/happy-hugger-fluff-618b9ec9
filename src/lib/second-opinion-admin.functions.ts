@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logAppEvent } from "./audit-log.server";
 import { z } from "zod";
 
 const STATUSES = ["received", "reviewing", "accepted", "rejected"] as const;
@@ -73,5 +74,9 @@ export const getSecondOpinionAttachmentUrls = createServerFn({ method: "POST" })
         .createSignedUrl(p, 60 * 10);
       out.push({ path: p, url: signed?.signedUrl ?? null });
     }
+    await logAppEvent(context.supabase, "second_opinion.signed_url_issued", {
+      paths: data.paths,
+      count: out.length,
+    });
     return out;
   });

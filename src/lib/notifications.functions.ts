@@ -4,6 +4,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logAppEvent } from "./audit-log.server";
 import { z } from "zod";
 
 type Role = "admin" | "super_admin" | "reception" | "doctor" | "pharmacy";
@@ -294,6 +295,10 @@ export const retryReminderDeliveriesBulk = createServerFn({ method: "POST" })
       .update({ send_status: "pending", last_error: null, sent_at: null } as never)
       .in("id", eligible);
     if (error) throw new Error(error.message);
+    await logAppEvent(context.supabase, "notifications.bulk_retry", {
+      requested: data.ids.length,
+      retried: eligible.length,
+    });
     return { ok: true, retried: eligible.length, skipped: data.ids.length - eligible.length };
   });
 
@@ -396,7 +401,16 @@ export const exportReminderDeliveriesCsv = createServerFn({ method: "POST" })
       );
     }
     // Prepend BOM so Excel opens Arabic content correctly
-    return { csv: "\uFEFF" + lines.join("\n") + "\n", count: rows?.length ?? 0, filename: buildFilename() };
+    const count = rows?.length ?? 0;
+    await logAppEvent(context.supabase, "notifications.export_csv", {
+      row_count: count,
+      branch_id: data.branchId ?? null,
+      from: data.dateFrom ?? null,
+      to: data.dateTo ?? null,
+      channel: data.channel ?? null,
+      status: data.status ?? null,
+    });
+    return { csv: "\uFEFF" + lines.join("\n") + "\n", count, filename: buildFilename() };
   });
 
 function buildFilename() {

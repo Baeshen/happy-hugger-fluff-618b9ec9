@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logAppEvent } from "./audit-log.server";
 import { z } from "zod";
 
 const MAX_ROWS = 10000;
@@ -28,7 +29,8 @@ const filterSchema = z.object({
   limit: z.number().int().min(1).max(MAX_ROWS).default(MAX_ROWS),
 });
 
-export type AuditRow = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AuditRow = Record<string, any>;
 
 async function fetchAppointmentAudit(supabase: any, f: z.infer<typeof filterSchema>) {
   let q = supabase
@@ -194,19 +196,30 @@ async function fetchDashboardRecent(supabase: any, f: z.infer<typeof filterSchem
 export const fetchAuditExport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => filterSchema.parse(d ?? {}))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<AuditRow[]> => {
     await assertStaff(context.supabase, context.userId);
     const supabase = context.supabase;
+    let rows: AuditRow[] = [];
     switch (data.kind) {
       case "appointment_audit":
-        return await fetchAppointmentAudit(supabase, data);
+        rows = await fetchAppointmentAudit(supabase, data); break;
       case "security_audit_log":
-        return await fetchSecurityAudit(supabase, data);
+        rows = await fetchSecurityAudit(supabase, data); break;
       case "reminder_preference_audit":
-        return await fetchReminderAudit(supabase, data);
+        rows = await fetchReminderAudit(supabase, data); break;
       case "dashboard_recent_activity":
-        return await fetchDashboardRecent(supabase, data);
+        rows = await fetchDashboardRecent(supabase, data); break;
     }
+    await logAppEvent(supabase, "audit.export", {
+      kind: data.kind,
+      from: data.from ?? null,
+      to: data.to ?? null,
+      branch_id: data.branch_id ?? null,
+      actor_id: data.actor_id ?? null,
+      event: data.event ?? null,
+      row_count: rows.length,
+    });
+    return rows;
   });
 
 export const listBranchesForAudit = createServerFn({ method: "GET" })
