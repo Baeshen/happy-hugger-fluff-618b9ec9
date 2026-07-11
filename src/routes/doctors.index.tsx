@@ -359,22 +359,24 @@ function DoctorsPageBody() {
 
           <main>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground" aria-live="polite">
                 {ar ? (
                   <>
                     عرض{" "}
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold text-foreground tabular-nums">
                       {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + perPage, filtered.length)}
                     </span>{" "}
-                    من أصل <span className="font-semibold text-foreground">{filtered.length}</span>
+                    من أصل{" "}
+                    <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span>
                   </>
                 ) : (
                   <>
                     Showing{" "}
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold text-foreground tabular-nums">
                       {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + perPage, filtered.length)}
                     </span>{" "}
-                    of <span className="font-semibold text-foreground">{filtered.length}</span>
+                    of{" "}
+                    <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span>
                   </>
                 )}
               </p>
