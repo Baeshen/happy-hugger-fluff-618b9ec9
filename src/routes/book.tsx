@@ -177,11 +177,13 @@ function BookPage() {
       if (window.location.pathname !== "/book") return;
       const params = new URLSearchParams(window.location.search);
       const s = parseInt(params.get("step") ?? "0", 10);
+      console.log("[book] popstate", s, "url=", window.location.href);
       if (s >= 1 && s <= 9) dispatch({ t: "goto", step: s });
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
 
 
 
