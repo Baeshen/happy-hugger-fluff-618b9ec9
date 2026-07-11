@@ -9,6 +9,7 @@ import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
 import { ArrowLeft, Phone, MapPin, Languages, GraduationCap, Briefcase, Award, Calendar, Clock, User, ClipboardCheck, XCircle, Info, Star, MessageSquare, Loader2, Building2, FileText, Stethoscope } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { submitBooking } from "@/lib/booking-submit";
 
 type Doctor = {
   id: string;
