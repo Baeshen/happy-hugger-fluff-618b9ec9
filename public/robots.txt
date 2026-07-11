@@ -1,10 +1,54 @@
+# robots.txt — Baeshen Medical
+# https://bashenmedical.com
+
 User-agent: *
 Allow: /
+Crawl-delay: 1
 
+# Private / authenticated areas
 Disallow: /admin
+Disallow: /admin/
 Disallow: /my
+Disallow: /my/
 Disallow: /settings
+Disallow: /settings/
 Disallow: /auth
-Disallow: /api/
+Disallow: /auth/
+Disallow: /reset-password
+Disallow: /verify
 
+# Internal APIs and server routes
+Disallow: /api/
+Disallow: /_/
+
+# Utility pages (no SEO value)
+Disallow: /track
+Disallow: /rate
+Disallow: /not-found
+Disallow: /404
+
+# Prevent indexing of query-string duplicates
+Disallow: /*?*utm_
+Disallow: /*?*ref=
+Disallow: /*?*fbclid=
+Disallow: /*?*gclid=
+
+# Allow search engine image crawlers to images
+User-agent: Googlebot-Image
+Allow: /
+Disallow: /admin/
+Disallow: /my/
+
+# Block noisy AI/scraper bots (optional — keep search engines)
+User-agent: GPTBot
+Disallow: /admin/
+Disallow: /my/
+Disallow: /auth/
+
+User-agent: CCBot
+Disallow: /admin/
+Disallow: /my/
+Disallow: /auth/
+
+# Sitemap
 Sitemap: https://bashenmedical.com/sitemap.xml
