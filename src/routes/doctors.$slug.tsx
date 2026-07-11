@@ -698,7 +698,7 @@ function DoctorRatings({ doctorId, lang }: { doctorId: string; lang: string }) {
   );
 }
 
-function DoctorGallery({ photos, name, lang }: { photos: string[]; name: string; lang: string }) {
+function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: string; alt: string; lang: string }) {
   const ar = lang === "ar";
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
