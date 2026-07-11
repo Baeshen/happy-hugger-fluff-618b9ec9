@@ -23,6 +23,7 @@ const OG_DESC =
   "اعتمادات محلية ودولية معتمدة (CBAHI، ACHSI، HIMSS، CAP، ISO) تؤكد جودة الرعاية والسلامة في مجمع باعشن الطبي.";
 
 export const Route = createFileRoute("/accreditations")({
+  validateSearch: zodValidator(searchSchema),
   loader: ({ context }) => context.queryClient.ensureQueryData(accreditationsQuery()),
   head: () => ({
     meta: [
