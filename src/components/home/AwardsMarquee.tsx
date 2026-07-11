@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Award } from "lucide-react";
 import { accreditationsQuery, type Accreditation } from "@/lib/accreditations";
 import { useI18n } from "@/lib/i18n";
+import { trackEvent } from "@/lib/analytics";
 
 export function AwardsMarquee() {
   const { lang } = useI18n();
@@ -24,6 +25,12 @@ export function AwardsMarquee() {
           </div>
           <Link
             to="/accreditations"
+            onClick={() =>
+              trackEvent("accreditations_view_all_click", {
+                location: "home_awards_marquee",
+                total: list.length,
+              })
+            }
             className="hidden md:inline text-sm font-semibold text-primary hover:underline"
           >
             عرض الكل ←
@@ -41,6 +48,14 @@ export function AwardsMarquee() {
               key={`${a.id}-${i}`}
               to="/accreditations/$id"
               params={{ id: a.id }}
+              onClick={() =>
+                trackEvent("accreditation_card_click", {
+                  id: a.id,
+                  title: a.title_ar,
+                  category: a.category ?? "",
+                  location: "home_awards_marquee",
+                })
+              }
               className="w-64 shrink-0 rounded-2xl border border-border bg-card p-4 flex items-center gap-3 hover:border-primary/40 hover:shadow-md transition"
             >
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
