@@ -98,8 +98,13 @@ async def main():
             print("sessionStorage after reset:", storage)
             if storage["result"] is not None:
                 raise AssertionError(f"booking:result not cleared: {storage['result']!r}")
-            if storage["draft"] is not None:
-                raise AssertionError(f"booking:draft not cleared: {storage['draft']!r}")
+            # `booking:draft` is immediately re-persisted with INITIAL state
+            # by the persist-effect after reset — that's fine, as long as it
+            # holds no leftover step=9 / doctor / date data.
+            if storage["draft"]:
+                d = json.loads(storage["draft"])
+                if d.get("step") != 1 or d.get("doctorId") or d.get("date"):
+                    raise AssertionError(f"booking:draft not reset: {storage['draft']!r}")
 
             # 3. Reload — success screen must NOT reappear, no step=0/9.
             await page.reload(wait_until="domcontentloaded")
