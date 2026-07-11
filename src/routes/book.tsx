@@ -41,6 +41,53 @@ const PHONE_MIN = 6, PHONE_MAX = 32;
 const NID_MAX = 20;
 const REASON_MAX = 500;
 const PHONE_RE = /^[+0-9\s\-()]+$/;
+// Saudi mobile: local 05XXXXXXXX (10 digits) OR international +9665XXXXXXXX / 009665XXXXXXXX.
+const SA_PHONE_RE = /^(?:(?:\+?966)|0)?5\d{8}$/;
+// 10-digit Saudi National ID / Iqama (starts with 1 or 2).
+const SA_NID_RE = /^[12]\d{9}$/;
+// Full name should have at least two words (given + family), letters/spaces only.
+const NAME_RE = /^[\p{L}][\p{L}\s'.-]{1,}$/u;
+
+const patientSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(NAME_MIN, "الاسم قصير جدًا (٢ أحرف على الأقل)")
+    .max(NAME_MAX, "الاسم طويل جدًا")
+    .regex(NAME_RE, "الاسم يحتوي على أحرف غير مسموحة")
+    .refine((v) => v.split(/\s+/).filter(Boolean).length >= 2, "أدخل الاسم كاملاً (اسمان على الأقل)"),
+  phone: z
+    .string()
+    .trim()
+    .min(PHONE_MIN, "رقم الجوال قصير جدًا")
+    .max(PHONE_MAX, "رقم الجوال طويل جدًا")
+    .refine((v) => SA_PHONE_RE.test(v.replace(/[\s\-()]/g, "")), "رقم جوال سعودي غير صالح (مثال: 05XXXXXXXX)"),
+  nationalId: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || SA_NID_RE.test(v), "رقم هوية غير صالح (10 أرقام يبدأ بـ 1 أو 2)"),
+  gender: z.enum(["male", "female"], { message: "اختر الجنس" }),
+  reason: z.string().trim().max(REASON_MAX, `السبب طويل جدًا (الحد ${REASON_MAX} حرفًا)`),
+});
+
+type PatientErrors = Partial<Record<"name" | "phone" | "nationalId" | "gender" | "reason", string>>;
+
+function validatePatient(p: State["patient"]): { ok: boolean; errors: PatientErrors } {
+  const r = patientSchema.safeParse({
+    name: p.name,
+    phone: p.phone,
+    nationalId: p.nationalId,
+    gender: p.gender ?? undefined,
+    reason: p.reason,
+  });
+  if (r.success) return { ok: true, errors: {} };
+  const errors: PatientErrors = {};
+  for (const issue of r.error.issues) {
+    const k = issue.path[0] as keyof PatientErrors;
+    if (k && !errors[k]) errors[k] = issue.message;
+  }
+  return { ok: false, errors };
+}
 
 export const Route = createFileRoute("/book")({
   validateSearch: search,
