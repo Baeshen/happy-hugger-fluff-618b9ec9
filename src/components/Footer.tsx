@@ -41,6 +41,7 @@ export function Footer() {
             <li><Link to="/doctors" className="hover:text-primary">{t("nav_doctors")}</Link></li>
             <li><Link to="/excellence" className="hover:text-primary">{isAr ? "مراكز التميز" : "Excellence Centers"}</Link></li>
             <li><Link to="/packages" className="hover:text-primary">{isAr ? "الباقات والفحوصات" : "Checkup Packages"}</Link></li>
+            <li><Link to="/programs" className="hover:text-primary">{isAr ? "برامجنا الطبية" : "Programs"}</Link></li>
             <li><Link to="/telemedicine" className="hover:text-primary">{isAr ? "استشارة عن بُعد" : "Telemedicine"}</Link></li>
             <li><Link to="/home-care" className="hover:text-primary">{isAr ? "الرعاية المنزلية" : "Home Care"}</Link></li>
             <li><Link to="/pharmacy" className="hover:text-primary">{t("nav_pharmacy")}</Link></li>
