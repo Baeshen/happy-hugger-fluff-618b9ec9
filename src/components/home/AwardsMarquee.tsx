@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Award } from "lucide-react";
 import { accreditationsQuery, type Accreditation } from "@/lib/accreditations";
 import { useI18n } from "@/lib/i18n";
+import { trackEvent } from "@/lib/analytics";
 
 export function AwardsMarquee() {
   const { lang } = useI18n();
