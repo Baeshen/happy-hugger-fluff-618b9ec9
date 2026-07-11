@@ -746,6 +746,11 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   const descId = useId();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  // Wheel/trackpad nav: accumulate scroll delta and gate with a cooldown so a
+  // single flick doesn't skip many photos. Prefer horizontal delta when present.
+  const wheelAccumRef = useRef(0);
+  const wheelCooldownRef = useRef(0);
+
 
   const openerRef = useRef<HTMLButtonElement>(null);
   const caption = `${alt} — ${ar ? "صورة" : "Photo"} ${active + 1} ${ar ? "من" : "of"} ${total}`;
