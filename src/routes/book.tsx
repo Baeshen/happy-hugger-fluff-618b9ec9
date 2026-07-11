@@ -305,6 +305,15 @@ function BookPage() {
     ? ["نوع الخدمة", "الفرع", "التخصص", "الطبيب", "التاريخ", "الوقت", "بياناتك", "المراجعة", "التأكيد"]
     : ["Service", "Branch", "Specialty", "Doctor", "Date", "Time", "Your info", "Review", "Confirmed"];
 
+  // Displayed step for the indicator/progress bar — never allowed to exceed
+  // the highest step whose prerequisites are met. Prevents a transient flash
+  // where the URL/state briefly asks for step N but doctor/specialty/branch
+  // are missing. The clamp effect further up rewrites state + URL to match;
+  // this memo keeps the visual indicator honest until it runs.
+  const displayedStep = state.step === 9
+    ? 9
+    : Math.min(state.step, maxReachableStep(state, patientValidation.ok));
+
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="container-app py-8 md:py-12 max-w-5xl">
