@@ -262,9 +262,18 @@ function TrackPage() {
     if (!initialRef || !initialPhone4) return;
     autoRanRef.current = true;
     const parsed = schema.safeParse({ reference: initialRef, phone_last4: initialPhone4 });
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      setAutoFailed(true);
+      setError({ kind: "validation", message: parsed.error.issues[0]?.message ?? "بيانات غير صالحة في الرابط" });
+      return;
+    }
     lastQueryRef.current = parsed.data;
-    void runLookup(parsed.data);
+    setAutoSearching(true);
+    setAutoFailed(false);
+    void runLookup(parsed.data).then((found) => {
+      setAutoSearching(false);
+      if (!found) setAutoFailed(true);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRef, initialPhone4]);
 
