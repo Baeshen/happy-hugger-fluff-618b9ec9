@@ -936,7 +936,11 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
                 spinnerLight
                 widths={[768, 1024, 1440, 1920]}
                 sizes="92vw"
-                onLoadingChange={setLightboxLoading}
+                onLoadingChange={(loading) => {
+                  setLightboxLoading(loading);
+                  if (!loading) markImageReady(photos[active]);
+                }}
+
               />
               {showSpinner && (
                 <div
