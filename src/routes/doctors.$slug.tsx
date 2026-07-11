@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { buildLocalBusinessSchema, buildBreadcrumbs, CLINIC_ID, SITE_URL } from "@/lib/localBusinessSchema";
 import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
-import { ArrowLeft, Phone, MapPin, Languages, GraduationCap, Briefcase, Award, Calendar, Clock, User, ClipboardCheck, XCircle, Info, Star, MessageSquare } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, Languages, GraduationCap, Briefcase, Award, Calendar, Clock, User, ClipboardCheck, XCircle, Info, Star, MessageSquare, Loader2 } from "lucide-react";
 
 type Doctor = {
   id: string;
@@ -712,6 +712,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   const ar = lang === "ar";
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
+  const [lightboxLoading, setLightboxLoading] = useState(false);
+  const [showSpinner, setShowSpinner] = useState(false);
+  // Delay the spinner ~180ms so cached images never flash it.
+  useEffect(() => {
+    if (!lightboxLoading) { setShowSpinner(false); return; }
+    const t = window.setTimeout(() => setShowSpinner(true), 180);
+    return () => window.clearTimeout(t);
+  }, [lightboxLoading, active]);
+
   const total = photos.length;
   const go = (dir: 1 | -1) => setActive((i) => (i + dir + total) % total);
   const titleId = useId();
@@ -890,17 +899,31 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             aria-live="polite"
             aria-atomic="true"
           >
-            <ProgressiveImage
-              src={photos[active]}
-              alt={caption}
-              className="max-h-[80vh] max-w-[92vw]"
-              imgClassName="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
-              loading="eager"
-              fetchPriority="high"
-              spinnerLight
-              widths={[768, 1024, 1440, 1920]}
-              sizes="92vw"
-            />
+            <div className="relative">
+              <ProgressiveImage
+                src={photos[active]}
+                alt={caption}
+                className="max-h-[80vh] max-w-[92vw]"
+                imgClassName="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
+                loading="eager"
+                fetchPriority="high"
+                spinnerLight
+                widths={[768, 1024, 1440, 1920]}
+                sizes="92vw"
+                onLoadingChange={setLightboxLoading}
+              />
+              {showSpinner && (
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                  role="status"
+                  aria-live="polite"
+                  aria-label={ar ? "جارٍ تحميل الصورة" : "Loading image"}
+                >
+                  <Loader2 className="h-10 w-10 animate-spin text-white/90 drop-shadow" aria-hidden />
+                </div>
+              )}
+            </div>
+
             <figcaption className="text-white/90 text-sm text-center max-w-[92vw]">
               <span className="block">{alt}</span>
               <span className="block text-white/70 text-xs mt-1">
@@ -962,6 +985,7 @@ function ProgressiveImage({
   spinnerLight,
   widths,
   sizes,
+  onLoadingChange,
 }: {
   src: string;
   alt: string;
@@ -975,6 +999,8 @@ function ProgressiveImage({
   widths?: number[];
   /** CSS `sizes` attribute — required for `widths` to be effective. */
   sizes?: string;
+  /** Notifies parent whenever loading state flips (true = still loading). */
+  onLoadingChange?: (loading: boolean) => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -984,9 +1010,15 @@ function ProgressiveImage({
     setFailed(false);
   }, [src]);
 
+  const isLoading = !loaded && !failed;
+  useEffect(() => {
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
+
+
   const srcSet = widths && widths.length ? buildSrcSet(src, widths) : undefined;
 
-  const isLoading = !loaded && !failed;
+
 
   return (
     <div
