@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { Stethoscope, Users } from "lucide-react";
@@ -83,7 +83,7 @@ export const Route = createFileRoute("/specialties/")({
 
 function SpecialtiesPage() {
   const { lang, t } = useI18n();
-  const { data, isLoading } = useQuery({
+  const { data } = useSuspenseQuery({
     queryKey: ["specialties"],
     queryFn: fetchSpecialties,
   });
@@ -94,7 +94,6 @@ function SpecialtiesPage() {
         <h1 className="text-4xl font-bold">{t("specialties_title")}</h1>
         <p className="mt-2 text-muted-foreground">{t("specialties_sub")}</p>
       </header>
-      {isLoading && <p className="text-muted-foreground">{t("loading")}</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data?.map((s) => (
           <div
