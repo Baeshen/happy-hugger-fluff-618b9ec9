@@ -747,29 +747,38 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   }, [open, total, ar]);
 
   // Prefetch neighboring images while the lightbox is open so navigation
-  // between photos feels instant. Uses the Image() constructor to warm the
-  // browser cache without inserting extra DOM nodes.
+  // between photos feels instant. Uses fetch() with an AbortController so
+  // rapid navigation cancels in-flight warm-ups instead of piling up.
   useEffect(() => {
     if (!open || total <= 1) return;
-    const neighbors = [
-      photos[(active + 1) % total],
-      photos[(active - 1 + total) % total],
-    ];
-    const loaders = neighbors
-      .filter((src): src is string => Boolean(src) && src !== photos[active])
-      .map((src) => {
-        const img = new Image();
-        img.decoding = "async";
-        img.src = src;
-        return img;
+    const controller = new AbortController();
+    const neighbors = Array.from(
+      new Set([
+        photos[(active + 1) % total],
+        photos[(active - 1 + total) % total],
+      ]),
+    ).filter((src): src is string => Boolean(src) && src !== photos[active]);
+
+    neighbors.forEach((src) => {
+      // `force-cache` lets the response populate the HTTP cache so the
+      // subsequent <img> render is a cache hit. Errors are ignored — this
+      // is a best-effort warm-up, not a hard dependency.
+      fetch(src, {
+        signal: controller.signal,
+        cache: "force-cache",
+        credentials: "omit",
+        mode: "no-cors",
+        priority: "low",
+      } as RequestInit).catch(() => {
+        /* aborted or offline — safe to ignore */
       });
+    });
+
     return () => {
-      // Drop refs so the browser can cancel/GC if not yet resolved.
-      loaders.forEach((img) => {
-        img.src = "";
-      });
+      controller.abort();
     };
   }, [open, active, total, photos]);
+
 
 
   return (
