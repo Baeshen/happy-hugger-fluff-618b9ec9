@@ -99,6 +99,49 @@ export function StepSuccess({
 
   const phone4 = (phone.match(/\d/g) ?? []).slice(-4).join("");
 
+  // Tracking URL encoded in the QR + used for the download filename.
+  const trackUrl = useMemo(() => {
+    if (typeof window === "undefined" || !reference) return "";
+    const base = window.location.origin;
+    const p = new URLSearchParams({ ref: reference });
+    if (phone4) p.set("phone4", phone4);
+    return `${base}/track?${p.toString()}`;
+  }, [reference, phone4]);
+
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!trackUrl || !qrCanvasRef.current) return;
+    QRCode.toCanvas(qrCanvasRef.current, trackUrl, { width: 176, margin: 1, errorCorrectionLevel: "M" })
+      .catch(() => {/* noop */});
+    QRCode.toDataURL(trackUrl, { width: 512, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [trackUrl]);
+
+  function downloadQr() {
+    if (!qrDataUrl || !reference) return;
+    const a = document.createElement("a");
+    a.href = qrDataUrl;
+    a.download = `booking-${reference}-qr.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function downloadPdf() {
+    if (!reference) return;
+    downloadBookingConfirmationPdf({
+      reference,
+      patient_name: state.patient.name,
+      patient_phone: phone,
+      appointment_date: state.date ?? "",
+      appointment_time: state.time ?? "",
+      centerName: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : undefined,
+      specialty: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : undefined,
+      doctor_name: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : undefined,
+      status: lang === "ar" ? "قيد المراجعة" : "Pending review",
+    });
+  }
+
   const waMessage = useMemo(() => {
     const header = lang === "ar"
       ? "مرحبًا، لدي حجز في مجمع باعشن الطبي وأحتاج للمساعدة:"
@@ -108,8 +151,9 @@ export function StepSuccess({
       parts.push(`${lang === "ar" ? "رقم الحجز" : "Reference"}: ${reference}`);
     }
     for (const r of rows) parts.push(`${r.label}: ${r.value}`);
+    if (trackUrl) parts.push("", `${lang === "ar" ? "رابط التتبع" : "Tracking link"}: ${trackUrl}`);
     return parts.join("\n");
-  }, [rows, reference, lang]);
+  }, [rows, reference, lang, trackUrl]);
   const waHref = `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(waMessage)}`;
 
   return (
