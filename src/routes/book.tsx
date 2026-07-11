@@ -428,7 +428,7 @@ function BookPage() {
               branches={branches}
               specialties={specialties}
               doctors={doctors}
-              onEdit={(step) => dispatch({ t: "goto", step })}
+              onEdit={(step: number) => dispatch({ t: "goto", step })}
             />
           )}
         </div>
