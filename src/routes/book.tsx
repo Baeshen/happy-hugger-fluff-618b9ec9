@@ -1,1110 +1,817 @@
+/**
+ * صفحة الحجز — Multi-step booking wizard (UDH-style)
+ *   1. Service type      2. Branch       3. Specialty
+ *   4. Doctor            5. Date         6. Time
+ *   7. Patient info      8. Review       → submits then navigates to /booking-confirmation
+ *
+ * Uses existing public APIs:
+ *   - list_public_branches / specialties / list_public_doctors  (Supabase RPC)
+ *   - GET  /api/public/book/availability
+ *   - POST /api/public/book/create  (via submitBooking helper)
+ *
+ * State is stored in sessionStorage under `booking:draft` so the user can
+ * refresh mid-flow without losing progress. Deep links accept ?doctor= and
+ * ?specialty= to jump straight to the doctor step from /doctors and
+ * /specialties pages.
+ */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Calendar as CalIcon,
-  Check,
-  CheckCircle2,
-  Clock,
-  Loader2,
-  Stethoscope,
-  Sun,
-  Moon,
-  User,
-  UserCircle2,
+  ArrowLeft, ArrowRight, Building2, Calendar as CalIcon, Check, CheckCircle2,
+  ChevronLeft, ChevronRight, Clock, Loader2, MapPin, Star, Stethoscope,
+  User, UserCircle2, ClipboardList, TestTube, Scan, Activity,
 } from "lucide-react";
-import { PageHero } from "@/components/PageShell";
-import { submitBooking, type BookingSubmitResult } from "@/lib/booking-submit";
+import { submitBooking } from "@/lib/booking-submit";
 import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
+import { Button } from "@/components/ui/button";
 
 const search = z.object({
   specialty: z.string().optional(),
   doctor: z.string().optional(),
+  branch: z.string().optional(),
 });
 
-// Public booking input caps. Kept intentionally in sync with the DB RLS
-// WITH CHECK constraints on `public.appointments`:
-//   patient_name : btrim length 2-120
-//   patient_phone: btrim length 6-32
-// `reason` mirrors REASON_MAX (500) from src/lib/reason.ts so a rejected
-// audit-reason cap can never differ from what the booking form allowed.
-const NAME_MIN = 2,
-  NAME_MAX = 120;
-const PHONE_MIN = 6,
-  PHONE_MAX = 32;
+const NAME_MIN = 2, NAME_MAX = 120;
+const PHONE_MIN = 6, PHONE_MAX = 32;
 const NID_MAX = 20;
 const REASON_MAX = 500;
 const PHONE_RE = /^[+0-9\s\-()]+$/;
-
-const bookingFormSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(NAME_MIN, "الاسم قصير جدًا (٢ أحرف على الأقل)")
-    .max(NAME_MAX, "الاسم طويل جدًا"),
-  phone: z
-    .string()
-    .trim()
-    .min(PHONE_MIN, "رقم الهاتف قصير جدًا")
-    .max(PHONE_MAX, "رقم الهاتف طويل جدًا")
-    .regex(PHONE_RE, "رقم الهاتف يحتوي على أحرف غير مسموحة"),
-  national_id: z.string().trim().max(NID_MAX, "رقم الهوية طويل جدًا").optional().or(z.literal("")),
-  gender: z.enum(["male", "female"], { message: "الجنس غير صالح" }),
-  reason: z
-    .string()
-    .trim()
-    .max(REASON_MAX, `السبب طويل جدًا (الحد الأقصى ${REASON_MAX} حرفًا)`)
-    .optional()
-    .or(z.literal("")),
-});
-
-// (client-side UUID generation removed — the server now assigns IDs and
-// returns a tracking reference from POST /api/public/book/create.)
 
 export const Route = createFileRoute("/book")({
   validateSearch: search,
   head: () => ({
     meta: [
       { title: "احجز موعدًا | مجمع باعشن الطبي" },
-      {
-        name: "description",
-        content: "احجز موعدك أونلاين مع طبيبك في مجمع باعشن الطبي بصبيا، جازان. تدفق سريع وسهل.",
-      },
+      { name: "description", content: "احجز موعدك مع أطبائنا خطوة بخطوة: اختر الفرع، التخصص، الطبيب، ثم الموعد المناسب." },
       { property: "og:title", content: "احجز موعدًا — مجمع باعشن الطبي" },
+      { property: "og:description", content: "نظام حجز سريع وسهل عبر خطوات واضحة." },
+      { property: "og:type", content: "website" },
     ],
   }),
   component: BookPage,
 });
 
-const WEEKDAYS_AR = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+/* ================================================================
+   State
+   ================================================================ */
 
-// Unified field styling matching /second-opinion + /corporate
-const FIELD_CLS =
-  "w-full rounded-lg border border-input bg-background px-3.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20";
-const INPUT_CLS = `${FIELD_CLS} h-11`;
-const TEXTAREA_CLS = `${FIELD_CLS} py-2.5 min-h-[96px]`;
+type ServiceType = "clinic" | "radiology" | "lab" | "followup";
+type Gender = "male" | "female";
 
-type StepErrors = Partial<Record<"name" | "phone" | "national_id" | "reason", string>>;
+type State = {
+  step: number; // 1..8
+  serviceType: ServiceType | null;
+  branchId: string | null;
+  specialtyId: string | null;
+  doctorId: string | null;
+  date: string | null;      // YYYY-MM-DD
+  time: string | null;      // HH:MM
+  patient: {
+    name: string;
+    phone: string;
+    nationalId: string;
+    gender: Gender | null;
+    reason: string;
+    reminder24h: boolean;
+    reminder2h: boolean;
+  };
+};
 
-function BookPage() {
-  const { specialty: initSpec, doctor: initDoc } = Route.useSearch();
-  const { t, lang } = useI18n();
-  const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [specialtyId, setSpecialtyId] = useState<string | null>(null);
-  const [doctorId, setDoctorId] = useState<string | null>(initDoc ?? null);
-  const [date, setDate] = useState<string>("");
-  const [time, setTime] = useState<string>("");
-  const [doctorSearch, setDoctorSearch] = useState("");
-  const [form, setForm] = useState({
+const INITIAL: State = {
+  step: 1,
+  serviceType: null,
+  branchId: null,
+  specialtyId: null,
+  doctorId: null,
+  date: null,
+  time: null,
+  patient: {
     name: "",
     phone: "",
-    national_id: "",
-    gender: "male",
+    nationalId: "",
+    gender: null,
     reason: "",
-    reminder_24h: true,
-    reminder_2h: true,
+    reminder24h: true,
+    reminder2h: true,
+  },
+};
+
+type Action =
+  | { t: "set"; p: Partial<State> }
+  | { t: "setPatient"; p: Partial<State["patient"]> }
+  | { t: "goto"; step: number }
+  | { t: "reset" };
+
+function reducer(s: State, a: Action): State {
+  switch (a.t) {
+    case "set":         return { ...s, ...a.p };
+    case "setPatient":  return { ...s, patient: { ...s.patient, ...a.p } };
+    case "goto":        return { ...s, step: Math.max(1, Math.min(8, a.step)) };
+    case "reset":       return { ...INITIAL };
+  }
+}
+
+const STORAGE_KEY = "booking:draft";
+
+function loadDraft(initial: Partial<State>): State {
+  if (typeof window === "undefined") return { ...INITIAL, ...initial };
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as State;
+      return { ...INITIAL, ...parsed, ...initial };
+    }
+  } catch {/* ignore */}
+  return { ...INITIAL, ...initial };
+}
+
+/* ================================================================
+   Data fetching helpers
+   ================================================================ */
+
+async function fetchBranches() {
+  const { data } = await supabase.rpc("list_public_branches");
+  return data ?? [];
+}
+async function fetchSpecialties() {
+  const { data } = await supabase
+    .from("specialties")
+    .select("id,slug,name_ar,name_en,icon")
+    .eq("is_active", true)
+    .order("sort_order");
+  return data ?? [];
+}
+async function fetchDoctors(specialtyId: string | null, branchId: string | null) {
+  const { data, error } = await supabase.rpc("list_public_doctors", {
+    _limit: 200, _offset: 0, _branch_id: branchId,
   });
-  const [errors, setErrors] = useState<StepErrors>({});
+  if (error) return [];
+  const list = (data ?? []) as any[];
+  return specialtyId ? list.filter((d) => d.specialty_id === specialtyId) : list;
+}
+
+type AvailResp = { ok: boolean; times: string[]; booked: string[] };
+async function fetchAvailability(date: string, doctorId: string | null, specialtyId: string | null, branchId: string | null): Promise<AvailResp> {
+  const p = new URLSearchParams({ date });
+  if (doctorId) p.set("doctor_id", doctorId);
+  else if (specialtyId) p.set("specialty_id", specialtyId);
+  if (branchId) p.set("branch_id", branchId);
+  const res = await fetch(`/api/public/book/availability?${p.toString()}`);
+  if (!res.ok) return { ok: false, times: [], booked: [] };
+  return (await res.json()) as AvailResp;
+}
+
+/* ================================================================
+   Page
+   ================================================================ */
+
+function BookPage() {
+  const searchParams = Route.useSearch();
+  const { lang } = useI18n();
+  const navigate = useNavigate();
+
+  const [state, dispatch] = useReducer(reducer, undefined, () =>
+    loadDraft({
+      doctorId: searchParams.doctor ?? null,
+      specialtyId: searchParams.specialty ?? null,
+      branchId: searchParams.branch ?? null,
+      // Jump ahead if a deep link is provided.
+      step: searchParams.doctor ? 5 : searchParams.specialty ? 4 : 1,
+    }),
+  );
+
+  // Persist draft to sessionStorage.
+  useEffect(() => {
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  }, [state]);
+
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<
-    Extract<BookingSubmitResult, { ok: false }> | null
-  >(null);
-  const [draftRestored, setDraftRestored] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Restore draft from localStorage (once, on mount). Saves the user's
-  // progress if they accidentally close the tab.
-  const DRAFT_KEY = "baeshen_book_draft_v1";
+  const { data: branches = [] }    = useQuery({ queryKey: ["branches"], queryFn: fetchBranches, staleTime: 5*60_000 });
+  const { data: specialties = [] } = useQuery({ queryKey: ["specialties-active"], queryFn: fetchSpecialties, staleTime: 5*60_000 });
+  const { data: doctors = [] } = useQuery({
+    queryKey: ["doctors-for-book", state.specialtyId, state.branchId],
+    queryFn: () => fetchDoctors(state.specialtyId, state.branchId),
+    enabled: state.step >= 4,
+    staleTime: 60_000,
+  });
+
+  // If the user picked a doctor via deep link, auto-fill branch & specialty
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const d = JSON.parse(raw) as {
-        step?: number;
-        specialtyId?: string | null;
-        doctorId?: string | null;
-        date?: string;
-        time?: string;
-        form?: typeof form;
-        ts?: number;
-      };
-      // Ignore drafts older than 24 hours.
-      if (!d.ts || Date.now() - d.ts > 24 * 3600_000) {
-        localStorage.removeItem(DRAFT_KEY);
-        return;
+    if (state.doctorId && !state.specialtyId && doctors.length) {
+      const d = doctors.find((x: any) => x.id === state.doctorId);
+      if (d) dispatch({ t: "set", p: { specialtyId: d.specialty_id, branchId: d.branch_id ?? state.branchId } });
+    }
+  }, [state.doctorId, state.specialtyId, doctors]);
+
+  const { data: avail } = useQuery({
+    queryKey: ["avail", state.date, state.doctorId, state.specialtyId, state.branchId],
+    queryFn: () => fetchAvailability(state.date!, state.doctorId, state.specialtyId, state.branchId),
+    enabled: !!state.date && state.step >= 6,
+    staleTime: 20_000,
+  });
+
+  const canNext = useMemo(() => {
+    switch (state.step) {
+      case 1: return !!state.serviceType;
+      case 2: return !!state.branchId;
+      case 3: return !!state.specialtyId;
+      case 4: return !!state.doctorId;
+      case 5: return !!state.date;
+      case 6: return !!state.time;
+      case 7: {
+        const p = state.patient;
+        return (
+          p.name.trim().length >= NAME_MIN &&
+          p.phone.trim().length >= PHONE_MIN &&
+          PHONE_RE.test(p.phone.trim()) &&
+          !!p.gender
+        );
       }
-      if (d.specialtyId) setSpecialtyId(d.specialtyId);
-      if (d.doctorId) setDoctorId(d.doctorId);
-      if (d.date) setDate(d.date);
-      if (d.time) setTime(d.time);
-      if (d.form) setForm((prev) => ({ ...prev, ...d.form }));
-      if (typeof d.step === "number" && d.step >= 1 && d.step <= 4) setStep(d.step);
-      setDraftRestored(true);
-    } catch {
-      /* corrupt draft — ignore */
+      default: return true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [state]);
 
-  // Persist draft on any relevant change.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem(
-        DRAFT_KEY,
-        JSON.stringify({ step, specialtyId, doctorId, date, time, form, ts: Date.now() }),
-      );
-    } catch {
-      /* quota / private mode — ignore */
-    }
-  }, [step, specialtyId, doctorId, date, time, form]);
-
-  const clearDraft = () => {
-    if (typeof window !== "undefined") localStorage.removeItem(DRAFT_KEY);
-    setStep(1);
-    setSpecialtyId(null);
-    setDoctorId(null);
-    setDate("");
-    setTime("");
-    setDoctorSearch("");
-    setForm({
-      name: "",
-      phone: "",
-      national_id: "",
-      gender: "male",
-      reason: "",
-      reminder_24h: true,
-      reminder_2h: true,
-    });
-    setErrors({});
-    setDraftRestored(false);
-    toast.success("تم مسح البيانات وبدء حجز جديد");
-  };
-
-  const { data: specialties } = useQuery({
-    queryKey: ["specialties"],
-    queryFn: async () =>
-      (await supabase.from("specialties").select("*").eq("is_active", true).order("sort_order"))
-        .data ?? [],
-  });
-  const { data: doctors } = useQuery({
-    queryKey: ["doctors_all"],
-    queryFn: async () =>
-      (await supabase.from("doctors").select("*, specialties(*)").eq("is_active", true)).data ?? [],
-  });
-
-  useEffect(() => {
-    if (specialtyId) return;
-    if (specialties && initSpec) {
-      const s = specialties.find((x) => x.slug === initSpec);
-      if (s) {
-        setSpecialtyId(s.id);
-        return;
-      }
-    }
-    if (doctorId && doctors) {
-      const d = doctors.find((x) => x.id === doctorId);
-      if (d?.specialty_id) setSpecialtyId(d.specialty_id);
-    }
-  }, [specialties, doctors, initSpec, doctorId, specialtyId]);
-
-  const filteredDoctors = (doctors ?? []).filter(
-    (d) => !specialtyId || d.specialty_id === specialtyId,
-  );
-
-  const selectedSpecialty = specialties?.find((s) => s.id === specialtyId) ?? null;
-  const selectedDoctor = doctors?.find((d) => d.id === doctorId) ?? null;
-
-  const { data: availability } = useQuery({
-    queryKey: ["availability", doctorId, specialtyId],
-    enabled: !!(doctorId || specialtyId),
-    queryFn: async () => {
-      let q = supabase.from("availability").select("*");
-      if (doctorId) q = q.eq("doctor_id", doctorId);
-      else if (specialtyId) {
-        const ids = filteredDoctors.map((d) => d.id);
-        if (ids.length === 0) return [];
-        q = q.in("doctor_id", ids);
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  // generate next 14 days that have availability
-  const availableDates = useMemo(() => {
-    if (!availability) return [];
-    const days = new Set(availability.map((a) => a.weekday));
-    const out: { date: string; label: string; weekday: number }[] = [];
-    const now = new Date();
-    for (let i = 0; i < 21 && out.length < 14; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + i);
-      const wd = d.getDay();
-      if (days.has(wd)) {
-        const iso = d.toISOString().slice(0, 10);
-        out.push({ date: iso, label: `${d.getDate()}/${d.getMonth() + 1}`, weekday: wd });
-      }
-    }
-    return out;
-  }, [availability]);
-
-  // Authoritative slot resolver — GET /api/public/book/availability.
-  // The server owns weekday expansion, all-day leave subtraction, past-time
-  // filtering (Asia/Riyadh), and cross-doctor aggregation when the patient
-  // picks a specialty without a specific doctor. The client just renders.
-  const branchId = (selectedDoctor as { branch_id?: string | null } | null)
-    ?.branch_id ?? null;
-
-  // Debounce scope changes so rapid clicks on date/specialty/doctor don't
-  // fire a burst of overlapping requests. React Query still cancels the
-  // previous in-flight fetch when the key changes (via `signal` below).
-  const [debouncedScope, setDebouncedScope] = useState({
-    doctorId,
-    specialtyId,
-    branchId,
-    date,
-  });
-  useEffect(() => {
-    const t = setTimeout(
-      () => setDebouncedScope({ doctorId, specialtyId, branchId, date }),
-      250,
-    );
-    return () => clearTimeout(t);
-  }, [doctorId, specialtyId, branchId, date]);
-
-  const { data: slotResp, isFetching: slotsFetching } = useQuery<{
-    times: string[];
-    booked: string[];
-    doctors_considered: number;
-  }>({
-    queryKey: [
-      "slots",
-      debouncedScope.doctorId,
-      debouncedScope.specialtyId,
-      debouncedScope.branchId,
-      debouncedScope.date,
-    ],
-    enabled:
-      !!debouncedScope.date &&
-      !!(debouncedScope.doctorId || debouncedScope.specialtyId),
-    queryFn: async ({ signal }) => {
-      const params = new URLSearchParams({ date: debouncedScope.date });
-      if (debouncedScope.doctorId)
-        params.set("doctor_id", debouncedScope.doctorId);
-      else if (debouncedScope.specialtyId)
-        params.set("specialty_id", debouncedScope.specialtyId);
-      if (debouncedScope.branchId)
-        params.set("branch_id", debouncedScope.branchId);
-      const res = await fetch(
-        `/api/public/book/availability?${params.toString()}`,
-        { signal }, // abort stale request when the query key changes
-      );
-      if (!res.ok) return { times: [], booked: [], doctors_considered: 0 };
-      const body = (await res.json()) as {
-        ok?: boolean;
-        times?: string[];
-        booked?: string[];
-        doctors_considered?: number;
-      };
-      return {
-        times: body.ok && Array.isArray(body.times) ? body.times : [],
-        booked: body.ok && Array.isArray(body.booked) ? body.booked : [],
-        doctors_considered: body.doctors_considered ?? 0,
-      };
-    },
-    // Matches the endpoint's `s-maxage=30, stale-while-revalidate=60` window
-    // so bouncing between dates/doctors reuses cached results without a
-    // network round-trip; falls back to background refresh after.
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
-    refetchOnWindowFocus: true, // slots go stale fast — refresh on tab return
-    placeholderData: (prev) => prev, // keep previous slots visible while refetching
-  });
-
-  const availableTimes = slotResp?.times ?? [];
-  const bookedSet = useMemo(
-    () => new Set(slotResp?.booked ?? []),
-    [slotResp?.booked],
-  );
-
-  // Track the scope in which the current time was picked, so if it later
-  // disappears we can explain WHY (booked / scope changed / out of window)
-  // instead of silently clearing the selection.
-  const pickedScopeRef = useRef<{
-    doctorId: string | null;
-    specialtyId: string | null;
-    branchId: string | null;
-    date: string;
-  } | null>(null);
-  useEffect(() => {
-    if (time) {
-      pickedScopeRef.current = { doctorId, specialtyId, branchId, date };
-    } else {
-      pickedScopeRef.current = null;
-    }
-    // Only re-capture when the user actively (re-)selects a time.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [time]);
-
-  // If the currently-selected time disappears from the available list
-  // (someone else booked it, doctor went on leave, or scope changed),
-  // clear it AND surface a reason so the user isn't left guessing.
-  useEffect(() => {
-    if (!time) return;
-    if (slotsFetching) return; // wait for the fresh response
-    if (availableTimes.includes(time)) return;
-
-    const picked = pickedScopeRef.current;
-    const scopeChanged =
-      !!picked &&
-      (picked.doctorId !== doctorId ||
-        picked.specialtyId !== specialtyId ||
-        picked.branchId !== branchId ||
-        picked.date !== date);
-
-    let reason: string;
-    if (scopeChanged) {
-      reason =
-        lang === "ar"
-          ? "تم إلغاء الوقت المختار لأن العيادة/الطبيب/التاريخ تغيّر."
-          : "Selected time was cleared because the clinic/doctor/date changed.";
-    } else if (bookedSet.has(time)) {
-      reason =
-        lang === "ar"
-          ? "الوقت الذي اخترته لم يعد متاحًا — تم حجزه للتو."
-          : "Your selected time is no longer available — it was just booked.";
-    } else {
-      reason =
-        lang === "ar"
-          ? "الوقت المختار خارج النافذة المتاحة (فات وقته أو انتهت الفترة)."
-          : "The selected time is outside the available window (past or out of range).";
-    }
-    toast.error(reason);
-    setTime("");
-  }, [availableTimes, bookedSet, slotsFetching, time, doctorId, specialtyId, branchId, date, lang]);
-
-  const morningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) < 12);
-  const eveningTimes = availableTimes.filter((tm) => Number(tm.slice(0, 2)) >= 12);
-
-  const validateStep4 = (): boolean => {
-    const parsed = bookingFormSchema.safeParse(form);
-    if (parsed.success) {
-      setErrors({});
-      return true;
-    }
-    const next: StepErrors = {};
-    for (const issue of parsed.error.issues) {
-      const key = issue.path[0] as keyof StepErrors;
-      if (key && !next[key]) next[key] = issue.message;
-    }
-    setErrors(next);
-    return false;
-  };
-
-  const submit = async () => {
-    if (!date || !time) {
-      toast.error(lang === "ar" ? "يرجى اختيار التاريخ والوقت" : "Please pick a date and time");
-      return;
-    }
-    if (!validateStep4()) {
-      toast.error(lang === "ar" ? "يرجى تصحيح الحقول المميزة" : "Please fix highlighted fields");
-      return;
-    }
-    const v = bookingFormSchema.parse(form);
+  async function handleSubmit() {
+    setErrorMsg(null);
     setSubmitting(true);
-    setSubmitError(null);
-    const result = await submitBooking({
-      patient_name: v.name,
-      patient_phone: v.phone,
-      national_id: v.national_id ? v.national_id : null,
-      gender: v.gender,
-      specialty_id: specialtyId,
-      doctor_id: doctorId,
-      appointment_date: date,
-      appointment_time: time,
-      reason: v.reason ? v.reason : undefined,
-      reminder_24h: form.reminder_24h,
-      reminder_2h: form.reminder_2h,
+    const p = state.patient;
+    const res = await submitBooking({
+      patient_name: p.name.trim(),
+      patient_phone: p.phone.trim(),
+      appointment_date: state.date!,
+      appointment_time: state.time!,
+      reason: p.reason.trim() || undefined,
+      national_id: p.nationalId.trim() || null,
+      gender: p.gender ?? undefined,
+      specialty_id: state.specialtyId,
+      doctor_id: state.doctorId,
+      reminder_24h: p.reminder24h,
+      reminder_2h: p.reminder2h,
     });
     setSubmitting(false);
-    if (!result.ok) {
-      setSubmitError(result);
-      toast.error(result.message);
-      return;
+    if (res.ok) {
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      toast.success(lang === "ar" ? "تم إنشاء الحجز بنجاح" : "Booking created");
+      navigate({
+        to: "/booking-confirmation",
+        search: { ref: res.reference ?? undefined, phone: p.phone.trim() },
+      });
+    } else {
+      setErrorMsg(res.message);
     }
-    const ref = result.reference ?? "";
-    if (typeof window !== "undefined") localStorage.removeItem(DRAFT_KEY);
-    navigate({
-      to: "/booking-confirmation",
-      search: { ref, phone: v.phone, wa: "1" },
-    });
-  };
+  }
 
-  const STEP_LABELS = [
-    { n: 1, label: "التخصص", icon: Stethoscope },
-    { n: 2, label: "الطبيب", icon: UserCircle2 },
-    { n: 3, label: "الموعد", icon: CalIcon },
-    { n: 4, label: "بياناتك", icon: User },
-  ];
-
-  const canGoNext =
-    (step === 1 && !!specialtyId) ||
-    (step === 2 && true) || // doctor optional (any_available)
-    (step === 3 && !!date && !!time);
+  const STEPS = lang === "ar"
+    ? ["نوع الخدمة", "الفرع", "التخصص", "الطبيب", "التاريخ", "الوقت", "بياناتك", "المراجعة"]
+    : ["Service", "Branch", "Specialty", "Doctor", "Date", "Time", "Your info", "Review"];
 
   return (
-    <>
-      <PageHero
-        eyebrow="حجز موعد"
-        title={t("cta_book")}
-        subtitle="اختر تخصصك ثم طبيبك ووقتك المناسب، وسنؤكد موعدك خلال دقائق."
-      >
-        {/* Step tracker */}
-        <div className="max-w-3xl">
-          <ol className="flex items-center gap-2 sm:gap-3">
-            {STEP_LABELS.map(({ n, label, icon: Icon }, i) => {
-              const done = step > n;
-              const active = step === n;
-              return (
-                <li key={n} className="flex items-center gap-2 sm:gap-3 flex-1">
-                  <div
-                    className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition ${
-                      active
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                        : done
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : "border-border bg-background/60 text-muted-foreground"
-                    }`}
-                  >
-                    <span
-                      className={`grid h-5 w-5 place-items-center rounded-full text-[10px] ${
-                        active
-                          ? "bg-primary-foreground/20"
-                          : done
-                            ? "bg-primary/20"
-                            : "bg-muted"
-                      }`}
-                    >
-                      {done ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
-                    </span>
-                    <span className="hidden sm:inline">{label}</span>
-                    <span className="sm:hidden">{n}</span>
-                  </div>
-                  {i < STEP_LABELS.length - 1 && (
-                    <div
-                      className={`h-px flex-1 ${done ? "bg-primary/40" : "bg-border"}`}
-                      aria-hidden
-                    />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+    <div className="min-h-screen bg-muted/30">
+      <div className="container-app py-8 md:py-12 max-w-5xl">
+        <header className="mb-6 md:mb-8 text-center">
+          <h1 className="text-2xl md:text-4xl font-bold">
+            {lang === "ar" ? "احجز موعدك" : "Book an appointment"}
+          </h1>
+          <p className="mt-2 text-sm md:text-base text-muted-foreground">
+            {lang === "ar"
+              ? "اتبع الخطوات لإتمام حجز موعدك — يمكنك الرجوع في أي وقت."
+              : "Follow the steps to complete your booking — you can go back anytime."}
+          </p>
+        </header>
+
+        <Stepper steps={STEPS} current={state.step} onJump={(i) => {
+          // Allow jumping back only.
+          if (i + 1 < state.step) dispatch({ t: "goto", step: i + 1 });
+        }}/>
+
+        <div className="mt-6 rounded-2xl bg-card border border-border shadow-sm p-5 md:p-8 min-h-[420px]">
+          {state.step === 1 && <StepService lang={lang} value={state.serviceType} onPick={(v) => { dispatch({ t: "set", p: { serviceType: v } }); dispatch({ t: "goto", step: 2 }); }}/>}
+          {state.step === 2 && <StepBranch lang={lang} branches={branches} value={state.branchId} onPick={(v) => { dispatch({ t: "set", p: { branchId: v } }); dispatch({ t: "goto", step: 3 }); }}/>}
+          {state.step === 3 && <StepSpecialty lang={lang} specialties={specialties} value={state.specialtyId} onPick={(v) => { dispatch({ t: "set", p: { specialtyId: v, doctorId: null } }); dispatch({ t: "goto", step: 4 }); }}/>}
+          {state.step === 4 && <StepDoctor lang={lang} doctors={doctors} value={state.doctorId} onPick={(v) => { dispatch({ t: "set", p: { doctorId: v, date: null, time: null } }); dispatch({ t: "goto", step: 5 }); }}/>}
+          {state.step === 5 && <StepDate lang={lang} value={state.date} onPick={(v) => { dispatch({ t: "set", p: { date: v, time: null } }); dispatch({ t: "goto", step: 6 }); }} doctorId={state.doctorId} specialtyId={state.specialtyId} branchId={state.branchId}/>}
+          {state.step === 6 && <StepTime lang={lang} value={state.time} avail={avail} onPick={(v) => { dispatch({ t: "set", p: { time: v } }); dispatch({ t: "goto", step: 7 }); }}/>}
+          {state.step === 7 && <StepPatient lang={lang} value={state.patient} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
+          {state.step === 8 && <StepReview lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} errorMsg={errorMsg} submitting={submitting} onSubmit={handleSubmit}/>}
         </div>
-      </PageHero>
 
-      <div className="container-app py-10 md:py-14">
-        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          {/* Main card */}
-          <div className="rounded-2xl border border-border bg-card p-6 md:p-8 shadow-sm">
-            {draftRestored && (
-              <div className="mb-5 flex items-start justify-between gap-3 rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs">
-                <div className="flex items-start gap-2 text-foreground">
-                  <CheckCircle2 className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-                  <span>
-                    استعدنا بياناتك من جلسة سابقة لتكمل من حيث توقفت.
-                  </span>
-                </div>
-                <button
-                  onClick={clearDraft}
-                  className="text-primary font-semibold hover:underline shrink-0"
-                >
-                  بدء من جديد
-                </button>
-              </div>
-            )}
+        <div className="mt-4 flex items-center justify-between">
+          <Button
+            variant="outline"
+            disabled={state.step === 1}
+            onClick={() => dispatch({ t: "goto", step: state.step - 1 })}
+            className="gap-1"
+          >
+            {lang === "ar" ? <><ChevronRight className="h-4 w-4"/>السابق</> : <><ChevronLeft className="h-4 w-4"/>Back</>}
+          </Button>
 
-            {step === 1 && (
-              <div>
-                <h2 className="text-lg font-bold mb-1">{t("choose_specialty")}</h2>
-                <p className="text-xs text-muted-foreground mb-5">
-                  اختر التخصص الطبي الذي يناسب حالتك.
-                </p>
-                {!specialties ? (
-                  <SkeletonGrid />
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {specialties.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => {
-                          setSpecialtyId(s.id);
-                          setDoctorId(null);
-                        }}
-                        className={`group relative text-start rounded-xl border p-3.5 text-sm transition ${
-                          specialtyId === s.id
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-border hover:border-primary/50 hover:bg-muted/40"
-                        }`}
-                      >
-                        {specialtyId === s.id && (
-                          <span className="absolute top-2 end-2 grid h-5 w-5 place-items-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-3 w-3" />
-                          </span>
-                        )}
-                        <div className="font-semibold text-foreground pe-6">
-                          {lang === "ar" ? s.name_ar : s.name_en}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {step === 2 && (
-              <div>
-                <h2 className="text-lg font-bold mb-1">{t("choose_doctor")}</h2>
-                <p className="text-xs text-muted-foreground mb-5">
-                  يمكنك اختيار طبيب معيّن أو ترك النظام يقترح أقرب طبيب متاح.
-                </p>
-                <div className="grid gap-2.5">
-                  {filteredDoctors.length > 8 && (
-                    <input
-                      type="search"
-                      value={doctorSearch}
-                      onChange={(e) => setDoctorSearch(e.target.value)}
-                      placeholder="ابحث باسم الطبيب…"
-                      className={INPUT_CLS}
-                    />
-                  )}
-                  <button
-                    onClick={() => setDoctorId(null)}
-                    className={`flex items-center gap-3 text-start rounded-xl border p-4 transition ${
-                      doctorId === null
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
-                      <UserCircle2 className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm">{t("any_available")}</div>
-                      <div className="text-xs text-muted-foreground">
-                        سنحجز لك عند أول طبيب متاح في التخصص
-                      </div>
-                    </div>
-                    {doctorId === null && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-                  {filteredDoctors.length === 0 && (
-                    <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                      لا يوجد أطباء في هذا التخصص حاليًا.
-                    </div>
-                  )}
-                  {filteredDoctors
-                    .filter((d) => {
-                      const q = doctorSearch.trim().toLowerCase();
-                      if (!q) return true;
-                      return (
-                        d.name_ar?.toLowerCase().includes(q) ||
-                        d.name_en?.toLowerCase().includes(q) ||
-                        d.title_ar?.toLowerCase().includes(q) ||
-                        d.title_en?.toLowerCase().includes(q)
-                      );
-                    })
-                    .map((d) => (
-                    <button
-                      key={d.id}
-                      onClick={() => setDoctorId(d.id)}
-                      className={`flex items-center gap-3 text-start rounded-xl border p-4 transition ${
-                        doctorId === d.id
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="h-11 w-11 rounded-full bg-primary/10 text-primary grid place-items-center font-bold">
-                        {(lang === "ar" ? d.name_ar : d.name_en).charAt(0)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm">
-                          {lang === "ar" ? d.name_ar : d.name_en}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {lang === "ar" ? d.title_ar : d.title_en}
-                        </div>
-                      </div>
-                      {doctorId === d.id && <Check className="h-4 w-4 text-primary" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div>
-                <h2 className="text-lg font-bold mb-1">{t("choose_datetime")}</h2>
-                <p className="text-xs text-muted-foreground mb-5">
-                  اختر اليوم ثم الوقت المناسب لك من الأوقات المتاحة.
-                </p>
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                      <CalIcon className="h-3.5 w-3.5 text-primary" /> {t("date")}
-                    </div>
-                    {availableDates.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const first = availableDates[0];
-                          setDate(first.date);
-                          setTime("");
-                        }}
-                        className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 transition"
-                      >
-                        <Clock className="h-3 w-3" /> الأقرب متاح
-                      </button>
-                    )}
-                  </div>
-                  {availableDates.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                      لا توجد مواعيد متاحة خلال الأسبوعين القادمين — جرّب طبيبًا آخر.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                      {availableDates.map((d, idx) => (
-                        <button
-                          key={d.date}
-                          onClick={() => {
-                            setDate(d.date);
-                            setTime("");
-                          }}
-                          className={`relative rounded-xl border p-2.5 text-xs text-center transition ${
-                            date === d.date
-                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                              : "border-border hover:border-primary/50 hover:bg-muted/40"
-                          }`}
-                        >
-                          {idx === 0 && date !== d.date && (
-                            <span className="absolute -top-1.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow-sm">
-                              الأقرب
-                            </span>
-                          )}
-                          <div
-                            className={`text-[10px] ${date === d.date ? "text-primary-foreground/80" : "text-muted-foreground"}`}
-                          >
-                            {WEEKDAYS_AR[d.weekday]}
-                          </div>
-                          <div className="font-bold text-sm mt-0.5">{d.label}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {date && (
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between gap-2 mb-2.5">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                        <Clock className="h-3.5 w-3.5 text-primary" /> {t("time")}
-                      </div>
-                      {slotsFetching && (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          تحديث الأوقات…
-                        </span>
-                      )}
-                    </div>
-                    {!slotsFetching && availableTimes.length === 0 && (
-                      <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-                        لا توجد أوقات متاحة في هذا اليوم.
-                        <span className="block text-[11px] mt-1 opacity-80">
-                          جرّب تاريخًا آخر أو طبيبًا مختلفًا.
-                        </span>
-                      </div>
-                    )}
-                    {morningTimes.length > 0 && (
-                      <TimeSection
-                        icon={<Sun className="h-3.5 w-3.5" />}
-                        label="صباحًا"
-                        times={morningTimes}
-                        booked={bookedSet}
-                        selected={time}
-                        onSelect={setTime}
-                      />
-                    )}
-                    {eveningTimes.length > 0 && (
-                      <div className="mt-4">
-                        <TimeSection
-                          icon={<Moon className="h-3.5 w-3.5" />}
-                          label="مساءً"
-                          times={eveningTimes}
-                          booked={bookedSet}
-                          selected={time}
-                          onSelect={setTime}
-                        />
-                      </div>
-                    )}
-                    {bookedSet.size > 0 && (
-                      <p className="mt-3 text-[11px] text-muted-foreground">
-                        الأوقات الرمادية محجوزة بالفعل — الأوقات المتاحة تُحدَّث تلقائيًا حسب الطبيب واليوم.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {step === 4 && (
-              <div>
-                <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary" /> {t("patient_info")}
-                </h2>
-                <p className="text-xs text-muted-foreground mb-5">
-                  نحتاج هذه البيانات لتأكيد الموعد والتواصل معك.
-                </p>
-                {submitError && (
-                  <div className="mb-4">
-                    <SubmitErrorBanner
-                      kind={submitError.kind}
-                      message={submitError.message}
-                      onRetry={submit}
-                      retrying={submitting}
-                    />
-                  </div>
-                )}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label={t("name")} required error={errors.name}>
-                    <input
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      onBlur={() => setErrors((p) => ({ ...p, name: undefined }))}
-                      maxLength={NAME_MAX}
-                      aria-invalid={!!errors.name}
-                      placeholder="مثال: محمد أحمد"
-                      className={INPUT_CLS}
-                    />
-                  </Field>
-                  <Field label={t("phone")} required error={errors.phone}>
-                    <input
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      onBlur={() => setErrors((p) => ({ ...p, phone: undefined }))}
-                      inputMode="tel"
-                      maxLength={PHONE_MAX}
-                      aria-invalid={!!errors.phone}
-                      placeholder="05xxxxxxxx"
-                      dir="ltr"
-                      className={`${INPUT_CLS} text-start`}
-                    />
-                  </Field>
-                  <Field label={t("national_id")} error={errors.national_id}>
-                    <input
-                      value={form.national_id}
-                      onChange={(e) => setForm({ ...form, national_id: e.target.value })}
-                      maxLength={NID_MAX}
-                      inputMode="numeric"
-                      aria-invalid={!!errors.national_id}
-                      placeholder="اختياري"
-                      dir="ltr"
-                      className={`${INPUT_CLS} text-start`}
-                    />
-                  </Field>
-                  <Field label={t("gender")}>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(["male", "female"] as const).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => setForm({ ...form, gender: g })}
-                          className={`h-11 rounded-lg border text-sm font-medium transition ${
-                            form.gender === g
-                              ? "border-primary bg-primary/5 text-primary"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          {t(g)}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                  <div className="sm:col-span-2">
-                    <Field
-                      label={t("reason")}
-                      error={errors.reason}
-                      hint={`${form.reason.length}/${REASON_MAX}`}
-                    >
-                      <textarea
-                        value={form.reason}
-                        onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                        rows={3}
-                        maxLength={REASON_MAX}
-                        aria-invalid={!!errors.reason}
-                        placeholder="اذكر باختصار سبب الزيارة (اختياري)"
-                        className={TEXTAREA_CLS}
-                      />
-                    </Field>
-                  </div>
-                </div>
-
-                <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Clock className="h-4 w-4 text-primary" /> تذكيرات قبل الموعد
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    اختر متى تودّ استلام تذكير عبر الرسائل.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <ReminderToggle
-                      checked={form.reminder_24h}
-                      onChange={(v) => setForm({ ...form, reminder_24h: v })}
-                      label="قبل الموعد بـ 24 ساعة"
-                    />
-                    <ReminderToggle
-                      checked={form.reminder_2h}
-                      onChange={(v) => setForm({ ...form, reminder_2h: v })}
-                      label="قبل الموعد بساعتين"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation */}
-            <div className="mt-8 flex items-center justify-between gap-3">
-              <button
-                disabled={step === 1}
-                onClick={() => setStep((s) => Math.max(1, s - 1))}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 h-10 text-sm font-medium hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >
-                <ArrowRight className="h-4 w-4 rtl:hidden" />
-                <ArrowLeft className="h-4 w-4 ltr:hidden" /> {t("back")}
-              </button>
-
-              {step < 4 ? (
-                <button
-                  onClick={() => setStep((s) => s + 1)}
-                  disabled={!canGoNext}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 h-10 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 shadow-sm transition"
-                >
-                  {t("next")} <ArrowLeft className="h-4 w-4 rtl:hidden" />
-                  <ArrowRight className="h-4 w-4 ltr:hidden" />
-                </button>
-              ) : (
-                <button
-                  onClick={submit}
-                  disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 h-10 text-sm font-semibold text-primary-foreground disabled:opacity-60 hover:bg-primary/90 shadow-sm transition"
-                >
-                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {submitting ? t("loading") : "تأكيد الحجز"}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Summary sidebar */}
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-                <CheckCircle2 className="h-4 w-4 text-primary" /> ملخّص الحجز
-              </div>
-              <dl className="mt-4 space-y-3 text-sm">
-                <SummaryRow
-                  icon={<Stethoscope className="h-3.5 w-3.5" />}
-                  label="التخصص"
-                  value={
-                    selectedSpecialty
-                      ? lang === "ar"
-                        ? selectedSpecialty.name_ar
-                        : selectedSpecialty.name_en
-                      : null
-                  }
-                />
-                <SummaryRow
-                  icon={<UserCircle2 className="h-3.5 w-3.5" />}
-                  label="الطبيب"
-                  value={
-                    selectedDoctor
-                      ? lang === "ar"
-                        ? selectedDoctor.name_ar
-                        : selectedDoctor.name_en
-                      : specialtyId
-                        ? "أول متاح"
-                        : null
-                  }
-                />
-                <SummaryRow
-                  icon={<CalIcon className="h-3.5 w-3.5" />}
-                  label={t("date")}
-                  value={date || null}
-                />
-                <SummaryRow
-                  icon={<Clock className="h-3.5 w-3.5" />}
-                  label={t("time")}
-                  value={time || null}
-                />
-              </dl>
-              <div className="mt-5 rounded-lg bg-primary/5 border border-primary/15 p-3 text-[11px] leading-5 text-muted-foreground">
-                الحجز مجاني ولا يتطلب دفعًا مسبقًا. يمكنك إلغاؤه أو تعديله في أي وقت من خلال
-                رقم هاتفك.
-              </div>
-              <div className="mt-4 text-[11px] text-muted-foreground">
-                هل تحتاج مساعدة؟{" "}
-                <Link to="/contact" className="text-primary font-semibold hover:underline">
-                  تواصل معنا
-                </Link>
-              </div>
-            </div>
-          </aside>
+          {state.step < 8 && (
+            <Button
+              disabled={!canNext}
+              onClick={() => dispatch({ t: "goto", step: state.step + 1 })}
+              className="gap-1"
+            >
+              {lang === "ar" ? <>التالي<ChevronLeft className="h-4 w-4"/></> : <>Next<ChevronRight className="h-4 w-4"/></>}
+            </Button>
+          )}
         </div>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          {lang === "ar" ? "لديك حجز مسبق؟" : "Already booked?"}{" "}
+          <Link to="/track" className="text-primary hover:underline">
+            {lang === "ar" ? "تتبع حجزك" : "Track your booking"}
+          </Link>
+        </p>
       </div>
-    </>
+    </div>
   );
 }
 
-function TimeSection({
-  icon,
-  label,
-  times,
-  booked,
-  selected,
-  onSelect,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  times: string[];
-  booked?: Set<string>;
-  selected: string;
-  onSelect: (t: string) => void;
-}) {
+/* ================================================================
+   Stepper
+   ================================================================ */
+
+function Stepper({ steps, current, onJump }: { steps: string[]; current: number; onJump: (i: number) => void }) {
   return (
-    <div>
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        {icon} {label}
-      </div>
-      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-        {times.map((tm) => {
-          const isBooked = booked?.has(tm) ?? false;
-          const isSelected = selected === tm;
-          return (
+    <ol className="flex items-center gap-1 overflow-x-auto pb-2">
+      {steps.map((label, i) => {
+        const n = i + 1;
+        const active = n === current;
+        const done = n < current;
+        return (
+          <li key={i} className="flex items-center gap-1 shrink-0">
             <button
-              key={tm}
-              onClick={() => onSelect(tm)}
-              disabled={isBooked}
-              aria-disabled={isBooked}
-              title={isBooked ? "محجوز" : undefined}
-              className={`rounded-lg border py-2 text-sm font-medium transition ${
-                isBooked
-                  ? "border-border bg-muted/40 text-muted-foreground/60 line-through cursor-not-allowed"
-                  : isSelected
-                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                    : "border-border hover:border-primary/50 hover:bg-muted/40"
+              type="button"
+              onClick={() => onJump(i)}
+              disabled={n >= current}
+              className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                active ? "bg-primary text-primary-foreground shadow"
+                : done ? "bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer"
+                : "bg-muted text-muted-foreground"
               }`}
             >
-              {tm}
+              <span className={`h-5 w-5 rounded-full grid place-items-center text-[10px] ${
+                active ? "bg-primary-foreground text-primary" : done ? "bg-primary text-primary-foreground" : "bg-background"
+              }`}>
+                {done ? <Check className="h-3 w-3"/> : n}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+            {i < steps.length - 1 && <span className="text-muted-foreground/50">·</span>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/* ================================================================
+   Step components
+   ================================================================ */
+
+function StepService({ lang, value, onPick }: { lang: "ar"|"en"; value: ServiceType | null; onPick: (v: ServiceType) => void }) {
+  const items: { id: ServiceType; ar: string; en: string; icon: any; desc_ar: string; desc_en: string; disabled?: boolean }[] = [
+    { id: "clinic",    ar: "عيادات تخصصية", en: "Specialty Clinics", icon: Stethoscope, desc_ar: "احجز مع طبيب متخصص", desc_en: "Book with a specialist" },
+    { id: "followup",  ar: "متابعة",         en: "Follow-up",        icon: Activity,    desc_ar: "متابعة مع نفس الطبيب", desc_en: "Follow-up visit" },
+    { id: "radiology", ar: "الأشعة",         en: "Radiology",        icon: Scan,        desc_ar: "قريبًا",              desc_en: "Coming soon", disabled: true },
+    { id: "lab",       ar: "المختبر",        en: "Laboratory",       icon: TestTube,    desc_ar: "قريبًا",              desc_en: "Coming soon", disabled: true },
+  ];
+  return (
+    <StepShell lang={lang} title={lang === "ar" ? "اختر نوع الخدمة" : "Choose service type"}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.map((it) => {
+          const active = value === it.id;
+          return (
+            <button
+              key={it.id}
+              onClick={() => !it.disabled && onPick(it.id)}
+              disabled={it.disabled}
+              className={`text-start rounded-xl border-2 p-4 transition ${
+                active ? "border-primary bg-primary/5"
+                : it.disabled ? "border-border bg-muted/50 opacity-60 cursor-not-allowed"
+                : "border-border bg-card hover:border-primary/50 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`h-11 w-11 rounded-lg grid place-items-center ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                  <it.icon className="h-5 w-5"/>
+                </div>
+                <div>
+                  <div className="font-semibold">{lang === "ar" ? it.ar : it.en}</div>
+                  <div className="text-xs text-muted-foreground">{lang === "ar" ? it.desc_ar : it.desc_en}</div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </StepShell>
+  );
+}
+
+function StepBranch({ lang, branches, value, onPick }: { lang: "ar"|"en"; branches: any[]; value: string | null; onPick: (v: string) => void }) {
+  return (
+    <StepShell lang={lang} title={lang === "ar" ? "اختر الفرع" : "Choose branch"}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {branches.map((b) => {
+          const active = value === b.id;
+          return (
+            <button
+              key={b.id}
+              onClick={() => onPick(b.id)}
+              className={`text-start rounded-xl border-2 p-4 transition ${
+                active ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`h-11 w-11 rounded-lg grid place-items-center ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                  <Building2 className="h-5 w-5"/>
+                </div>
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{lang === "ar" ? b.name_ar : b.name_en}</div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3"/>
+                    {lang === "ar" ? b.city_ar : b.city_en}
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </StepShell>
+  );
+}
+
+function StepSpecialty({ lang, specialties, value, onPick }: { lang: "ar"|"en"; specialties: any[]; value: string | null; onPick: (v: string) => void }) {
+  return (
+    <StepShell lang={lang} title={lang === "ar" ? "اختر التخصص" : "Choose specialty"}>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {specialties.map((s) => {
+          const active = value === s.id;
+          return (
+            <button
+              key={s.id}
+              onClick={() => onPick(s.id)}
+              className={`rounded-xl border-2 p-4 text-center transition ${
+                active ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50 hover:shadow-sm"
+              }`}
+            >
+              <div className={`h-12 w-12 mx-auto rounded-full grid place-items-center mb-2 ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                <Stethoscope className="h-5 w-5"/>
+              </div>
+              <div className="text-sm font-semibold">{lang === "ar" ? s.name_ar : s.name_en}</div>
+            </button>
+          );
+        })}
+      </div>
+    </StepShell>
+  );
+}
+
+function StepDoctor({ lang, doctors, value, onPick }: { lang: "ar"|"en"; doctors: any[]; value: string | null; onPick: (v: string) => void }) {
+  return (
+    <StepShell lang={lang} title={lang === "ar" ? "اختر الطبيب" : "Choose doctor"}>
+      {doctors.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          {lang === "ar" ? "لا يوجد أطباء متاحون بهذا التخصص/الفرع." : "No doctors available for this specialty/branch."}
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {doctors.map((d) => {
+            const active = value === d.id;
+            const name = lang === "ar" ? d.name_ar : d.name_en;
+            return (
+              <button
+                key={d.id}
+                onClick={() => onPick(d.id)}
+                disabled={!d.booking_enabled}
+                className={`text-start rounded-xl border-2 p-4 transition ${
+                  active ? "border-primary bg-primary/5"
+                  : !d.booking_enabled ? "border-border bg-muted/50 opacity-60 cursor-not-allowed"
+                  : "border-border bg-card hover:border-primary/50 hover:shadow-sm"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-14 w-14 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center font-bold overflow-hidden">
+                    {d.photo_url ? <img src={d.photo_url} alt={name} className="h-full w-full object-cover"/> : name.charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate">{name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {lang === "ar" ? d.specialty_name_ar : d.specialty_name_en}
+                    </div>
+                    {d.ratings_count > 0 && (
+                      <div className="flex items-center gap-1 mt-1 text-xs">
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400"/>
+                        <span>{Number(d.avg_rating).toFixed(1)}</span>
+                        <span className="text-muted-foreground">({d.ratings_count})</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </StepShell>
+  );
+}
+
+/* ------------ Calendar / Date step ------------ */
+
+function StepDate({
+  lang, value, onPick, doctorId, specialtyId, branchId,
+}: {
+  lang: "ar"|"en"; value: string | null; onPick: (v: string) => void;
+  doctorId: string | null; specialtyId: string | null; branchId: string | null;
+}) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [monthStart, setMonthStart] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  const firstWeekday = monthStart.getDay(); // 0..6, Sun..Sat
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(monthStart.getFullYear(), monthStart.getMonth(), d));
+
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const monthLabel = monthStart.toLocaleDateString(lang === "ar" ? "ar-SA" : "en-US", { month: "long", year: "numeric" });
+  const weekdayNames = lang === "ar"
+    ? ["أحد","إثن","ثلا","أرب","خمي","جمع","سبت"]
+    : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 60);
+
+  return (
+    <StepShell lang={lang} title={lang === "ar" ? "اختر التاريخ" : "Choose date"}>
+      <div className="max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="outline" size="sm"
+            onClick={() => setMonthStart(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1))}
+            disabled={monthStart <= new Date(today.getFullYear(), today.getMonth(), 1)}
+          ><ChevronRight className="h-4 w-4"/></Button>
+          <div className="font-semibold">{monthLabel}</div>
+          <Button variant="outline" size="sm"
+            onClick={() => setMonthStart(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1))}
+          ><ChevronLeft className="h-4 w-4"/></Button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground mb-1">
+          {weekdayNames.map((w) => <div key={w}>{w}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((d, i) => {
+            if (!d) return <div key={i}/>;
+            const isPast = d < today;
+            const isTooFar = d > maxDate;
+            const disabled = isPast || isTooFar;
+            const s = iso(d);
+            const active = value === s;
+            return (
+              <button
+                key={i}
+                disabled={disabled}
+                onClick={() => onPick(s)}
+                className={`aspect-square rounded-lg text-sm font-medium transition ${
+                  active ? "bg-primary text-primary-foreground shadow"
+                  : disabled ? "text-muted-foreground/40 cursor-not-allowed"
+                  : "bg-muted hover:bg-primary/10 hover:text-primary"
+                }`}
+              >
+                {d.getDate()}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          {lang === "ar" ? "تُعرض الأوقات المتاحة في الخطوة التالية" : "Available times shown in next step"}
+        </p>
+      </div>
+    </StepShell>
+  );
+}
+
+/* ------------ Time slots ------------ */
+
+function StepTime({ lang, value, avail, onPick }: { lang: "ar"|"en"; value: string | null; avail: AvailResp | undefined; onPick: (v: string) => void }) {
+  const times = avail?.times ?? [];
+  const booked = new Set(avail?.booked ?? []);
+  const groups = useMemo(() => {
+    const morning: string[] = [], afternoon: string[] = [], evening: string[] = [];
+    for (const t of times) {
+      const h = parseInt(t.slice(0,2), 10);
+      if (h < 12) morning.push(t);
+      else if (h < 17) afternoon.push(t);
+      else evening.push(t);
+    }
+    return { morning, afternoon, evening };
+  }, [times]);
+
+  if (!avail) return (
+    <StepShell lang={lang} title={lang === "ar" ? "اختر الوقت" : "Choose time"}>
+      <div className="flex items-center justify-center py-10 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin mr-2"/>
+        {lang === "ar" ? "جارٍ تحميل المواعيد…" : "Loading slots…"}
+      </div>
+    </StepShell>
+  );
+
+  if (times.length === 0 && booked.size === 0) return (
+    <StepShell lang={lang} title={lang === "ar" ? "اختر الوقت" : "Choose time"}>
+      <p className="text-center text-muted-foreground py-10">
+        {lang === "ar" ? "لا توجد مواعيد متاحة في هذا اليوم — اختر تاريخًا آخر." : "No slots for this date — pick another day."}
+      </p>
+    </StepShell>
+  );
+
+  const renderGroup = (label_ar: string, label_en: string, items: string[]) => items.length > 0 && (
+    <div>
+      <h4 className="font-semibold text-sm mb-2 text-muted-foreground">{lang === "ar" ? label_ar : label_en}</h4>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        {items.map((t) => {
+          const active = value === t;
+          const isBooked = booked.has(t);
+          return (
+            <button
+              key={t}
+              disabled={isBooked}
+              onClick={() => onPick(t)}
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                active ? "bg-primary text-primary-foreground shadow"
+                : isBooked ? "bg-muted text-muted-foreground line-through cursor-not-allowed"
+                : "bg-muted hover:bg-primary/10 hover:text-primary"
+              }`}
+            >
+              {t}
             </button>
           );
         })}
       </div>
     </div>
   );
-}
 
-function ReminderToggle({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
   return (
-    <label
-      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${
-        checked ? "border-primary bg-primary/5 text-foreground" : "border-border hover:border-primary/40"
-      }`}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="accent-primary"
-      />
-      {label}
-    </label>
+    <StepShell lang={lang} title={lang === "ar" ? "اختر الوقت" : "Choose time"}>
+      <div className="space-y-5">
+        {renderGroup("صباحًا", "Morning", groups.morning)}
+        {renderGroup("عصرًا", "Afternoon", groups.afternoon)}
+        {renderGroup("مساءً", "Evening", groups.evening)}
+      </div>
+    </StepShell>
   );
 }
 
-function SummaryRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | null;
-}) {
+/* ------------ Patient info ------------ */
+
+function StepPatient({ lang, value, onChange }: { lang: "ar"|"en"; value: State["patient"]; onChange: (p: Partial<State["patient"]>) => void }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {icon} {label}
-      </dt>
-      <dd
-        className={`text-xs font-semibold text-end ${value ? "text-foreground" : "text-muted-foreground/60"}`}
-      >
-        {value ?? "—"}
-      </dd>
-    </div>
+    <StepShell lang={lang} title={lang === "ar" ? "بياناتك" : "Your details"}>
+      <div className="grid gap-4 sm:grid-cols-2 max-w-2xl mx-auto">
+        <Field label={lang === "ar" ? "الاسم الرباعي" : "Full name"} required>
+          <input
+            value={value.name}
+            onChange={(e) => onChange({ name: e.target.value.slice(0, NAME_MAX) })}
+            className="input"
+            placeholder={lang === "ar" ? "الاسم كما في الهوية" : "Full name"}
+          />
+        </Field>
+        <Field label={lang === "ar" ? "رقم الجوال" : "Mobile"} required>
+          <input
+            value={value.phone}
+            onChange={(e) => onChange({ phone: e.target.value.slice(0, PHONE_MAX) })}
+            className="input"
+            placeholder="05XXXXXXXX"
+            dir="ltr"
+            inputMode="tel"
+          />
+        </Field>
+        <Field label={lang === "ar" ? "رقم الهوية / الإقامة" : "National ID"}>
+          <input
+            value={value.nationalId}
+            onChange={(e) => onChange({ nationalId: e.target.value.slice(0, NID_MAX) })}
+            className="input"
+            dir="ltr"
+            inputMode="numeric"
+          />
+        </Field>
+        <Field label={lang === "ar" ? "الجنس" : "Gender"} required>
+          <div className="grid grid-cols-2 gap-2">
+            {(["male","female"] as const).map((g) => (
+              <button key={g} type="button"
+                onClick={() => onChange({ gender: g })}
+                className={`rounded-lg border-2 py-2 text-sm font-medium transition ${
+                  value.gender === g ? "border-primary bg-primary/5 text-primary" : "border-border bg-card hover:border-primary/50"
+                }`}
+              >
+                {g === "male" ? (lang === "ar" ? "ذكر" : "Male") : (lang === "ar" ? "أنثى" : "Female")}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <div className="sm:col-span-2">
+          <Field label={lang === "ar" ? "سبب الزيارة (اختياري)" : "Reason (optional)"}>
+            <textarea
+              value={value.reason}
+              onChange={(e) => onChange({ reason: e.target.value.slice(0, REASON_MAX) })}
+              className="input min-h-[80px]"
+              placeholder={lang === "ar" ? "وصف مختصر…" : "Short description…"}
+            />
+          </Field>
+        </div>
+        <div className="sm:col-span-2 rounded-xl bg-muted/50 p-4 space-y-2">
+          <div className="font-semibold text-sm">{lang === "ar" ? "التذكيرات" : "Reminders"}</div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={value.reminder24h} onChange={(e) => onChange({ reminder24h: e.target.checked })} className="accent-primary"/>
+            {lang === "ar" ? "قبل 24 ساعة" : "24 hours before"}
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={value.reminder2h} onChange={(e) => onChange({ reminder2h: e.target.checked })} className="accent-primary"/>
+            {lang === "ar" ? "قبل ساعتين" : "2 hours before"}
+          </label>
+        </div>
+      </div>
+      <style>{`.input{width:100%;border:1px solid hsl(var(--border));background:hsl(var(--background));border-radius:.5rem;padding:.55rem .75rem;font-size:.875rem}.input:focus{outline:none;box-shadow:0 0 0 2px hsl(var(--primary)/.4)}`}</style>
+    </StepShell>
   );
 }
 
-function SkeletonGrid() {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-14 rounded-xl border border-border bg-muted/40 animate-pulse" />
-      ))}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  required,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-foreground">
-          {label} {required && <span className="text-destructive">*</span>}
-        </span>
-        {hint && !error && (
-          <span className="text-[10px] text-muted-foreground">{hint}</span>
-        )}
-      </div>
+      <div className="text-xs font-semibold mb-1.5">{label}{required && <span className="text-destructive">*</span>}</div>
       {children}
-      {error && <p className="mt-1 text-[11px] text-destructive font-medium">{error}</p>}
     </label>
+  );
+}
+
+/* ------------ Review + submit ------------ */
+
+function StepReview({
+  lang, state, branches, specialties, doctors, errorMsg, submitting, onSubmit,
+}: {
+  lang: "ar"|"en"; state: State; branches: any[]; specialties: any[]; doctors: any[];
+  errorMsg: string | null; submitting: boolean; onSubmit: () => void;
+}) {
+  const branch = branches.find((b) => b.id === state.branchId);
+  const spec   = specialties.find((s) => s.id === state.specialtyId);
+  const doc    = doctors.find((d: any) => d.id === state.doctorId);
+  const rows = [
+    { label: lang === "ar" ? "الفرع" : "Branch", value: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : "—" },
+    { label: lang === "ar" ? "التخصص" : "Specialty", value: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : "—" },
+    { label: lang === "ar" ? "الطبيب" : "Doctor", value: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : "—" },
+    { label: lang === "ar" ? "التاريخ" : "Date", value: state.date ?? "—" },
+    { label: lang === "ar" ? "الوقت" : "Time", value: state.time ?? "—" },
+    { label: lang === "ar" ? "الاسم" : "Name", value: state.patient.name },
+    { label: lang === "ar" ? "الجوال" : "Phone", value: state.patient.phone },
+  ];
+  return (
+    <StepShell lang={lang} title={lang === "ar" ? "مراجعة الحجز" : "Review your booking"}>
+      <div className="max-w-xl mx-auto">
+        <dl className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+          {rows.map((r) => (
+            <div key={r.label} className="grid grid-cols-3 p-3 text-sm">
+              <dt className="text-muted-foreground col-span-1">{r.label}</dt>
+              <dd className="col-span-2 font-medium">{r.value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {errorMsg && <div className="mt-4"><SubmitErrorBanner message={errorMsg}/></div>}
+
+        <Button
+          onClick={onSubmit}
+          disabled={submitting}
+          className="w-full mt-6 gap-2 h-12 text-base"
+        >
+          {submitting
+            ? <><Loader2 className="h-4 w-4 animate-spin"/> {lang === "ar" ? "جارٍ الحجز…" : "Booking…"}</>
+            : <><CheckCircle2 className="h-5 w-5"/> {lang === "ar" ? "تأكيد الحجز" : "Confirm booking"}</>}
+        </Button>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          {lang === "ar"
+            ? "بالضغط على التأكيد، فأنت توافق على شروط الاستخدام."
+            : "By confirming, you agree to our terms of use."}
+        </p>
+      </div>
+    </StepShell>
+  );
+}
+
+/* ------------ Shared shell ------------ */
+
+function StepShell({ lang, title, children }: { lang: "ar"|"en"; title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="text-xl md:text-2xl font-bold mb-5 text-center">{title}</h2>
+      {children}
+    </div>
   );
 }
