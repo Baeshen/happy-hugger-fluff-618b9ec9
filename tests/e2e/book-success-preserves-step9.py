@@ -43,6 +43,13 @@ async def main():
         try:
             # ---- Full wizard drive (mirrors tests/e2e/booking-flow.py) ----
             await page.goto(f"{BASE}/book", wait_until="domcontentloaded")
+            # Dismiss the intro overlay if it appears (it intercepts clicks).
+            try:
+                await page.get_by_role(
+                    "button", name=re.compile(r"تخطي|Skip")
+                ).click(timeout=3000)
+            except Exception:
+                pass
 
             # Step 1 — service
             await page.wait_for_selector("text=اختر نوع الخدمة", timeout=10_000)
