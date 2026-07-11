@@ -1275,6 +1275,17 @@ function StepSuccess({
         </Link>
       </div>
       <div className="mt-3">
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-bold text-white hover:bg-[#1ebe5b] transition"
+        >
+          <MessageCircle className="h-4 w-4"/>
+          {lang === "ar" ? "تواصل عبر واتساب بتفاصيل الحجز" : "Contact via WhatsApp with booking details"}
+        </a>
+      </div>
+      <div className="mt-3">
         <Button variant="outline" onClick={onNewBooking} className="gap-2 h-auto py-2 w-full">
           <CalIcon className="h-4 w-4"/>
           {lang === "ar" ? "حجز جديد" : "New booking"}
