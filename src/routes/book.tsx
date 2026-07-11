@@ -226,6 +226,27 @@ function BookPage() {
 
   const patientValidation = useMemo(() => validatePatient(state.patient), [state.patient]);
 
+  // Consistency guard: clamp state.step to the highest step whose
+  // prerequisites are actually met. Runs on every state change so a
+  // deep link (?step=8 with no doctor), a stale sessionStorage draft, or
+  // a manual URL edit always renders a valid step and the URL is
+  // rewritten to match. Step 9 (success) is preserved — it's set only
+  // after a real submit and never inferred from the URL.
+  useEffect(() => {
+    if (state.step === 9) return;
+    const max = maxReachableStep(state, patientValidation.ok);
+    if (state.step > max) {
+      dispatch({ t: "goto", step: max });
+      if (typeof window !== "undefined") {
+        navigate({
+          to: "/book",
+          search: (prev: Record<string, unknown>) => ({ ...prev, step: max }),
+          replace: true,
+        });
+      }
+    }
+  }, [state, patientValidation.ok, navigate]);
+
   const canNext = useMemo(() => {
     switch (state.step) {
       case 1: return !!state.serviceType;
