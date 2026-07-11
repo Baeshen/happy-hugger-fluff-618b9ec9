@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, ArrowRight, Building2, Calendar as CalIcon, Check, CheckCircle2,
   ChevronLeft, ChevronRight, Clock, Loader2, MapPin, Phone, Star, Stethoscope,
-  User, UserCircle2, ClipboardList, TestTube, Scan, Activity,
+  User, UserCircle2, ClipboardList, TestTube, Scan, Activity, MessageCircle,
 } from "lucide-react";
 import { submitBooking } from "@/lib/booking-submit";
 import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
