@@ -87,6 +87,7 @@ function SpecialtiesPage() {
     queryKey: ["specialties"],
     queryFn: fetchSpecialties,
   });
+  const { data: counts } = useQuery(specialtyDoctorCountsQuery());
   return (
     <div className="container-app py-12">
       <header className="mb-10">
