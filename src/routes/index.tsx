@@ -7,6 +7,8 @@ import { SITE } from "@/lib/site";
 import { ShieldCheck, Pill, Users, ArrowLeft, Stethoscope } from "lucide-react";
 import { buildLocalBusinessSchema, SITE_URL } from "@/lib/localBusinessSchema";
 import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
+import { StatsBar } from "@/components/home/StatsBar";
+import { AwardsMarquee } from "@/components/home/AwardsMarquee";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(clinicSettingsQuery()),
