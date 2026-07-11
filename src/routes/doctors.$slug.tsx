@@ -18,6 +18,7 @@ type Doctor = {
   bio_ar: string | null;
   bio_en: string | null;
   photo_url: string | null;
+  photos: string[] | null;
   languages: string[] | null;
   gender: string | null;
   years_experience: number | null;
