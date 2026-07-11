@@ -1,13 +1,24 @@
 import { SITE } from "@/lib/site";
+import { trackEvent } from "@/lib/analytics";
 
 export function WhatsAppFab() {
   const href = `https://wa.me/${SITE.whatsapp}`;
+  const handleClick = () => {
+    const source =
+      typeof window !== "undefined" ? window.location.pathname || "/" : "unknown";
+    trackEvent("whatsapp_fab_click", {
+      phone: SITE.whatsapp,
+      source,
+      is_home: source === "/",
+    });
+  };
   return (
     <a
       href={href}
       target="_blank"
       rel="noreferrer"
       aria-label="واتساب"
+      onClick={handleClick}
       className="fixed bottom-24 end-4 md:end-6 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/20 hover:scale-105 active:scale-95 transition"
     >
       <svg viewBox="0 0 32 32" className="h-7 w-7" fill="currentColor" aria-hidden>
