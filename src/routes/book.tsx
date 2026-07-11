@@ -1269,8 +1269,6 @@ function StepSuccess({
     </div>
   );
 }
-  );
-}
 
 /* ================================================================
    Summary sidebar — sticky recap of user's selections
