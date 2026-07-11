@@ -187,6 +187,40 @@ export function StepSuccess({
         </div>
       )}
 
+      {reference && trackUrl && (
+        <div
+          data-testid="booking-qr"
+          className="mt-6 rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row items-center gap-4"
+        >
+          <div className="shrink-0 rounded-lg bg-white p-2 border border-border">
+            <canvas ref={qrCanvasRef} width={176} height={176} aria-label={lang === "ar" ? "رمز QR لتتبع الحجز" : "Booking tracking QR"} />
+          </div>
+          <div className="flex-1 min-w-0 text-start">
+            <div className="text-sm font-semibold flex items-center gap-2 justify-center sm:justify-start">
+              <QrCode className="h-4 w-4 text-primary" />
+              {lang === "ar" ? "امسح للوصول إلى صفحة التتبع" : "Scan to open the tracking page"}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground break-all">{trackUrl}</p>
+            <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
+              <Button variant="outline" size="sm" onClick={downloadQr} disabled={!qrDataUrl} className="gap-1">
+                <Download className="h-4 w-4" />
+                {lang === "ar" ? "تحميل QR" : "Download QR"}
+              </Button>
+              <Button
+                data-testid="booking-pdf-btn"
+                variant="outline"
+                size="sm"
+                onClick={downloadPdf}
+                className="gap-1"
+              >
+                <Download className="h-4 w-4" />
+                {lang === "ar" ? "تحميل PDF" : "Download PDF"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 flex items-center justify-between gap-2">
         <div className="text-sm font-semibold">
           {lang === "ar" ? "تفاصيل الحجز" : "Booking details"}
