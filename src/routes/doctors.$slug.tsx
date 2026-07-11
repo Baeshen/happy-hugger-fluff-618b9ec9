@@ -745,6 +745,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   const titleId = useId();
   const descId = useId();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
   const openerRef = useRef<HTMLButtonElement>(null);
   const caption = `${alt} — ${ar ? "صورة" : "Photo"} ${active + 1} ${ar ? "من" : "of"} ${total}`;
 
@@ -920,11 +922,29 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
 
           <figure
             id={descId}
-            className="flex flex-col items-center gap-3"
+            className="flex flex-col items-center gap-3 touch-pan-y select-none"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              const t = e.touches[0];
+              swipeStartRef.current = { x: t.clientX, y: t.clientY };
+            }}
+            onTouchEnd={(e) => {
+              const start = swipeStartRef.current;
+              swipeStartRef.current = null;
+              if (!start || total <= 1) return;
+              const t = e.changedTouches[0];
+              const dx = t.clientX - start.x;
+              const dy = t.clientY - start.y;
+              // Horizontal swipe only: |dx| > 50 and dominant over vertical.
+              if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+              // RTL: swiping right advances to "next" (mirrored).
+              const forward = ar ? dx > 0 : dx < 0;
+              go(forward ? 1 : -1);
+            }}
             aria-live="polite"
             aria-atomic="true"
           >
+
             <div className="relative">
               <ProgressiveImage
                 src={photos[active]}
