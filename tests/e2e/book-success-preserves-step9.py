@@ -182,6 +182,9 @@ async def main():
 
 
             # ---- Reload after success ----
+            # The success screen (step=9) must survive a page reload —
+            # even though the URL still shows step=8 (design: step=9 isn't
+            # pushed). Reference persists via sessionStorage.
             await page.reload(wait_until="domcontentloaded")
             try:
                 await page.get_by_role(
@@ -189,16 +192,29 @@ async def main():
                 ).click(timeout=3000)
             except Exception:
                 pass
-            # Draft is cleared on submit; URL still had step=8 from the review
-            # step, and the clamp resets to step=1 because no data remains.
-            await page.wait_for_selector("text=اختر نوع الخدمة", timeout=15_000)
-            await page.wait_for_function(
-                "window.location.search.includes('step=1')", timeout=10_000
+            await page.wait_for_selector(
+                "text=/تم تأكيد حجزك|Your booking is confirmed/", timeout=15_000
             )
             reload_url = page.url
             print("after reload:", reload_url)
             if "step=0" in reload_url:
                 raise AssertionError(f"reload leaked step=0: {reload_url}")
+            ref2 = page.locator(
+                "span.text-2xl.font-mono, span.md\\:text-3xl.font-mono"
+            ).first
+            if await ref2.count() == 0:
+                raise AssertionError("reload lost the success reference")
+
+            # ---- After "New booking" reset ----
+            await page.get_by_role(
+                "button", name=re.compile("حجز جديد|New booking")
+            ).click()
+            await page.wait_for_selector("text=اختر نوع الخدمة", timeout=10_000)
+            after_reset = page.url
+            print("after reset:", after_reset)
+            if "step=0" in after_reset:
+                raise AssertionError(f"reset leaked step=0: {after_reset}")
+
 
 
             real = [e for e in errors if "Failed to load resource" not in e]
