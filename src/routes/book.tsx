@@ -20,7 +20,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -137,18 +137,46 @@ function BookPage() {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   }, [state]);
 
-  // Sync step to URL so browser back/forward walks the wizard naturally.
-  // Runs synchronously on mount so deep-links (e.g. ?doctor=&specialty=)
-  // immediately reflect the derived step (e.g. step=5) in the URL.
+  // Sync step to URL. If the URL has no explicit step yet (searchParams.step
+  // is the default 0), we're filling it in for the first time → REPLACE so
+  // we don't create a duplicate history entry. Once step is present in the
+  // URL, subsequent transitions PUSH so browser Back/Forward walk the wizard.
+  //
+  // `skipUrlSyncRef` swallows one state→URL sync cycle after popstate so a
+  // Back/Forward that already updated the URL doesn't get overwritten by a
+  // stale render where state.step hasn't caught up yet.
+  const skipUrlSyncRef = useRef(false);
   useEffect(() => {
     if (state.step === 9) return; // success page: don't push
     if (searchParams.step === state.step) return; // already in sync
+    if (skipUrlSyncRef.current) { skipUrlSyncRef.current = false; return; }
     navigate({
       to: "/book",
       search: (prev: Record<string, unknown>) => ({ ...prev, step: state.step }),
-      replace: true,
+      replace: searchParams.step === 0, // 0 = URL had no step yet (schema default)
     });
   }, [state.step, searchParams.step, navigate]);
+
+
+  // Restore state from URL on browser Back/Forward (popstate). Programmatic
+  // navigate() calls do NOT fire popstate, so this only reacts to real
+  // history traversal.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPop = () => {
+      if (window.location.pathname !== "/book") return;
+      const params = new URLSearchParams(window.location.search);
+      const s = parseInt(params.get("step") ?? "0", 10);
+      if (s >= 1 && s <= 9) {
+        skipUrlSyncRef.current = true;
+        dispatch({ t: "goto", step: s });
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+
 
 
   // Scroll to top of the wizard card whenever the step changes.
