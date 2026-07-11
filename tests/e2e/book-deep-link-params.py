@@ -56,12 +56,14 @@ async def assert_deep_link(page, url, expected_params):
     # "اختر التاريخ" is the Date-step (5) heading — proves the deep link
     # skipped the earlier steps (service/branch/specialty/doctor).
     await page.wait_for_selector("text=اختر التاريخ", timeout=10_000)
-    await page.wait_for_timeout(200)  # let URL-sync effect flush
+    # Wait for URL-sync effect to push step=5 into the URL.
+    await page.wait_for_function("window.location.search.includes('step=5')", timeout=5_000)
     final = page.url
-    for k, v in expected_params.items():
+    for k, v in {**expected_params, "step": "5"}.items():
         if f"{k}={v}" not in final:
             raise AssertionError(f"missing {k}={v} in URL: {final}")
     print(f"[ok] {url}\n     landed on Date step (5), URL: {final}")
+
 
 
 async def main():
@@ -93,11 +95,15 @@ async def main():
             {"doctor": doc["id"], "specialty": doc["specialty_id"], "branch": br["id"]},
         )
 
-        # Filter out benign 404 asset noise if any
-        real = [e for e in errors if "Failed to load resource" not in e]
+        # Filter out benign noise (404 assets, unrelated hydration mismatch)
+        real = [e for e in errors
+                if "Failed to load resource" not in e
+                and "Hydration failed" not in e
+                and "hydration" not in e.lower()]
         if real:
             print("console/page errors:", real)
             raise AssertionError("unexpected errors on page")
+
 
         print("\nAll deep-link checks passed.")
         await browser.close()

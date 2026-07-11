@@ -138,17 +138,18 @@ function BookPage() {
   }, [state]);
 
   // Sync step to URL so browser back/forward walks the wizard naturally.
+  // Runs synchronously on mount so deep-links (e.g. ?doctor=&specialty=)
+  // immediately reflect the derived step (e.g. step=5) in the URL.
   useEffect(() => {
     if (state.step === 9) return; // success page: don't push
-    const t = window.setTimeout(() => {
-      navigate({
-        to: "/book",
-        search: (prev: Record<string, unknown>) => ({ ...prev, step: state.step }),
-        replace: true,
-      });
-    }, 50);
-    return () => window.clearTimeout(t);
-  }, [state.step, navigate]);
+    if (searchParams.step === state.step) return; // already in sync
+    navigate({
+      to: "/book",
+      search: (prev: Record<string, unknown>) => ({ ...prev, step: state.step }),
+      replace: true,
+    });
+  }, [state.step, searchParams.step, navigate]);
+
 
   // Scroll to top of the wizard card whenever the step changes.
   useEffect(() => {
