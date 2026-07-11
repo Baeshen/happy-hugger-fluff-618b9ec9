@@ -177,12 +177,8 @@ async def main():
             )
         print("[4] Forward → step=6, data preserved:", fwd_url)
 
-        real = [
-            e for e in errors
-            if "Failed to load resource" not in e
-            and "Hydration failed" not in e
-            and "hydration" not in e.lower()
-        ]
+        real = [e for e in errors if "Failed to load resource" not in e]
+
         if real:
             print("console/page errors:", real)
             raise AssertionError("unexpected errors on page")
