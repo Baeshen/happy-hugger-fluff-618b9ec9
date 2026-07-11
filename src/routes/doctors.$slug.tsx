@@ -795,6 +795,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
               className="h-full w-full"
               imgClassName="h-full w-full object-cover"
               loading="lazy"
+              widths={[128, 192, 256]}
+              sizes="(min-width: 768px) 130px, 20vw"
             />
           </button>
         ))}
