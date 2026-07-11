@@ -649,6 +649,7 @@ export type Database = {
           name_ar: string
           name_en: string
           photo_url: string | null
+          photos: string[]
           slug: string | null
           sort_order: number
           specialty_id: string | null
@@ -673,6 +674,7 @@ export type Database = {
           name_ar: string
           name_en: string
           photo_url?: string | null
+          photos?: string[]
           slug?: string | null
           sort_order?: number
           specialty_id?: string | null
@@ -697,6 +699,7 @@ export type Database = {
           name_ar?: string
           name_en?: string
           photo_url?: string | null
+          photos?: string[]
           slug?: string | null
           sort_order?: number
           specialty_id?: string | null
