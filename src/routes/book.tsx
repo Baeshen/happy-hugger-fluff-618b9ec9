@@ -265,6 +265,8 @@ function BookPage() {
     staleTime: 20_000,
   });
 
+  const patientValidation = useMemo(() => validatePatient(state.patient), [state.patient]);
+
   const canNext = useMemo(() => {
     switch (state.step) {
       case 1: return !!state.serviceType;
@@ -273,21 +275,19 @@ function BookPage() {
       case 4: return !!state.doctorId;
       case 5: return !!state.date;
       case 6: return !!state.time;
-      case 7: {
-        const p = state.patient;
-        return (
-          p.name.trim().length >= NAME_MIN &&
-          p.phone.trim().length >= PHONE_MIN &&
-          PHONE_RE.test(p.phone.trim()) &&
-          !!p.gender
-        );
-      }
+      case 7: return patientValidation.ok;
       default: return true;
     }
-  }, [state]);
+  }, [state, patientValidation]);
 
   async function handleSubmit() {
     setErrorMsg(null);
+    // Defence-in-depth: re-validate right before submission.
+    if (!patientValidation.ok) {
+      setErrorMsg(lang === "ar" ? "يرجى تصحيح بيانات المريض قبل التأكيد" : "Please fix patient info before confirming");
+      dispatch({ t: "goto", step: 7 });
+      return;
+    }
     setSubmitting(true);
     const p = state.patient;
     const res = await submitBooking({
