@@ -26,6 +26,7 @@ import {
   type UrlPatch,
 } from "@/components/doctors/DoctorSearchContext";
 import { useFilteredDoctors } from "@/components/doctors/useFilteredDoctors";
+import { useFilterCounts } from "@/components/doctors/useFilterCounts";
 import { DoctorSearchBar } from "@/components/doctors/DoctorSearchBar";
 import { DoctorFilters } from "@/components/doctors/DoctorFilters";
 import { DoctorResults } from "@/components/doctors/DoctorResults";
