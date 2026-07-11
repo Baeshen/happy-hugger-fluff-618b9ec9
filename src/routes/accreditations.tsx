@@ -1,9 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Award, ShieldCheck, Trophy } from "lucide-react";
+import { Award, ShieldCheck, Trophy, Search, X } from "lucide-react";
+import { useMemo } from "react";
+import { z } from "zod";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { useI18n } from "@/lib/i18n";
 import { PageHero } from "@/components/PageShell";
 import { accreditationsQuery, type Accreditation } from "@/lib/accreditations";
+
+const searchSchema = z.object({
+  q: fallback(z.string(), "").default(""),
+  cat: fallback(z.string(), "").default(""),
+});
 
 const SITE_URL = "https://bashenmedical.com";
 const PAGE_URL = `${SITE_URL}/accreditations`;
@@ -15,6 +23,7 @@ const OG_DESC =
   "اعتمادات محلية ودولية معتمدة (CBAHI، ACHSI، HIMSS، CAP، ISO) تؤكد جودة الرعاية والسلامة في مجمع باعشن الطبي.";
 
 export const Route = createFileRoute("/accreditations")({
+  validateSearch: zodValidator(searchSchema),
   loader: ({ context }) => context.queryClient.ensureQueryData(accreditationsQuery()),
   head: () => ({
     meta: [
@@ -94,7 +103,36 @@ function iconFor(category: string | null) {
 function AccreditationsPage() {
   const { lang } = useI18n();
   const { data } = useSuspenseQuery(accreditationsQuery());
-  const list = data as Accreditation[];
+  const all = data as Accreditation[];
+  const { q, cat } = Route.useSearch();
+  const navigate = useNavigate({ from: "/accreditations" });
+
+  const categories = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of all) if (a.category) s.add(a.category);
+    return Array.from(s);
+  }, [all]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return all.filter((a) => {
+      if (cat && a.category !== cat) return false;
+      if (!needle) return true;
+      const hay = [
+        a.title_ar,
+        a.title_en,
+        a.description_ar ?? "",
+        a.description_en ?? "",
+        a.category ?? "",
+        a.year ? String(a.year) : "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [all, q, cat]);
+
+  const hasFilter = Boolean(q || cat);
 
   return (
     <>
@@ -105,11 +143,109 @@ function AccreditationsPage() {
       />
 
       <section className="container-app py-12">
-        {list.length === 0 ? (
-          <p className="text-center text-muted-foreground">لم تُضف اعتمادات بعد.</p>
+        {/* Search + filter bar */}
+        <div className="mb-6 rounded-2xl border border-border bg-card p-4 flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-muted-foreground" />
+            <input
+              type="search"
+              value={q}
+              onChange={(e) =>
+                navigate({ search: (prev: { q: string; cat: string }) => ({ ...prev, q: e.target.value }), replace: true })
+              }
+              placeholder="ابحث في الاعتمادات (اسم، جهة، سنة…)"
+              aria-label="بحث في الاعتمادات"
+              className="w-full rounded-lg border border-input bg-background ps-9 pe-3 py-2 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <select
+            value={cat}
+            onChange={(e) =>
+              navigate({ search: (prev: { q: string; cat: string }) => ({ ...prev, cat: e.target.value }), replace: true })
+            }
+            aria-label="تصفية حسب النوع"
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary min-w-40"
+          >
+            <option value="">كل الأنواع</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          {hasFilter && (
+            <button
+              type="button"
+              onClick={() => navigate({ search: { q: "", cat: "" }, replace: true })}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+            >
+              <X className="h-4 w-4" /> مسح
+            </button>
+          )}
+        </div>
+
+        {/* Category chips */}
+        {categories.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => navigate({ search: (prev: { q: string; cat: string }) => ({ ...prev, cat: "" }), replace: true })}
+              className={`rounded-full px-3 py-1 text-xs font-semibold border transition ${
+                cat === ""
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
+            >
+              الكل ({all.length})
+            </button>
+            {categories.map((c) => {
+              const count = all.filter((a) => a.category === c).length;
+              const active = cat === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() =>
+                    navigate({
+                      search: (prev: { q: string; cat: string }) => ({ ...prev, cat: active ? "" : c }),
+                      replace: true,
+                    })
+                  }
+                  className={`rounded-full px-3 py-1 text-xs font-semibold border transition ${
+                    active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border bg-card hover:border-primary/40"
+                  }`}
+                >
+                  {c} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mb-4 text-sm text-muted-foreground" aria-live="polite">
+          {filtered.length === all.length
+            ? `عرض ${all.length} اعتماد`
+            : `عرض ${filtered.length} من ${all.length} اعتماد`}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-10 text-center">
+            <p className="text-muted-foreground">لا توجد نتائج مطابقة لبحثك.</p>
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={() => navigate({ search: { q: "", cat: "" }, replace: true })}
+                className="mt-3 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
+              >
+                مسح الفلاتر
+              </button>
+            )}
+          </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((a) => {
+            {filtered.map((a) => {
               const Icon = iconFor(a.category);
               return (
                 <Link
