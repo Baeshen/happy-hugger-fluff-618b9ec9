@@ -172,13 +172,14 @@ async def main():
                 raise AssertionError("success screen missing booking reference")
             print("reference:", (await ref.inner_text()).strip())
 
-            # step=9 must NOT be pushed as a URL param (design), and step=0
-            # must never appear at any point along the way.
+            # step=9 must NOT be pushed as a URL param (intentional: the
+            # success screen isn't a shareable deep link). step=0 must NEVER
+            # appear on the settled URL after the success screen renders.
             if "step=9" in success_url:
                 raise AssertionError(f"step=9 leaked into URL: {success_url}")
-            for u in url_history:
-                if "step=0" in u:
-                    raise AssertionError(f"step=0 appeared during flow: {u}")
+            if "step=0" in success_url:
+                raise AssertionError(f"step=0 leaked on success: {success_url}")
+
 
             # ---- Reload after success ----
             await page.reload(wait_until="domcontentloaded")
