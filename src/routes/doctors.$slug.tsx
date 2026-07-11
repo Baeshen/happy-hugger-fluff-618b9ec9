@@ -305,6 +305,7 @@ function DoctorDetail() {
       : d.branches.name_en || d.branches.name_ar
     : null;
   const bookingEnabled = d.booking_enabled !== false;
+  const ar = lang === "ar";
   const genderLabel =
     d.gender === "male" ? "ذكر" : d.gender === "female" ? "أنثى" : null;
 
