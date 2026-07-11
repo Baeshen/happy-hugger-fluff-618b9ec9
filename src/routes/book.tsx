@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 
 import { fallback } from "@tanstack/zod-adapter";
 import {
-  loadDraft, reducer, STORAGE_KEY, validatePatient, type AvailResp,
+  loadDraft, reducer, STORAGE_KEY, validatePatient, maxReachableStep, type AvailResp,
 } from "@/components/booking/types";
 import { Stepper } from "@/components/booking/Stepper";
 import { StepService } from "@/components/booking/StepService";
