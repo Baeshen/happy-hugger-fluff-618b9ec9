@@ -65,12 +65,45 @@ async def main():
             await page.wait_for_selector("text=اختر التخصص", timeout=10_000)
             await page.locator("button.rounded-xl.border-2.p-4.text-center").first.click()
 
-            # Step 4 — doctor
-            await page.wait_for_selector("text=اختر الطبيب", timeout=10_000)
-            doc = page.locator("button.text-start.rounded-xl.border-2:not([disabled])").first
-            if await doc.count() == 0:
-                raise AssertionError("no doctor available")
-            await doc.click()
+            # Step 4 — doctor. Retry specialties until one yields a doctor.
+            async def try_pick_doctor() -> bool:
+                await page.wait_for_selector("text=اختر الطبيب", timeout=10_000)
+                # Give the doctors query time to populate.
+                for _ in range(10):
+                    await page.wait_for_timeout(400)
+                    btn = page.locator(
+                        "button.text-start.rounded-xl.border-2:not([disabled])"
+                    ).first
+                    if await btn.count() > 0:
+                        await btn.click()
+                        return True
+                    empty = page.locator("text=لا يوجد أطباء متاحون")
+                    if await empty.count() > 0:
+                        return False
+                return False
+
+            picked_doctor = await try_pick_doctor()
+            if not picked_doctor:
+                # Go back to specialty step and try each remaining specialty.
+                await page.get_by_role(
+                    "button", name=re.compile("^السابق|^Back")
+                ).click()
+                await page.wait_for_selector("text=اختر التخصص", timeout=10_000)
+                specs = page.locator("button.rounded-xl.border-2.p-4.text-center")
+                n_specs = await specs.count()
+                for i in range(1, n_specs):
+                    await specs.nth(i).click()
+                    if await try_pick_doctor():
+                        picked_doctor = True
+                        break
+                    await page.get_by_role(
+                        "button", name=re.compile("^السابق|^Back")
+                    ).click()
+                    await page.wait_for_selector("text=اختر التخصص", timeout=10_000)
+                    specs = page.locator("button.rounded-xl.border-2.p-4.text-center")
+            if not picked_doctor:
+                raise AssertionError("no specialty had bookable doctors")
+
 
 
             # date + time picker with retry across days
