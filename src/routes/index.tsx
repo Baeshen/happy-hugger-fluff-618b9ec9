@@ -120,6 +120,8 @@ function HomePage() {
 
       <QuickBar />
 
+      <StatsBar />
+
       {/* Specialties grid */}
       <section className="py-16">
         <div className="container-app">
