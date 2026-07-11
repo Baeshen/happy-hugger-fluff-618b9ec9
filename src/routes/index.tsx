@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { QuickBar } from "@/components/QuickBar";
 import { SITE } from "@/lib/site";
 import { Stethoscope } from "lucide-react";
-import { buildLocalBusinessSchema, SITE_URL } from "@/lib/localBusinessSchema";
+import { buildLocalBusinessSchema } from "@/lib/localBusinessSchema";
 import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
 import { StatsBar } from "@/components/home/StatsBar";
 import { AwardsMarquee } from "@/components/home/AwardsMarquee";
