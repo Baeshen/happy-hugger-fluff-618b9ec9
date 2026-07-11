@@ -27,9 +27,9 @@ async def main():
 
         await page.goto(f"{BASE}/book", wait_until="domcontentloaded")
 
-        # Step 1 — service type: pick first tile ("العيادات")
-        await page.wait_for_selector("text=العيادات", timeout=10_000)
-        await page.get_by_text("العيادات", exact=False).first.click()
+        # Step 1 — service type: pick "عيادات تخصصية"
+        await page.wait_for_selector("text=عيادات تخصصية", timeout=10_000)
+        await page.get_by_text("عيادات تخصصية", exact=False).first.click()
         await page.wait_for_timeout(150)
 
         # Step 2 — branch: pick first branch card
