@@ -27,6 +27,12 @@ async def main():
 
         await page.goto(f"{BASE}/book", wait_until="domcontentloaded")
 
+        # Dismiss intro overlay if present
+        try:
+            await page.locator("button", has_text="تخطي").first.click(timeout=2000)
+        except Exception:
+            pass
+
         # Step 1 — service type
         await page.wait_for_selector("text=عيادات تخصصية", timeout=10_000)
         await page.locator("button", has_text="عيادات تخصصية").first.click()
