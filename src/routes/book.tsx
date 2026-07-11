@@ -192,6 +192,7 @@ function BookPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [result, setResult] = useState<{ reference: string | null; phone: string } | null>(null);
 
   const { data: branches = [] }    = useQuery({ queryKey: ["branches"], queryFn: fetchBranches, staleTime: 5*60_000 });
   const { data: specialties = [] } = useQuery({ queryKey: ["specialties-active"], queryFn: fetchSpecialties, staleTime: 5*60_000 });
