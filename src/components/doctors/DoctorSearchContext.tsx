@@ -21,7 +21,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useNavigate } from "@tanstack/react-router";
 
 export const PER_PAGE = 12;
 export const SORT_KEYS = ["rating", "experience", "name"] as const;
