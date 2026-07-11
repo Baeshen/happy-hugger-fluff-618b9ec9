@@ -1130,12 +1130,23 @@ function StepSuccess({
   const branch = branches.find((b) => b.id === state.branchId);
   const spec   = specialties.find((s) => s.id === state.specialtyId);
   const doc    = doctors.find((d: any) => d.id === state.doctorId);
+  const timeReadable = useMemo(() => {
+    if (!state.time) return "—";
+    const m = /^(\d{1,2}):(\d{2})/.exec(state.time);
+    if (!m) return state.time;
+    const h = Number(m[1]);
+    const min = m[2];
+    const h12 = ((h + 11) % 12) + 1;
+    const suffix = lang === "ar" ? (h < 12 ? "صباحًا" : "مساءً") : (h < 12 ? "AM" : "PM");
+    return `${h12}:${min} ${suffix} (${String(h).padStart(2, "0")}:${min})`;
+  }, [state.time, lang]);
+
   const rows = [
     { label: lang === "ar" ? "الفرع" : "Branch", value: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : "—" },
     { label: lang === "ar" ? "التخصص" : "Specialty", value: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : "—" },
     { label: lang === "ar" ? "الطبيب" : "Doctor", value: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : "—" },
     { label: lang === "ar" ? "التاريخ" : "Date", value: formatArDate(state.date, lang) },
-    { label: lang === "ar" ? "الوقت" : "Time", value: state.time ?? "—" },
+    { label: lang === "ar" ? "الوقت" : "Time", value: timeReadable },
     { label: lang === "ar" ? "الاسم" : "Name", value: state.patient.name },
     { label: lang === "ar" ? "الجوال" : "Phone", value: phone },
   ];
@@ -1150,16 +1161,35 @@ function StepSuccess({
     }
   }
 
-  // Build a readable plain-text block for "نسخ التفاصيل".
+  // Build a readable plain-text block for "نسخ الكل" — fixed separators, aligned
+  // label/value columns, human-readable date + time, and a trailing footer.
   const detailsText = useMemo(() => {
+    const SEP = "────────────────────────────";
     const header = lang === "ar"
-      ? "تأكيد حجز — مجمع باعشن الطبي"
-      : "Booking confirmation — Baeshen Medical Complex";
-    const lines: string[] = [header, ""];
+      ? "🏥 تأكيد حجز — مجمع باعشن الطبي"
+      : "🏥 Booking confirmation — Baeshen Medical Complex";
+    const footer = lang === "ar"
+      ? "احتفظ برقم الحجز لأي استفسار."
+      : "Keep the reference for any inquiry.";
+    const stamp = new Date().toLocaleString(lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US", {
+      year: "numeric", month: "long", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+
+    const labelWidth = Math.max(...rows.map((r) => r.label.length));
+    const pad = (s: string) => s + " ".repeat(Math.max(0, labelWidth - s.length));
+
+    const lines: string[] = [];
+    lines.push(header);
+    lines.push(SEP);
     if (reference) {
       lines.push(`${lang === "ar" ? "رقم الحجز" : "Reference"}: ${reference}`);
+      lines.push(SEP);
     }
-    for (const r of rows) lines.push(`${r.label}: ${r.value}`);
+    for (const r of rows) lines.push(`${pad(r.label)} : ${r.value}`);
+    lines.push(SEP);
+    lines.push(`${lang === "ar" ? "تاريخ النسخ" : "Copied at"}: ${stamp}`);
+    lines.push(footer);
     return lines.join("\n");
   }, [rows, reference, lang]);
 
