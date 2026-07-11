@@ -34,6 +34,8 @@ const search = z.object({
   specialty: z.string().optional(),
   doctor: z.string().optional(),
   branch: z.string().optional(),
+  date: z.string().optional(),
+  time: z.string().optional(),
 });
 
 const NAME_MIN = 2, NAME_MAX = 120;
@@ -227,8 +229,18 @@ function BookPage() {
       doctorId: searchParams.doctor ?? null,
       specialtyId: searchParams.specialty ?? null,
       branchId: searchParams.branch ?? null,
+      date: searchParams.date ?? null,
+      time: searchParams.time ?? null,
       // Jump ahead if a deep link is provided.
-      step: searchParams.doctor ? 5 : searchParams.specialty ? 4 : 1,
+      step: searchParams.doctor && searchParams.date && searchParams.time
+        ? 8
+        : searchParams.doctor && searchParams.date
+        ? 6
+        : searchParams.doctor
+        ? 5
+        : searchParams.specialty
+        ? 4
+        : 1,
     }),
   );
 

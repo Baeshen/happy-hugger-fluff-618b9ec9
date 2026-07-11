@@ -265,6 +265,7 @@ function AvailabilityWidget({ doctorId, bookingEnabled }: { doctorId: string; bo
               to="/book"
               search={{ doctor: doctorId, date: selectedDate, time: t } as never}
               className="rounded-lg border border-border bg-background px-2 py-2 text-center text-xs font-medium hover:border-primary hover:bg-primary/5 transition flex items-center justify-center gap-1"
+              title={lang === "ar" ? "المتابعة إلى المراجعة" : "Continue to review"}
             >
               <Clock className="h-3 w-3" /> {t}
             </Link>
