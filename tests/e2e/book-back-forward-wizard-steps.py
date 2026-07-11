@@ -130,6 +130,8 @@ async def main():
         print("    selected date:", selected_date)
 
         # 3) Back → step=5.
+        h_before = await page.evaluate("history.length")
+        print("    history.length before Back:", h_before)
         await page.go_back()
         try:
             await page.wait_for_function(
@@ -138,7 +140,9 @@ async def main():
             )
         except Exception:
             print("    URL after Back:", page.url)
+            print("    history.length after Back:", await page.evaluate("history.length"))
             raise
+
 
         back_url = page.url
         if "step=0" in back_url:
