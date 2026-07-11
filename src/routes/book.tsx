@@ -101,6 +101,7 @@ function BookPage() {
   const [doctorId, setDoctorId] = useState<string | null>(initDoc ?? null);
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
+  const [doctorSearch, setDoctorSearch] = useState("");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -115,6 +116,77 @@ function BookPage() {
   const [submitError, setSubmitError] = useState<
     Extract<BookingSubmitResult, { ok: false }> | null
   >(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Restore draft from localStorage (once, on mount). Saves the user's
+  // progress if they accidentally close the tab.
+  const DRAFT_KEY = "baeshen_book_draft_v1";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw) as {
+        step?: number;
+        specialtyId?: string | null;
+        doctorId?: string | null;
+        date?: string;
+        time?: string;
+        form?: typeof form;
+        ts?: number;
+      };
+      // Ignore drafts older than 24 hours.
+      if (!d.ts || Date.now() - d.ts > 24 * 3600_000) {
+        localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      if (d.specialtyId) setSpecialtyId(d.specialtyId);
+      if (d.doctorId) setDoctorId(d.doctorId);
+      if (d.date) setDate(d.date);
+      if (d.time) setTime(d.time);
+      if (d.form) setForm((prev) => ({ ...prev, ...d.form }));
+      if (typeof d.step === "number" && d.step >= 1 && d.step <= 4) setStep(d.step);
+      setDraftRestored(true);
+    } catch {
+      /* corrupt draft — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist draft on any relevant change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ step, specialtyId, doctorId, date, time, form, ts: Date.now() }),
+      );
+    } catch {
+      /* quota / private mode — ignore */
+    }
+  }, [step, specialtyId, doctorId, date, time, form]);
+
+  const clearDraft = () => {
+    if (typeof window !== "undefined") localStorage.removeItem(DRAFT_KEY);
+    setStep(1);
+    setSpecialtyId(null);
+    setDoctorId(null);
+    setDate("");
+    setTime("");
+    setDoctorSearch("");
+    setForm({
+      name: "",
+      phone: "",
+      national_id: "",
+      gender: "male",
+      reason: "",
+      reminder_24h: true,
+      reminder_2h: true,
+    });
+    setErrors({});
+    setDraftRestored(false);
+    toast.success("تم مسح البيانات وبدء حجز جديد");
+  };
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
