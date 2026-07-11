@@ -140,9 +140,8 @@ function BookPage() {
   // Explicit step→URL sync helper: bumps state and pushes an entry so the
   // browser Back/Forward buttons walk the wizard naturally. Also called from
   // popstate below with `pushUrl=false` (browser already moved the URL).
-  const goto = (step: number, pushUrl = true) => {
-    goto(step);
-    if (!pushUrl) return;
+  const goto = (step: number) => {
+    dispatch({ t: "goto", step });
     if (step === 9) return; // success page: don't push
     if (typeof window === "undefined") return;
     navigate({
@@ -150,6 +149,7 @@ function BookPage() {
       search: (prev: Record<string, unknown>) => ({ ...prev, step }),
     });
   };
+
 
   // Deep-link fill-in: when the URL has no explicit step (schema default 0)
   // but state derived a step (e.g. 5 from ?doctor=&specialty=), REPLACE the
