@@ -315,7 +315,10 @@ function BookPage() {
     setResult(null);
     setErrorMsg(null);
     dispatch({ t: "reset" });
-    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(RESULT_KEY);
+    } catch {}
     navigate({ to: "/book", search: {} });
   }
 
