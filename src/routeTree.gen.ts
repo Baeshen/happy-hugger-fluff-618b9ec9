@@ -76,7 +76,7 @@ import { Route as AuthenticatedAppointmentsQueueRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPatientsIndexRouteImport } from './routes/_authenticated/patients.index'
 import { Route as MediaStoriesSlugRouteImport } from './routes/media.stories.$slug'
-import { Route as ApiPublicBootstrapSuperadminRouteImport } from './routes/api/public/_bootstrap-superadmin'
+import { Route as ApiPublicBootstrapSuperadminRouteImport } from './routes/api/public/bootstrap-superadmin'
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 import { Route as ApiPublicBookTrackRouteImport } from './routes/api/public/book/track'
@@ -433,8 +433,8 @@ const MediaStoriesSlugRoute = MediaStoriesSlugRouteImport.update({
 } as any)
 const ApiPublicBootstrapSuperadminRoute =
   ApiPublicBootstrapSuperadminRouteImport.update({
-    id: '/api/public/_bootstrap-superadmin',
-    path: '/api/public',
+    id: '/api/public/bootstrap-superadmin',
+    path: '/api/public/bootstrap-superadmin',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedPatientsPatientIdRoute =
@@ -532,7 +532,7 @@ export interface FileRoutesByFullPath {
   '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
-  '/api/public': typeof ApiPublicBootstrapSuperadminRoute
+  '/api/public/bootstrap-superadmin': typeof ApiPublicBootstrapSuperadminRoute
   '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
@@ -606,7 +606,7 @@ export interface FileRoutesByTo {
   '/health': typeof HealthIndexRoute
   '/specialties': typeof SpecialtiesIndexRoute
   '/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
-  '/api/public': typeof ApiPublicBootstrapSuperadminRoute
+  '/api/public/bootstrap-superadmin': typeof ApiPublicBootstrapSuperadminRoute
   '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/patients': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
@@ -682,7 +682,7 @@ export interface FileRoutesById {
   '/health/': typeof HealthIndexRoute
   '/specialties/': typeof SpecialtiesIndexRoute
   '/_authenticated/patients/$patientId': typeof AuthenticatedPatientsPatientIdRoute
-  '/api/public/_bootstrap-superadmin': typeof ApiPublicBootstrapSuperadminRoute
+  '/api/public/bootstrap-superadmin': typeof ApiPublicBootstrapSuperadminRoute
   '/media/stories/$slug': typeof MediaStoriesSlugRoute
   '/_authenticated/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
@@ -758,7 +758,7 @@ export interface FileRouteTypes {
     | '/health/'
     | '/specialties/'
     | '/patients/$patientId'
-    | '/api/public'
+    | '/api/public/bootstrap-superadmin'
     | '/media/stories/$slug'
     | '/patients/'
     | '/api/public/book/availability'
@@ -832,7 +832,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/specialties'
     | '/patients/$patientId'
-    | '/api/public'
+    | '/api/public/bootstrap-superadmin'
     | '/media/stories/$slug'
     | '/patients'
     | '/api/public/book/availability'
@@ -907,7 +907,7 @@ export interface FileRouteTypes {
     | '/health/'
     | '/specialties/'
     | '/_authenticated/patients/$patientId'
-    | '/api/public/_bootstrap-superadmin'
+    | '/api/public/bootstrap-superadmin'
     | '/media/stories/$slug'
     | '/_authenticated/patients/'
     | '/api/public/book/availability'
@@ -1433,10 +1433,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaStoriesSlugRouteImport
       parentRoute: typeof MediaStoriesRoute
     }
-    '/api/public/_bootstrap-superadmin': {
-      id: '/api/public/_bootstrap-superadmin'
-      path: '/api/public'
-      fullPath: '/api/public'
+    '/api/public/bootstrap-superadmin': {
+      id: '/api/public/bootstrap-superadmin'
+      path: '/api/public/bootstrap-superadmin'
+      fullPath: '/api/public/bootstrap-superadmin'
       preLoaderRoute: typeof ApiPublicBootstrapSuperadminRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -1635,3 +1635,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

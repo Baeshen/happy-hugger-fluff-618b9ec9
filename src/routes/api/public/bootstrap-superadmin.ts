@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 // One-off bootstrap endpoint. Delete after use.
-export const Route = createFileRoute("/api/public/_bootstrap-superadmin")({
+export const Route = createFileRoute("/api/public/bootstrap-superadmin")({
   server: {
     handlers: {
       POST: async ({ request }) => {
