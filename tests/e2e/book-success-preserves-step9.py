@@ -28,9 +28,12 @@ async def main():
         )
         page = await ctx.new_page()
 
-        url_history: list[str] = []
-        page.on("framenavigated", lambda f: url_history.append(f.url)
-                if f is page.main_frame else None)
+        # Track the URL each time we settle on a rendered step. The zod
+        # validator defaults `step` to 0 on the initial navigation with no
+        # search param — that transient value is fixed by the wizard's
+        # replace-URL effect. We only assert the URL AFTER content is
+        # visible, when the fix has had a chance to run.
+        settled_urls: list[str] = []
 
         errors = []
         def maybe(kind, val):
@@ -39,6 +42,18 @@ async def main():
         page.on("pageerror", lambda e: maybe("pageerror", str(e)))
         page.on("console",
                 lambda m: maybe("console.error", m.text) if m.type == "error" else None)
+
+        async def snapshot(step_prompt, label):
+            await page.wait_for_selector(f"text={step_prompt}", timeout=10_000)
+            # Give the URL-replace effect a tick to settle.
+            await page.wait_for_timeout(300)
+            url = page.url
+            print(f"[{label}] {url}")
+            if "step=0" in url:
+                raise AssertionError(f"[{label}] step=0 leaked: {url}")
+            settled_urls.append(url)
+            return url
+
 
         try:
             # ---- Full wizard drive (mirrors tests/e2e/booking-flow.py) ----
