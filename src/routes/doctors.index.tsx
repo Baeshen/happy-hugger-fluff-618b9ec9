@@ -312,7 +312,7 @@ function DoctorsPage() {
       return collator.compare(an, bn);
     });
     return list;
-  }, [doctors, qUrl, selSpec, selBranch, selGender, selLang, sort, ar]);
+  }, [doctors, qUrl, selSpec, selBranch, selGender, selLangs, sort, ar]);
 
   // Pagination — clamp page to available range after filters change.
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
