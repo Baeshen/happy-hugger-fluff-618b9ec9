@@ -819,6 +819,16 @@ function DoctorCard({ d, lang, nextSlotIso }: { d: DoctorRow; lang: "ar" | "en";
         </div>
       </div>
 
+      {nextSlotLabel && d.booking_enabled && (
+        <div className="mx-5 mb-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 flex items-center gap-2 text-xs">
+          <Calendar className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
+          <span className="text-emerald-800 dark:text-emerald-300">
+            {lang === "ar" ? "أقرب موعد: " : "Next slot: "}
+            <span className="font-semibold">{nextSlotLabel}</span>
+          </span>
+        </div>
+      )}
+
       <div className="px-5 pb-4 space-y-1.5 text-xs text-muted-foreground">
         {branchLabel && (
           <div className="flex items-center gap-2">
