@@ -670,3 +670,97 @@ function DoctorRatings({ doctorId, lang }: { doctorId: string; lang: string }) {
     </div>
   );
 }
+
+function DoctorGallery({ photos, name, lang }: { photos: string[]; name: string; lang: string }) {
+  const ar = lang === "ar";
+  const [active, setActive] = useState(0);
+  const [open, setOpen] = useState(false);
+  const total = photos.length;
+  const go = (dir: 1 | -1) => setActive((i) => (i + dir + total) % total);
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-3">{ar ? "معرض الصور" : "Gallery"}</h2>
+
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="block w-full overflow-hidden rounded-2xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary"
+        aria-label={ar ? "عرض الصورة بالحجم الكامل" : "View full size"}
+      >
+        <div className="aspect-[16/10] bg-muted">
+          <img
+            src={photos[active]}
+            alt={`${name} — ${active + 1}/${total}`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+      </button>
+
+      <div className="mt-3 grid grid-cols-5 gap-2">
+        {photos.map((src, i) => (
+          <button
+            key={src + i}
+            type="button"
+            onClick={() => setActive(i)}
+            className={`aspect-square overflow-hidden rounded-lg border-2 transition ${
+              i === active ? "border-primary" : "border-transparent hover:border-primary/40"
+            }`}
+            aria-label={`${ar ? "صورة" : "Photo"} ${i + 1}`}
+            aria-current={i === active}
+          >
+            <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+          </button>
+        ))}
+      </div>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+            className="absolute top-4 right-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-2"
+            aria-label={ar ? "إغلاق" : "Close"}
+          >
+            <XCircle className="h-6 w-6" />
+          </button>
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); go(-1); }}
+                className="absolute start-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-3"
+                aria-label={ar ? "السابق" : "Previous"}
+              >
+                <ArrowLeft className="h-6 w-6 rtl:rotate-180" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); go(1); }}
+                className="absolute end-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-3"
+                aria-label={ar ? "التالي" : "Next"}
+              >
+                <ArrowLeft className="h-6 w-6 rotate-180 rtl:rotate-0" />
+              </button>
+            </>
+          )}
+          <img
+            src={photos[active]}
+            alt={`${name} — ${active + 1}/${total}`}
+            className="max-h-[85vh] max-w-[92vw] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="absolute bottom-4 inset-x-0 text-center text-white/80 text-sm">
+            {active + 1} / {total}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
