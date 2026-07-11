@@ -15,7 +15,6 @@ export type Accreditation = {
 export const accreditationsQuery = () => ({
   queryKey: ["accreditations"],
   queryFn: async (): Promise<Accreditation[]> => {
-    // Table is not yet in the generated Supabase types — cast until types regenerate.
     const { data, error } = await (supabase as unknown as {
       from: (t: string) => {
         select: (c: string) => {
@@ -28,6 +27,28 @@ export const accreditationsQuery = () => ({
       .order("sort_order", { ascending: true });
     if (error) throw error;
     return data ?? [];
+  },
+  staleTime: 5 * 60_000,
+});
+
+export const accreditationQuery = (id: string) => ({
+  queryKey: ["accreditation", id],
+  queryFn: async (): Promise<Accreditation | null> => {
+    const { data, error } = await (supabase as unknown as {
+      from: (t: string) => {
+        select: (c: string) => {
+          eq: (c: string, v: string) => {
+            maybeSingle: () => Promise<{ data: Accreditation | null; error: Error | null }>;
+          };
+        };
+      };
+    })
+      .from("accreditations")
+      .select("id, title_ar, title_en, description_ar, description_en, image_url, year, category, sort_order")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
   },
   staleTime: 5 * 60_000,
 });
