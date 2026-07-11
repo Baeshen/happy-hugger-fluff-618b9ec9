@@ -56,13 +56,16 @@ const SLIDES: Slide[] = [
 
 export function HeroSlider() {
   const { lang } = useI18n();
+  const isRtl = lang === "ar";
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
-    direction: lang === "ar" ? "rtl" : "ltr",
+    direction: isRtl ? "rtl" : "ltr",
     align: "start",
   });
   const [selected, setSelected] = useState(0);
+  const [paused, setPaused] = useState(false);
   const prevIndexRef = useRef(0);
+  const rootRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -86,10 +89,14 @@ export function HeroSlider() {
   }, [emblaApi]);
 
   useEffect(() => {
-    if (!emblaApi) return;
+    if (!emblaApi || paused) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
     const id = window.setInterval(() => emblaApi.scrollNext(), 6000);
     return () => window.clearInterval(id);
-  }, [emblaApi]);
+  }, [emblaApi, paused]);
 
   const scrollPrev = useCallback(() => {
     trackEvent("hero_nav_click", { direction: "prev", from_index: selected });
@@ -100,14 +107,61 @@ export function HeroSlider() {
     emblaApi?.scrollNext();
   }, [emblaApi, selected]);
 
+  // Keyboard nav: ArrowLeft/ArrowRight respect RTL, Home/End jump to bounds.
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (!emblaApi) return;
+      const key = e.key;
+      if (key === "ArrowRight") {
+        e.preventDefault();
+        isRtl ? scrollNext() : scrollPrev();
+      } else if (key === "ArrowLeft") {
+        e.preventDefault();
+        isRtl ? scrollPrev() : scrollNext();
+      } else if (key === "Home") {
+        e.preventDefault();
+        emblaApi.scrollTo(0);
+      } else if (key === "End") {
+        e.preventDefault();
+        emblaApi.scrollTo(SLIDES.length - 1);
+      }
+    },
+    [emblaApi, isRtl, scrollNext, scrollPrev],
+  );
+
   return (
-    <section className="relative overflow-hidden">
-      <div ref={emblaRef} className="overflow-hidden">
+    <section
+      ref={rootRef}
+      className="relative overflow-hidden focus:outline-none"
+      role="region"
+      aria-roledescription="carousel"
+      aria-label={isRtl ? "شرائح مميزة" : "Featured slides"}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div
+        ref={emblaRef}
+        id="hero-slides"
+        className="overflow-hidden"
+        aria-live={paused ? "polite" : "off"}
+        aria-atomic="true"
+      >
         <div className="flex">
           {SLIDES.map((s, i) => {
             const Icon = s.icon;
             return (
-              <div key={i} className="min-w-0 flex-[0_0_100%]">
+              <div
+                key={i}
+                className="min-w-0 flex-[0_0_100%]"
+                role="group"
+                aria-roledescription={isRtl ? "شريحة" : "slide"}
+                aria-label={`${i + 1} / ${SLIDES.length} — ${s.title[lang]}`}
+                aria-hidden={selected !== i}
+              >
                 <div className={`bg-gradient-to-br ${s.gradient} text-white pb-20 pt-16`}>
                   <div className="container-app grid gap-10 md:grid-cols-2 items-center">
                     <div>
@@ -171,37 +225,50 @@ export function HeroSlider() {
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Controls — high-contrast, 44x44 tap target, focus-visible ring */}
       <button
         type="button"
         onClick={scrollPrev}
-        aria-label={lang === "ar" ? "السابق" : "Previous"}
-        className="absolute top-1/2 -translate-y-1/2 start-3 md:start-6 grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30"
+        aria-label={isRtl ? "الشريحة السابقة" : "Previous slide"}
+        aria-controls="hero-slides"
+        className="absolute top-1/2 -translate-y-1/2 start-3 md:start-6 grid h-11 w-11 min-h-11 min-w-11 place-items-center rounded-full bg-black/50 text-white ring-1 ring-white/70 backdrop-blur hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
       >
-        <ArrowRight className="h-5 w-5 rtl:rotate-180" />
+        <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
       </button>
       <button
         type="button"
         onClick={scrollNext}
-        aria-label={lang === "ar" ? "التالي" : "Next"}
-        className="absolute top-1/2 -translate-y-1/2 end-3 md:end-6 grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30"
+        aria-label={isRtl ? "الشريحة التالية" : "Next slide"}
+        aria-controls="hero-slides"
+        className="absolute top-1/2 -translate-y-1/2 end-3 md:end-6 grid h-11 w-11 min-h-11 min-w-11 place-items-center rounded-full bg-black/50 text-white ring-1 ring-white/70 backdrop-blur hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
       >
-        <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
+        <ArrowLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
       </button>
 
       {/* Dots */}
-      <div className="absolute bottom-4 inset-x-0 flex justify-center gap-2">
-        {SLIDES.map((_, i) => (
+      <div
+        className="absolute bottom-4 inset-x-0 flex justify-center gap-2"
+        role="tablist"
+        aria-label={isRtl ? "اختيار الشريحة" : "Select slide"}
+      >
+        {SLIDES.map((s, i) => (
           <button
             key={i}
             type="button"
-            aria-label={`Slide ${i + 1}`}
+            role="tab"
+            aria-selected={selected === i}
+            aria-current={selected === i ? "true" : undefined}
+            aria-label={
+              isRtl
+                ? `الشريحة ${i + 1} من ${SLIDES.length}: ${s.title.ar}`
+                : `Slide ${i + 1} of ${SLIDES.length}: ${s.title.en}`
+            }
             onClick={() => {
               trackEvent("hero_dot_click", { to_index: i, from_index: selected });
               emblaApi?.scrollTo(i);
             }}
-            className={`h-2 rounded-full transition-all ${
-              selected === i ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/70"
+            className={`h-3 min-h-3 rounded-full ring-1 ring-white/60 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 ${
+              selected === i ? "w-8 bg-white" : "w-3 bg-white/40 hover:bg-white/70"
             }`}
           />
         ))}
