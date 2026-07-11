@@ -615,7 +615,7 @@ function DoctorsPage() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               {paged.map((d) => (
-                <DoctorCard key={d.id} d={d} lang={lang} />
+                <DoctorCard key={d.id} d={d} lang={lang} nextSlotIso={nextSlotMap[d.id]} />
               ))}
             </div>
 
