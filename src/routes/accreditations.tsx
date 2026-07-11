@@ -252,6 +252,16 @@ function AccreditationsPage() {
                   key={a.id}
                   to="/accreditations/$id"
                   params={{ id: a.id }}
+                  onClick={() =>
+                    trackEvent("accreditation_card_click", {
+                      id: a.id,
+                      title: a.title_ar,
+                      category: a.category ?? "",
+                      location: "accreditations_list",
+                      query: q,
+                      filter_category: cat,
+                    })
+                  }
                   className="block rounded-2xl border border-border bg-card p-6 hover:border-primary/40 hover:shadow-md transition"
                 >
                   <div className="flex items-start justify-between gap-3">
