@@ -224,37 +224,50 @@ export function HeroSlider() {
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Controls — high-contrast, 44x44 tap target, focus-visible ring */}
       <button
         type="button"
         onClick={scrollPrev}
-        aria-label={lang === "ar" ? "السابق" : "Previous"}
-        className="absolute top-1/2 -translate-y-1/2 start-3 md:start-6 grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30"
+        aria-label={isRtl ? "الشريحة السابقة" : "Previous slide"}
+        aria-controls="hero-slides"
+        className="absolute top-1/2 -translate-y-1/2 start-3 md:start-6 grid h-11 w-11 min-h-11 min-w-11 place-items-center rounded-full bg-black/50 text-white ring-1 ring-white/70 backdrop-blur hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
       >
-        <ArrowRight className="h-5 w-5 rtl:rotate-180" />
+        <ArrowRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
       </button>
       <button
         type="button"
         onClick={scrollNext}
-        aria-label={lang === "ar" ? "التالي" : "Next"}
-        className="absolute top-1/2 -translate-y-1/2 end-3 md:end-6 grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30"
+        aria-label={isRtl ? "الشريحة التالية" : "Next slide"}
+        aria-controls="hero-slides"
+        className="absolute top-1/2 -translate-y-1/2 end-3 md:end-6 grid h-11 w-11 min-h-11 min-w-11 place-items-center rounded-full bg-black/50 text-white ring-1 ring-white/70 backdrop-blur hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
       >
-        <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
+        <ArrowLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
       </button>
 
       {/* Dots */}
-      <div className="absolute bottom-4 inset-x-0 flex justify-center gap-2">
-        {SLIDES.map((_, i) => (
+      <div
+        className="absolute bottom-4 inset-x-0 flex justify-center gap-2"
+        role="tablist"
+        aria-label={isRtl ? "اختيار الشريحة" : "Select slide"}
+      >
+        {SLIDES.map((s, i) => (
           <button
             key={i}
             type="button"
-            aria-label={`Slide ${i + 1}`}
+            role="tab"
+            aria-selected={selected === i}
+            aria-current={selected === i ? "true" : undefined}
+            aria-label={
+              isRtl
+                ? `الشريحة ${i + 1} من ${SLIDES.length}: ${s.title.ar}`
+                : `Slide ${i + 1} of ${SLIDES.length}: ${s.title.en}`
+            }
             onClick={() => {
               trackEvent("hero_dot_click", { to_index: i, from_index: selected });
               emblaApi?.scrollTo(i);
             }}
-            className={`h-2 rounded-full transition-all ${
-              selected === i ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/70"
+            className={`h-3 min-h-3 rounded-full ring-1 ring-white/60 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 ${
+              selected === i ? "w-8 bg-white" : "w-3 bg-white/40 hover:bg-white/70"
             }`}
           />
         ))}
