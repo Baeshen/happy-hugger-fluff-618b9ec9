@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logAppEvent } from "./audit-log.server";
 import { z } from "zod";
 
 const STATUSES = ["received", "reviewing", "accepted", "rejected"] as const;
