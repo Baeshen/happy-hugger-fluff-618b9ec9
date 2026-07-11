@@ -750,6 +750,22 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   const openerRef = useRef<HTMLButtonElement>(null);
   const caption = `${alt} — ${ar ? "صورة" : "Photo"} ${active + 1} ${ar ? "من" : "of"} ${total}`;
 
+  // Eagerly warm a photo URL into the HTTP cache. Used by keyboard nav so
+  // holding an arrow key keeps the pipeline one step ahead of `active`.
+  const warmPhoto = (src: string | undefined) => {
+    if (!src || isImageReady(src)) return;
+    fetch(src, {
+      cache: "force-cache",
+      credentials: "omit",
+      mode: "no-cors",
+      priority: "low",
+    } as RequestInit)
+      .then(() => markImageReady(src))
+      .catch(() => {
+        /* ignore */
+      });
+  };
+
   // Keyboard: Esc closes, Arrow keys navigate (respect RTL), Home/End jump.
   useEffect(() => {
     if (!open) return;
@@ -758,10 +774,28 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
       if (total <= 1) return;
       const prevKey = ar ? "ArrowRight" : "ArrowLeft";
       const nextKey = ar ? "ArrowLeft" : "ArrowRight";
-      if (e.key === prevKey) { e.preventDefault(); go(-1); }
-      else if (e.key === nextKey) { e.preventDefault(); go(1); }
-      else if (e.key === "Home") { e.preventDefault(); setActive(0); }
-      else if (e.key === "End") { e.preventDefault(); setActive(total - 1); }
+      if (e.key === prevKey) {
+        e.preventDefault();
+        // Warm one step past the destination so rapid key repeats stay ahead
+        // of the render. The main prefetch effect handles the immediate neighbor.
+        warmPhoto(photos[(active - 2 + total * 2) % total]);
+        go(-1);
+      }
+      else if (e.key === nextKey) {
+        e.preventDefault();
+        warmPhoto(photos[(active + 2) % total]);
+        go(1);
+      }
+      else if (e.key === "Home") {
+        e.preventDefault();
+        warmPhoto(photos[1 % total]);
+        setActive(0);
+      }
+      else if (e.key === "End") {
+        e.preventDefault();
+        warmPhoto(photos[(total - 2 + total) % total]);
+        setActive(total - 1);
+      }
     };
     window.addEventListener("keydown", onKey);
     // Lock body scroll while lightbox is open.
@@ -774,7 +808,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
       document.body.style.overflow = prevOverflow;
       openerRef.current?.focus();
     };
-  }, [open, total, ar]);
+  }, [open, total, ar, active, photos]);
+
 
   // Prefetch neighboring images while the lightbox is open so navigation
   // between photos feels instant. Uses fetch() with an AbortController so
