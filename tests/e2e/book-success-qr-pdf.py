@@ -90,9 +90,10 @@ async def run_full_wizard(page):
 
 
 async def check_success_ui(page, label):
-    # Wait for QR block to mount
-    await page.wait_for_selector('[data-testid="booking-qr"]', timeout=10_000)
-    await page.wait_for_timeout(400)  # QRCode.toCanvas is async
+    qr_block = page.locator('[data-testid="booking-qr"]')
+    await qr_block.wait_for(state="attached", timeout=10_000)
+    await qr_block.scroll_into_view_if_needed()
+    await page.wait_for_timeout(500)  # QRCode.toCanvas is async
 
     # QR canvas non-blank
     non_blank = await page.evaluate("""
