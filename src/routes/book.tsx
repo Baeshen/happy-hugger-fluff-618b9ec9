@@ -30,13 +30,25 @@ import { submitBooking } from "@/lib/booking-submit";
 import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
 import { Button } from "@/components/ui/button";
 
+import { fallback } from "@tanstack/zod-adapter";
 const search = z.object({
   specialty: z.string().optional(),
   doctor: z.string().optional(),
   branch: z.string().optional(),
   date: z.string().optional(),
   time: z.string().optional(),
+  step: fallback(z.number().int(), 0).default(0),
 });
+
+function formatArDate(iso: string | null, lang: "ar" | "en"): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
+  } catch { return iso; }
+}
 
 const NAME_MIN = 2, NAME_MAX = 120;
 const PHONE_MIN = 6, PHONE_MAX = 32;
