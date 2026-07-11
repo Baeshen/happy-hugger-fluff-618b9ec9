@@ -306,6 +306,11 @@ function DoctorDetail() {
   const genderLabel =
     d.gender === "male" ? "ذكر" : d.gender === "female" ? "أنثى" : null;
 
+  // Merge primary photo + gallery photos, dedupe, keep order.
+  const gallery = Array.from(
+    new Set([d.photo_url, ...(d.photos ?? [])].filter((u): u is string => !!u)),
+  );
+
   return (
     <div>
       <section className="hero-gradient text-white py-14">
