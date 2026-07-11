@@ -1,8 +1,10 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Award, ShieldCheck, Trophy, ArrowRight, Calendar, Tag } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { accreditationQuery, accreditationsQuery, type Accreditation } from "@/lib/accreditations";
+import { trackEvent } from "@/lib/analytics";
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 
