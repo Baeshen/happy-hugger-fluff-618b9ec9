@@ -219,9 +219,9 @@ function ProgramsPage() {
   return (
     <div>
       <PageHero
+        eyebrow="برامج طبية متكاملة"
         title="برامجنا الطبية"
         subtitle="حزم رعاية متكاملة صمّمت لكل مرحلة عمرية وحالة صحية — قدّم طلبك أونلاين وابدأ رحلتك مع فريقنا."
-        icon={<Stethoscope className="h-8 w-8" />}
       />
 
       {/* Quick nav */}
