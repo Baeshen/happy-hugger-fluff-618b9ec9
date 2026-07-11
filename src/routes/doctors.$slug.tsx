@@ -76,7 +76,7 @@ function addDaysIso(iso: string, days: number): string {
 function formatDateLabel(iso: string, lang: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
-  const locale = lang === "ar" ? "ar-SA" : "en-US";
+  const locale = lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US";
   return dt.toLocaleDateString(locale, {
     weekday: "short",
     day: "numeric",
