@@ -34,6 +34,8 @@ const search = z.object({
   specialty: z.string().optional(),
   doctor: z.string().optional(),
   branch: z.string().optional(),
+  date: z.string().optional(),
+  time: z.string().optional(),
 });
 
 const NAME_MIN = 2, NAME_MAX = 120;
