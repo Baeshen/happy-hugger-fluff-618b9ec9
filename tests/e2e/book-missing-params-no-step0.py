@@ -5,9 +5,10 @@ E2E: /book must never leak `step=0` into the URL when one or more of
 The wizard should clamp to the highest step whose prerequisites are met
 (maxReachableStep) and rewrite the URL accordingly.
 
-Coverage:
+Coverage (expected steps come from loadDraft derivation + the
+maxReachableStep clamp — the invariant tested is "never step=0"):
   - /book                        → step=1 (nothing selected)
-  - /book?branch=B               → step=3 (specialty next)
+  - /book?branch=B               → step=1 (service still needed)
   - /book?specialty=S            → step=4 (doctor next)
   - /book?branch=B&specialty=S   → step=4
   - /book?doctor=D               → step=5 (date next, specialty auto-filled)
