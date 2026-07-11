@@ -1010,9 +1010,32 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             onPointerCancel={() => {
               swipeStartRef.current = null;
             }}
+            onWheel={(e) => {
+              if (total <= 1) return;
+              // Prefer horizontal wheel/trackpad motion; fall back to vertical.
+              const raw =
+                Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+              if (raw === 0) return;
+              const now = Date.now();
+              // Reset accumulator if the user paused (new gesture).
+              if (now - wheelCooldownRef.current > 400) wheelAccumRef.current = 0;
+              wheelAccumRef.current += raw;
+              const THRESHOLD = 80;
+              if (Math.abs(wheelAccumRef.current) < THRESHOLD) return;
+              // Cooldown to avoid a single flick advancing multiple photos.
+              if (now - wheelCooldownRef.current < 350) return;
+              wheelCooldownRef.current = now;
+              const dir = wheelAccumRef.current > 0 ? 1 : -1;
+              wheelAccumRef.current = 0;
+              // RTL: horizontal scroll right advances to "next" (mirrored).
+              const isHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+              const forward = isHorizontal && ar ? dir < 0 : dir > 0;
+              go(forward ? 1 : -1);
+            }}
             aria-live="polite"
             aria-atomic="true"
           >
+
 
 
             <div className="relative">
