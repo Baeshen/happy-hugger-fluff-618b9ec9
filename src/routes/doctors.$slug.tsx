@@ -386,6 +386,10 @@ function DoctorDetail() {
               </p>
             </div>
 
+            {gallery.length > 1 && <DoctorGallery photos={gallery} name={name} lang={lang} />}
+
+
+
             {d.education && (
               <div>
                 <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
