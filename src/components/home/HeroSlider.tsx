@@ -56,13 +56,16 @@ const SLIDES: Slide[] = [
 
 export function HeroSlider() {
   const { lang } = useI18n();
+  const isRtl = lang === "ar";
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
-    direction: lang === "ar" ? "rtl" : "ltr",
+    direction: isRtl ? "rtl" : "ltr",
     align: "start",
   });
   const [selected, setSelected] = useState(0);
+  const [paused, setPaused] = useState(false);
   const prevIndexRef = useRef(0);
+  const rootRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -86,10 +89,14 @@ export function HeroSlider() {
   }, [emblaApi]);
 
   useEffect(() => {
-    if (!emblaApi) return;
+    if (!emblaApi || paused) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
     const id = window.setInterval(() => emblaApi.scrollNext(), 6000);
     return () => window.clearInterval(id);
-  }, [emblaApi]);
+  }, [emblaApi, paused]);
 
   const scrollPrev = useCallback(() => {
     trackEvent("hero_nav_click", { direction: "prev", from_index: selected });
@@ -100,14 +107,60 @@ export function HeroSlider() {
     emblaApi?.scrollNext();
   }, [emblaApi, selected]);
 
+  // Keyboard nav: ArrowLeft/ArrowRight respect RTL, Home/End jump to bounds.
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (!emblaApi) return;
+      const key = e.key;
+      if (key === "ArrowRight") {
+        e.preventDefault();
+        isRtl ? scrollNext() : scrollPrev();
+      } else if (key === "ArrowLeft") {
+        e.preventDefault();
+        isRtl ? scrollPrev() : scrollNext();
+      } else if (key === "Home") {
+        e.preventDefault();
+        emblaApi.scrollTo(0);
+      } else if (key === "End") {
+        e.preventDefault();
+        emblaApi.scrollTo(SLIDES.length - 1);
+      }
+    },
+    [emblaApi, isRtl, scrollNext, scrollPrev],
+  );
+
   return (
-    <section className="relative overflow-hidden">
-      <div ref={emblaRef} className="overflow-hidden">
+    <section
+      ref={rootRef}
+      className="relative overflow-hidden focus:outline-none"
+      role="region"
+      aria-roledescription="carousel"
+      aria-label={isRtl ? "شرائح مميزة" : "Featured slides"}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div
+        ref={emblaRef}
+        className="overflow-hidden"
+        aria-live={paused ? "polite" : "off"}
+        aria-atomic="true"
+      >
         <div className="flex">
           {SLIDES.map((s, i) => {
             const Icon = s.icon;
             return (
-              <div key={i} className="min-w-0 flex-[0_0_100%]">
+              <div
+                key={i}
+                className="min-w-0 flex-[0_0_100%]"
+                role="group"
+                aria-roledescription={isRtl ? "شريحة" : "slide"}
+                aria-label={`${i + 1} / ${SLIDES.length} — ${s.title[lang]}`}
+                aria-hidden={selected !== i}
+              >
                 <div className={`bg-gradient-to-br ${s.gradient} text-white pb-20 pt-16`}>
                   <div className="container-app grid gap-10 md:grid-cols-2 items-center">
                     <div>
