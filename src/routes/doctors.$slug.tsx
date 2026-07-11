@@ -271,7 +271,7 @@ function InlineBookingWidget({
 
   if (!bookingEnabled) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div id="book" ref={widgetRef} className={`rounded-2xl border border-border bg-card p-6 scroll-mt-24 transition-shadow ${highlight ? "ring-2 ring-primary ring-offset-2" : ""}`}>
         <h3 className="font-bold mb-2 flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" /> {ar ? "الحجز غير متاح" : "Booking unavailable"}
         </h3>
