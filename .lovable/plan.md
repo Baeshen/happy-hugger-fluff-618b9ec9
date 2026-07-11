@@ -1,115 +1,59 @@
+## نطاق التطوير المقترح
 
-## فحص موقع الأطباء المتحدون (udh.sa)
-
-### الأقسام الرئيسية المرصودة
-1. **الواجهة (Hero متعدد الشرائح)**: ترحيب + فريق طبي + رعاية منزلية + حجز سريع.
-2. **عن المستشفى**: رسالة/رؤية + رقم خدمة العملاء بارز.
-3. **التخصصات الطبية**: بطاقات موحدة (أيقونة + وصف + عدد الأطباء) — 12+ تخصص.
-4. **الكادر الطبي**: شبكة أطباء بالصور + رابط الملف الشخصي `?doctor=CODE`.
-5. **لماذا تختارنا؟**: 3 مزايا (خبرة، تجربة المريض، شمولية).
-6. **تطبيق الجوال**: مع عداد "+30,000 مستخدم" وروابط App Store / Google Play.
-7. **الاعتمادات والجوائز**: كاروسيل شهادات (JCI/ACHSI/CBAHI/HIMSS/CAP/AABB/ISO/SA8000…).
-8. **الخدمات المرتبطة (Sub-brands)**: الرعاية المنزلية (enaya.med.sa) + بوابة الحجز (eservices).
-9. **قنوات تواصل مباشرة**: هاتف وواتساب موحّدان في كل الصفحة.
-
-### الفجوات مقارنة بموقع باعشن الحالي
-| ما لدى UDH | حالتنا في باعشن |
-|---|---|
-| بطاقة تخصص = أيقونة + وصف + **عدد الأطباء** | لدينا التخصصات لكن دون عدّاد الأطباء |
-| صفحة **الاعتمادات والجوائز** مستقلة `/accreditations` | غير موجودة |
-| كاروسيل جوائز في الصفحة الرئيسية | غير موجود |
-| قسم "لماذا تختارنا" ببطاقات صور | غير موجود بشكل بصري |
-| Sub-brand مستقل للرعاية المنزلية | لدينا `/home-care` كصفحة فقط |
-| كاروسيل هيرو متعدد الشرائح | لدينا هيرو واحد |
-| عداد إحصائي (مستخدمين/مرضى/سنوات) | غير موجود |
+بعد مراجعة الكود الحالي (`/book`, `/lookup`, `/booking-confirmation`)، نظام الحجز ناضج وقوي أصلًا. سأركّز على تحسينات ملموسة في المحاور الأربعة التي اخترتها دون إعادة كتابة الأساس.
 
 ---
 
-## خطة التطوير
+### 1) تجربة المستخدم (UI/UX) في `/book`
 
-### 1) صفحة الاعتمادات والجوائز `/accreditations` (جديدة)
-- جدول Supabase `accreditations` (title_ar/en, image, year, category, description, sort).
-- Server function `listAccreditations` + صفحة عرض بشبكة + Modal تفاصيل.
-- إضافة الرابط في الفوتر و "عن المستشفى".
+- **حفظ التقدّم تلقائيًا في `localStorage`**: إذا أغلق المستخدم الصفحة بالخطأ يعود لنفس الخطوة والاختيارات (مع زر "بدء من جديد").
+- **بحث/فلترة في قائمة الأطباء والتخصصات** عندما يزيد العدد عن 8.
+- **تمييز أفضل للأيام الأكثر توفرًا** في شريط التواريخ (شارة "متاح" مع عدد الفترات المتبقية).
+- **شارة "الأقرب متاح"** على أول تاريخ/وقت في القائمة لتسريع القرار.
+- **مؤشر Trust**: مدة الحجز المتوقعة ("أقل من دقيقة") + رقم واتساب الدعم أعلى النموذج.
+- **مراجعة قبل التأكيد**: خطوة ملخص مرئية داخل نفس الخطوة 4 قبل الضغط على "تأكيد" (بدل الاعتماد على الشريط الجانبي فقط في الموبايل).
 
-### 2) قسم الجوائز في الصفحة الرئيسية
-- كاروسيل شعارات/جوائز مع Marquee بطيء (بدون auto-play مزعج).
-- CTA "عرض جميع الاعتمادات" → `/accreditations`.
+### 2) اختيار الطبيب والوقت
 
-### 3) تحسين بطاقات التخصصات
-- إضافة حقل `doctor_count` (يُحسب من جدول doctors عبر view أو RPC).
-- تعديل `src/routes/specialties.index.tsx` لعرض العدد على البطاقة "X+ طبيب".
+- **صورة الطبيب + تقييمه** (النجوم من جدول `patient_ratings`) في بطاقة الطبيب.
+- **مؤشر الفرع** بجانب اسم الطبيب لمن يفضّل فرعًا معينًا.
+- **تجميع الأوقات في فترات (صباح/ظهر/مساء)** موجود، سنضيف **"الفترة الأنسب"** مبنية على أقل ازدحام.
+- **تاريخ سريع**: أزرار "اليوم"/"غدًا"/"هذا الأسبوع" فوق شريط التقويم.
+- **تحسين حالة "لا توجد أوقات"**: اقتراح أقرب يوم متاح تلقائيًا مع زر انتقال بنقرة واحدة.
 
-### 4) قسم "لماذا تختارنا؟" في الصفحة الرئيسية
-- 4 بطاقات بصور خلفية + عنوان + وصف قصير (خبرة معتمدة، رعاية تتمحور حول المريض، خدمات شاملة، تقنية متقدمة).
-- ثابت (بدون DB) في `src/routes/index.tsx`.
+### 3) التذكيرات والإشعارات
 
-### 5) شريط إحصاءات (Stats Bar)
-- 4 أرقام: سنوات خبرة، عدد الأطباء، عدد المرضى شهرياً، عدد التخصصات.
-- Counter animation عند الظهور. مصدر الأرقام: `clinic_settings` (حقول جديدة اختيارية) أو ثوابت في `SITE`.
+- **إضافة قناة واتساب** كخيار تذكير (بجانب SMS الحالي) — checkbox في الخطوة 4.
+- **تذكير إضافي قبل أسبوع** للمواعيد البعيدة (اختياري).
+- **إشعار داخل المتصفح (Web Push)**: إعادة استخدام `usePushNotifications` الحالي لعرض CTA "فعّل تذكير المتصفح" بعد التأكيد.
+- في صفحة التأكيد: **قائمة واضحة للتذكيرات المفعّلة** مع إمكانية إيقافها فورًا.
 
-### 6) هيرو متعدد الشرائح في الصفحة الرئيسية
-- Slider بـ 3 شرائح (ترحيب، فريق طبي، رعاية منزلية) مع مؤشرات وأسهم RTL.
-- استخدام مكوّن موجود أو Embla carousel (مثبت مسبقاً).
+### 4) إدارة الحجز للمريض (تحسين `/lookup`)
 
-### 7) قسم "التطبيق الرسمي" في الصفحة الرئيسية
-- Banner مختصر يربط بصفحة `/app` مع شارتَي المتجرين + عداد مستخدمين.
-
-### 8) بطاقة WhatsApp عائمة موحّدة
-- زر واتساب ثابت في الزاوية على كل الصفحات (يستخدم `SITE.whatsapp`).
-- إضافة إلى `ChatbotBubble` الحالي أو مكوّن منفصل `WhatsAppFab`.
+- **رابط إدارة قصير**: بعد التأكيد نُنشئ رابط `/lookup?ref=...&t=<token>` يُرسل عبر واتساب — يفتح مباشرة على الحجز دون إدخال يدوي.
+- **إعادة الجدولة الذاتية** (Self-reschedule): زر "تغيير الموعد" داخل `/lookup` يفتح شاشة اختيار وقت جديد مع نفس منطق التوفر (بدل الاتصال بالاستقبال).
+- **إلغاء بسبب اختياري** من قائمة قصيرة (ظرف طارئ / تحسّن / سأحدد لاحقًا) — يُخزَّن في `cancellation_reason`.
+- **إضافة الحجز لتقويم Apple/Google بنقرة واحدة** من `/lookup` (متوفر جزئيًا في `/booking-confirmation`، سنعمّمه).
 
 ---
 
 ## التفاصيل التقنية
 
-**قاعدة البيانات (Migration جديدة):**
-```sql
-CREATE TABLE public.accreditations (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  title_ar text NOT NULL, title_en text NOT NULL,
-  description_ar text, description_en text,
-  image_url text, year int, category text,
-  sort_order int DEFAULT 0,
-  created_at timestamptz DEFAULT now()
-);
-GRANT SELECT ON public.accreditations TO anon, authenticated;
-GRANT ALL ON public.accreditations TO service_role;
-ALTER TABLE public.accreditations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public read" ON public.accreditations FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "admin write" ON public.accreditations FOR ALL TO authenticated
-  USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
-```
+**تغييرات قاعدة البيانات:**
+- عمود اختياري `manage_token uuid` على `appointments` (يُولّد تلقائيًا) لروابط الإدارة الآمنة.
+- عمود `reminder_whatsapp boolean default true` و`reminder_1w boolean default false`.
+- عمود `cancellation_reason text` (nullable).
+- سياسات RLS: قراءة/تحديث محدود بواسطة `manage_token` عبر RPC (لا كشف بيانات مرضى آخرين).
 
-**RPC لعدّ الأطباء لكل تخصص:**
-```sql
-CREATE OR REPLACE FUNCTION public.specialty_doctor_counts()
-RETURNS TABLE(specialty_id uuid, doctor_count bigint)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT specialty_id, count(*) FROM doctors WHERE is_active = true GROUP BY specialty_id;
-$$;
-GRANT EXECUTE ON FUNCTION public.specialty_doctor_counts() TO anon, authenticated;
-```
+**ملفات ستُعدَّل/تُنشأ:**
+- `src/routes/book.tsx` — حفظ localStorage، شارات، بحث، فترة أنسب.
+- `src/components/BookingReminderChannels.tsx` (جديد) — قنوات التذكير.
+- `src/routes/lookup.tsx` — زر إعادة جدولة + بسبب إلغاء.
+- `src/routes/api/public/book/reschedule.ts` (جديد) — endpoint إعادة الجدولة عبر token.
+- migration واحدة للأعمدة والسياسات الجديدة.
 
-**الملفات الجديدة/المعدّلة:**
-- `supabase/migrations/…_accreditations.sql`
-- `src/lib/accreditations.functions.ts`
-- `src/routes/accreditations.tsx` + `accreditations.$slug.tsx` (اختياري)
-- `src/components/home/AwardsCarousel.tsx`
-- `src/components/home/WhyChooseUs.tsx`
-- `src/components/home/StatsBar.tsx`
-- `src/components/home/HeroSlider.tsx`
-- `src/components/WhatsAppFab.tsx`
-- تعديل: `src/routes/index.tsx`, `src/routes/specialties.index.tsx`, `src/components/Footer.tsx`, `src/routes/__root.tsx` (لإدراج الـ FAB).
+**لن أغيّر:** منطق التوفر الحالي، رسائل الأخطاء العربية، شكل الاستجابة `/api/public/book/create`، أو نموذج التدقيق (audit).
 
 ---
 
-## ترتيب التنفيذ المقترح
-1. Migration + RPC + بذور تجريبية لجدول الاعتمادات.
-2. صفحة `/accreditations` كاملة.
-3. `AwardsCarousel` + `WhyChooseUs` + `StatsBar` في الرئيسية.
-4. `HeroSlider` (استبدال الهيرو الحالي).
-5. عدّاد الأطباء على بطاقات التخصصات.
-6. `WhatsAppFab` عالمي + Banner تطبيق في الرئيسية.
-
-هل أبدأ بتنفيذ الخطة كاملة، أم تفضّل البدء بمرحلة محددة (مثلاً 1+2 فقط)؟
+هل تريد تنفيذ الخطة كاملة، أم أبدأ بمحور واحد أولًا (مثلًا: التذكيرات ثم إعادة الجدولة)؟
