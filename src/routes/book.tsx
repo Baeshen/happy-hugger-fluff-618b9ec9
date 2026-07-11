@@ -111,7 +111,7 @@ function reducer(s: State, a: Action): State {
   switch (a.t) {
     case "set":         return { ...s, ...a.p };
     case "setPatient":  return { ...s, patient: { ...s.patient, ...a.p } };
-    case "goto":        return { ...s, step: Math.max(1, Math.min(8, a.step)) };
+    case "goto":        return { ...s, step: Math.max(1, Math.min(9, a.step)) };
     case "reset":       return { ...INITIAL };
   }
 }
