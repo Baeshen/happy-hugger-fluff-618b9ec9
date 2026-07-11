@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, ArrowRight, Building2, Calendar as CalIcon, Check, CheckCircle2,
   ChevronLeft, ChevronRight, Clock, Loader2, MapPin, Phone, Star, Stethoscope,
-  User, UserCircle2, ClipboardList, TestTube, Scan, Activity,
+  User, UserCircle2, ClipboardList, TestTube, Scan, Activity, MessageCircle,
 } from "lucide-react";
 import { submitBooking } from "@/lib/booking-submit";
 import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
@@ -1185,6 +1185,20 @@ function StepSuccess({
   // Last 4 digits of the phone (Latin digits only) — used to auto-fill /track.
   const phone4 = (phone.match(/\d/g) ?? []).slice(-4).join("");
 
+  // Pre-composed WhatsApp message with all confirmed booking details.
+  const waMessage = useMemo(() => {
+    const header = lang === "ar"
+      ? "مرحبًا، لدي حجز في مجمع باعشن الطبي وأحتاج للمساعدة:"
+      : "Hello, I have a booking at Baeshen Medical Complex and need assistance:";
+    const parts: string[] = [header, ""];
+    if (reference) {
+      parts.push(`${lang === "ar" ? "رقم الحجز" : "Reference"}: ${reference}`);
+    }
+    for (const r of rows) parts.push(`${r.label}: ${r.value}`);
+    return parts.join("\n");
+  }, [rows, reference, lang]);
+  const waHref = `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(waMessage)}`;
+
   return (
     <div className="max-w-xl mx-auto text-center">
       <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 grid place-items-center mb-4">
@@ -1259,6 +1273,17 @@ function StepSuccess({
           <CheckCircle2 className="h-4 w-4"/>
           {lang === "ar" ? "عرض التفاصيل الكاملة" : "View full details"}
         </Link>
+      </div>
+      <div className="mt-3">
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-sm font-bold text-white hover:bg-[#1ebe5b] transition"
+        >
+          <MessageCircle className="h-4 w-4"/>
+          {lang === "ar" ? "تواصل عبر واتساب بتفاصيل الحجز" : "Contact via WhatsApp with booking details"}
+        </a>
       </div>
       <div className="mt-3">
         <Button variant="outline" onClick={onNewBooking} className="gap-2 h-auto py-2 w-full">
