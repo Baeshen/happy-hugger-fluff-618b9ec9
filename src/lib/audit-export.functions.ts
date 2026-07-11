@@ -29,7 +29,8 @@ const filterSchema = z.object({
   limit: z.number().int().min(1).max(MAX_ROWS).default(MAX_ROWS),
 });
 
-export type AuditRow = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AuditRow = Record<string, any>;
 
 async function fetchAppointmentAudit(supabase: any, f: z.infer<typeof filterSchema>) {
   let q = supabase
