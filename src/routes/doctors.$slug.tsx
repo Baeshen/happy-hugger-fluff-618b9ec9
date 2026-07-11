@@ -746,6 +746,32 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
     };
   }, [open, total, ar]);
 
+  // Prefetch neighboring images while the lightbox is open so navigation
+  // between photos feels instant. Uses the Image() constructor to warm the
+  // browser cache without inserting extra DOM nodes.
+  useEffect(() => {
+    if (!open || total <= 1) return;
+    const neighbors = [
+      photos[(active + 1) % total],
+      photos[(active - 1 + total) % total],
+    ];
+    const loaders = neighbors
+      .filter((src): src is string => Boolean(src) && src !== photos[active])
+      .map((src) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+        return img;
+      });
+    return () => {
+      // Drop refs so the browser can cancel/GC if not yet resolved.
+      loaders.forEach((img) => {
+        img.src = "";
+      });
+    };
+  }, [open, active, total, photos]);
+
+
   return (
     <div>
       <h2 className="text-xl font-bold mb-3">{ar ? "معرض الصور" : "Gallery"}</h2>
