@@ -260,13 +260,19 @@ function BookPage() {
     if (res.ok) {
       try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
       toast.success(lang === "ar" ? "تم إنشاء الحجز بنجاح" : "Booking created");
-      navigate({
-        to: "/booking-confirmation",
-        search: { ref: res.reference ?? undefined, phone: p.phone.trim() },
-      });
+      setResult({ reference: res.reference, phone: p.phone.trim() });
+      dispatch({ t: "goto", step: 9 });
     } else {
       setErrorMsg(res.message);
     }
+  }
+
+  function handleReset() {
+    setResult(null);
+    setErrorMsg(null);
+    dispatch({ t: "reset" });
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+    navigate({ to: "/book", search: {} });
   }
 
   const STEPS = lang === "ar"
