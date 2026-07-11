@@ -79,6 +79,7 @@ import { Route as MediaStoriesSlugRouteImport } from './routes/media.stories.$sl
 import { Route as AuthenticatedPatientsPatientIdRouteImport } from './routes/_authenticated/patients.$patientId'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 import { Route as ApiPublicBookTrackRouteImport } from './routes/api/public/book/track'
+import { Route as ApiPublicBookMonthAvailabilityRouteImport } from './routes/api/public/book/month-availability'
 import { Route as ApiPublicBookCreateRouteImport } from './routes/api/public/book/create'
 import { Route as ApiPublicBookAvailabilityRouteImport } from './routes/api/public/book/availability'
 
@@ -447,6 +448,12 @@ const ApiPublicBookTrackRoute = ApiPublicBookTrackRouteImport.update({
   path: '/api/public/book/track',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBookMonthAvailabilityRoute =
+  ApiPublicBookMonthAvailabilityRouteImport.update({
+    id: '/api/public/book/month-availability',
+    path: '/api/public/book/month-availability',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicBookCreateRoute = ApiPublicBookCreateRouteImport.update({
   id: '/api/public/book/create',
   path: '/api/public/book/create',
@@ -529,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/book/month-availability': typeof ApiPublicBookMonthAvailabilityRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
@@ -602,6 +610,7 @@ export interface FileRoutesByTo {
   '/patients': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/book/month-availability': typeof ApiPublicBookMonthAvailabilityRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
@@ -677,6 +686,7 @@ export interface FileRoutesById {
   '/_authenticated/patients/': typeof AuthenticatedPatientsIndexRoute
   '/api/public/book/availability': typeof ApiPublicBookAvailabilityRoute
   '/api/public/book/create': typeof ApiPublicBookCreateRoute
+  '/api/public/book/month-availability': typeof ApiPublicBookMonthAvailabilityRoute
   '/api/public/book/track': typeof ApiPublicBookTrackRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
 }
@@ -752,6 +762,7 @@ export interface FileRouteTypes {
     | '/patients/'
     | '/api/public/book/availability'
     | '/api/public/book/create'
+    | '/api/public/book/month-availability'
     | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
   fileRoutesByTo: FileRoutesByTo
@@ -825,6 +836,7 @@ export interface FileRouteTypes {
     | '/patients'
     | '/api/public/book/availability'
     | '/api/public/book/create'
+    | '/api/public/book/month-availability'
     | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
   id:
@@ -899,6 +911,7 @@ export interface FileRouteTypes {
     | '/_authenticated/patients/'
     | '/api/public/book/availability'
     | '/api/public/book/create'
+    | '/api/public/book/month-availability'
     | '/api/public/book/track'
     | '/api/public/hooks/send-reminders'
   fileRoutesById: FileRoutesById
@@ -944,6 +957,7 @@ export interface RootRouteChildren {
   SpecialtiesIndexRoute: typeof SpecialtiesIndexRoute
   ApiPublicBookAvailabilityRoute: typeof ApiPublicBookAvailabilityRoute
   ApiPublicBookCreateRoute: typeof ApiPublicBookCreateRoute
+  ApiPublicBookMonthAvailabilityRoute: typeof ApiPublicBookMonthAvailabilityRoute
   ApiPublicBookTrackRoute: typeof ApiPublicBookTrackRoute
   ApiPublicHooksSendRemindersRoute: typeof ApiPublicHooksSendRemindersRoute
 }
@@ -1440,6 +1454,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBookTrackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/book/month-availability': {
+      id: '/api/public/book/month-availability'
+      path: '/api/public/book/month-availability'
+      fullPath: '/api/public/book/month-availability'
+      preLoaderRoute: typeof ApiPublicBookMonthAvailabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/book/create': {
       id: '/api/public/book/create'
       path: '/api/public/book/create'
@@ -1607,6 +1628,7 @@ const rootRouteChildren: RootRouteChildren = {
   SpecialtiesIndexRoute: SpecialtiesIndexRoute,
   ApiPublicBookAvailabilityRoute: ApiPublicBookAvailabilityRoute,
   ApiPublicBookCreateRoute: ApiPublicBookCreateRoute,
+  ApiPublicBookMonthAvailabilityRoute: ApiPublicBookMonthAvailabilityRoute,
   ApiPublicBookTrackRoute: ApiPublicBookTrackRoute,
   ApiPublicHooksSendRemindersRoute: ApiPublicHooksSendRemindersRoute,
 }

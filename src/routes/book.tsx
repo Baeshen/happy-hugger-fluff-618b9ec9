@@ -562,6 +562,29 @@ function StepDate({
 
   const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 60);
 
+  // Fetch dates in this month that have at least one bookable slot.
+  const year = monthStart.getFullYear();
+  const month = monthStart.getMonth() + 1;
+  const { data: monthAvail, isLoading: loadingMonth } = useQuery({
+    queryKey: ["month-avail", year, month, doctorId, specialtyId, branchId],
+    queryFn: async () => {
+      const p = new URLSearchParams({ year: String(year), month: String(month) });
+      if (doctorId) p.set("doctor_id", doctorId);
+      else if (specialtyId) p.set("specialty_id", specialtyId);
+      if (branchId) p.set("branch_id", branchId);
+      const res = await fetch(`/api/public/book/month-availability?${p.toString()}`);
+      if (!res.ok) return { ok: false, dates: [] as string[] };
+      return (await res.json()) as { ok: boolean; dates: string[] };
+    },
+    enabled: !!(doctorId || specialtyId),
+    staleTime: 60_000,
+  });
+  const availableDates = useMemo(
+    () => new Set(monthAvail?.dates ?? []),
+    [monthAvail],
+  );
+  const hasAvailData = (monthAvail?.dates?.length ?? 0) > 0 || monthAvail?.ok === true;
+
   return (
     <StepShell lang={lang} title={lang === "ar" ? "اختر التاريخ" : "Choose date"}>
       <div className="max-w-md mx-auto">
@@ -583,17 +606,19 @@ function StepDate({
             if (!d) return <div key={i}/>;
             const isPast = d < today;
             const isTooFar = d > maxDate;
-            const disabled = isPast || isTooFar;
             const s = iso(d);
+            const noAvail = hasAvailData && !availableDates.has(s);
+            const disabled = isPast || isTooFar || noAvail;
             const active = value === s;
             return (
               <button
                 key={i}
                 disabled={disabled}
                 onClick={() => onPick(s)}
+                title={noAvail ? (lang === "ar" ? "الطبيب غير متاح في هذا اليوم" : "Doctor unavailable this day") : undefined}
                 className={`aspect-square rounded-lg text-sm font-medium transition ${
                   active ? "bg-primary text-primary-foreground shadow"
-                  : disabled ? "text-muted-foreground/40 cursor-not-allowed"
+                  : disabled ? "text-muted-foreground/40 cursor-not-allowed line-through decoration-1"
                   : "bg-muted hover:bg-primary/10 hover:text-primary"
                 }`}
               >
@@ -603,7 +628,11 @@ function StepDate({
           })}
         </div>
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          {lang === "ar" ? "تُعرض الأوقات المتاحة في الخطوة التالية" : "Available times shown in next step"}
+          {loadingMonth
+            ? (lang === "ar" ? "جارٍ تحميل التواريخ المتاحة…" : "Loading available dates…")
+            : hasAvailData && availableDates.size === 0
+              ? (lang === "ar" ? "لا توجد أيام متاحة هذا الشهر — جرّب شهرًا آخر." : "No available days this month — try another.")
+              : (lang === "ar" ? "الأيام غير المتاحة معطّلة تلقائيًا" : "Unavailable days are disabled")}
         </p>
       </div>
     </StepShell>
