@@ -922,7 +922,7 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
 
           <figure
             id={descId}
-            className="flex flex-col items-center gap-3 touch-pan-y select-none"
+            className="flex flex-col items-center gap-3 touch-pan-y select-none cursor-grab active:cursor-grabbing"
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => {
               const t = e.touches[0];
@@ -941,9 +941,39 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
               const forward = ar ? dx > 0 : dx < 0;
               go(forward ? 1 : -1);
             }}
+            onPointerDown={(e) => {
+              // Touch is handled by onTouchStart/End; only track mouse/pen drag here.
+              if (e.pointerType === "touch") return;
+              swipeStartRef.current = { x: e.clientX, y: e.clientY };
+              try {
+                (e.currentTarget as Element).setPointerCapture(e.pointerId);
+              } catch {
+                /* no-op */
+              }
+            }}
+            onPointerUp={(e) => {
+              if (e.pointerType === "touch") return;
+              const start = swipeStartRef.current;
+              swipeStartRef.current = null;
+              try {
+                (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+              } catch {
+                /* no-op */
+              }
+              if (!start || total <= 1) return;
+              const dx = e.clientX - start.x;
+              const dy = e.clientY - start.y;
+              if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+              const forward = ar ? dx > 0 : dx < 0;
+              go(forward ? 1 : -1);
+            }}
+            onPointerCancel={() => {
+              swipeStartRef.current = null;
+            }}
             aria-live="polite"
             aria-atomic="true"
           >
+
 
             <div className="relative">
               <ProgressiveImage
