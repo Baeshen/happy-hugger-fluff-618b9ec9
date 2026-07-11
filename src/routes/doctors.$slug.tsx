@@ -201,22 +201,64 @@ function DoctorError({ reset }: { reset: () => void }) {
   );
 }
 
-function AvailabilityWidget({ doctorId, bookingEnabled }: { doctorId: string; bookingEnabled: boolean }) {
+/* ================================================================
+   Inline Booking Widget — sidebar mini-wizard
+   Steps: 1) date  2) time  3) patient info  4) review  5) success
+   ================================================================ */
+
+type InlineStep = 1 | 2 | 3 | 4 | 5;
+type InlineGender = "male" | "female";
+
+// Local Saudi phone regex (mirrors /book).
+const INLINE_SA_PHONE_RE = /^(?:(?:\+?966)|0)?5\d{8}$/;
+const INLINE_SA_NID_RE = /^[12]\d{9}$/;
+
+function InlineBookingWidget({
+  doctorId,
+  bookingEnabled,
+  doctorName,
+}: {
+  doctorId: string;
+  bookingEnabled: boolean;
+  doctorName: string;
+}) {
   const { lang } = useI18n();
+  const ar = lang === "ar";
   const today = riyadhTodayIso();
-  const dates = Array.from({ length: 7 }, (_, i) => addDaysIso(today, i));
-  const [selectedDate, setSelectedDate] = useState(dates[0]);
-  const { data, isLoading } = useQuery(availabilityQuery(doctorId, selectedDate));
-  const times = data?.times ?? [];
+  const dates = Array.from({ length: 14 }, (_, i) => addDaysIso(today, i));
+
+  const [step, setStep] = useState<InlineStep>(1);
+  const [selectedDate, setSelectedDate] = useState<string>(dates[0]);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [nationalId, setNationalId] = useState("");
+  const [gender, setGender] = useState<InlineGender | null>(null);
+  const [reason, setReason] = useState("");
+  const [reminder24h, setReminder24h] = useState(true);
+  const [reminder2h, setReminder2h] = useState(true);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reference, setReference] = useState<string | null>(null);
+
+  const { data: availData, isLoading: availLoading } = useQuery({
+    ...availabilityQuery(doctorId, selectedDate),
+    enabled: bookingEnabled && step >= 2,
+  });
+  const times = availData?.times ?? [];
 
   if (!bookingEnabled) {
     return (
       <div className="rounded-2xl border border-border bg-card p-6">
         <h3 className="font-bold mb-2 flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" /> الحجز غير متاح
+          <Calendar className="h-5 w-5 text-primary" /> {ar ? "الحجز غير متاح" : "Booking unavailable"}
         </h3>
         <p className="text-sm text-muted-foreground">
-          الحجز الإلكتروني غير متاح لهذا الطبيب حالياً. يرجى الاتصال بنا.
+          {ar
+            ? "الحجز الإلكتروني غير متاح لهذا الطبيب حالياً. يرجى الاتصال بنا."
+            : "Online booking is not available for this doctor. Please contact us."}
         </p>
         <a
           href={`tel:${SITE.phone}`}
@@ -228,64 +270,389 @@ function AvailabilityWidget({ doctorId, bookingEnabled }: { doctorId: string; bo
     );
   }
 
+  // Success state.
+  if (step === 5) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-emerald-600">
+          <ClipboardCheck className="h-6 w-6" />
+        </div>
+        <h3 className="font-bold mb-1">{ar ? "تم تأكيد الحجز" : "Booking confirmed"}</h3>
+        <p className="text-sm text-muted-foreground">
+          {ar ? "سنرسل تفاصيل الحجز عبر رسالة نصية." : "We'll send booking details by SMS."}
+        </p>
+        {reference && (
+          <div className="mt-3 rounded-lg bg-muted p-3 text-sm">
+            <div className="text-xs text-muted-foreground">{ar ? "رقم المرجع" : "Reference"}</div>
+            <div className="font-mono font-bold">{reference}</div>
+          </div>
+        )}
+        <div className="mt-3 text-sm">
+          <div>{formatDateLabel(selectedDate, lang)} — {selectedTime}</div>
+        </div>
+        <div className="mt-4 flex flex-col gap-2">
+          <Link
+            to="/track"
+            className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-bold hover:opacity-90"
+          >
+            {ar ? "تتبع الحجز" : "Track booking"}
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setStep(1);
+              setSelectedTime(null);
+              setReference(null);
+              setErrorMsg(null);
+            }}
+            className="text-xs text-muted-foreground hover:text-primary"
+          >
+            {ar ? "حجز موعد آخر" : "Book another"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const STEP_LABELS = ar
+    ? ["التاريخ", "الوقت", "بياناتك", "التأكيد"]
+    : ["Date", "Time", "Your info", "Confirm"];
+
+  function validatePatient(): string | null {
+    if (!name.trim() || name.trim().split(/\s+/).length < 2) {
+      return ar ? "أدخل الاسم كاملاً (اسمان على الأقل)" : "Enter your full name";
+    }
+    const clean = phone.replace(/[\s\-()]/g, "");
+    if (!INLINE_SA_PHONE_RE.test(clean)) {
+      return ar ? "رقم جوال سعودي غير صالح (مثال: 05XXXXXXXX)" : "Invalid Saudi mobile number";
+    }
+    if (nationalId.trim() && !INLINE_SA_NID_RE.test(nationalId.trim())) {
+      return ar ? "رقم هوية غير صالح (10 أرقام يبدأ بـ 1 أو 2)" : "Invalid national ID";
+    }
+    if (!gender) return ar ? "اختر الجنس" : "Select gender";
+    return null;
+  }
+
+  async function handleSubmit() {
+    setErrorMsg(null);
+    const err = validatePatient();
+    if (err) { setErrorMsg(err); setStep(3); return; }
+    if (!selectedDate || !selectedTime) return;
+    setSubmitting(true);
+    const res = await submitBooking({
+      patient_name: name.trim(),
+      patient_phone: phone.trim(),
+      appointment_date: selectedDate,
+      appointment_time: selectedTime,
+      reason: reason.trim() || undefined,
+      national_id: nationalId.trim() || null,
+      gender: gender ?? undefined,
+      doctor_id: doctorId,
+      reminder_24h: reminder24h,
+      reminder_2h: reminder2h,
+    });
+    setSubmitting(false);
+    if (res.ok) {
+      setReference(res.reference);
+      setStep(5);
+    } else {
+      setErrorMsg(res.message);
+    }
+  }
+
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <h3 className="font-bold mb-4 flex items-center gap-2">
-        <Calendar className="h-5 w-5 text-primary" /> المواعيد المتاحة
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <h3 className="font-bold mb-3 flex items-center gap-2">
+        <Calendar className="h-5 w-5 text-primary" />
+        {ar ? "احجز الآن" : "Book now"}
       </h3>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
-        {dates.map((iso) => {
-          const active = iso === selectedDate;
+      {/* Mini stepper */}
+      <ol className="mb-4 flex items-center gap-1.5 text-[11px] font-medium">
+        {STEP_LABELS.map((label, i) => {
+          const n = (i + 1) as InlineStep;
+          const active = n === step;
+          const done = n < step;
           return (
-            <button
-              key={iso}
-              type="button"
-              onClick={() => setSelectedDate(iso)}
-              className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:border-primary/50"
-              }`}
-            >
-              {formatDateLabel(iso, lang)}
-            </button>
+            <li key={label} className="flex items-center gap-1 flex-1">
+              <button
+                type="button"
+                disabled={n >= step}
+                onClick={() => setStep(n)}
+                className={`flex items-center gap-1 rounded-full px-2 py-1 transition ${
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : done
+                    ? "bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <span className="grid h-4 w-4 place-items-center rounded-full bg-white/20 text-[10px]">
+                  {done ? "✓" : n}
+                </span>
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
-      {isLoading ? (
-        <div className="text-sm text-muted-foreground py-4">جاري التحميل...</div>
-      ) : times.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-4 text-center">
-          لا توجد مواعيد متاحة في هذا اليوم
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {times.slice(0, 9).map((t) => (
-            <Link
-              key={t}
-              to="/book"
-              search={{ doctor: doctorId, date: selectedDate, time: t } as never}
-              className="rounded-lg border border-border bg-background px-2 py-2 text-center text-xs font-medium hover:border-primary hover:bg-primary/5 transition flex items-center justify-center gap-1"
-              title={lang === "ar" ? "المتابعة إلى المراجعة" : "Continue to review"}
-            >
-              <Clock className="h-3 w-3" /> {t}
-            </Link>
-          ))}
+      {/* Step 1 — Date */}
+      {step === 1 && (
+        <div>
+          <div className="mb-2 text-xs text-muted-foreground">
+            {ar ? "اختر اليوم المناسب" : "Pick a day"}
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+            {dates.map((iso) => {
+              const active = iso === selectedDate;
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={() => setSelectedDate(iso)}
+                  className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:border-primary/50"
+                  }`}
+                >
+                  {formatDateLabel(iso, lang)}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setStep(2)}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold hover:opacity-90"
+          >
+            {ar ? "التالي" : "Next"} <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+          </button>
         </div>
       )}
 
-      <Link
-        to="/book"
-        search={{ doctor: doctorId } as never}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-bold hover:opacity-90"
-      >
-        عرض جميع المواعيد <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-      </Link>
+      {/* Step 2 — Time */}
+      {step === 2 && (
+        <div>
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              {ar ? "الأوقات المتاحة" : "Available times"} — {formatDateLabel(selectedDate, lang)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="text-primary hover:underline"
+            >
+              {ar ? "تغيير اليوم" : "Change day"}
+            </button>
+          </div>
+          {availLoading ? (
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 rounded-lg" />
+              ))}
+            </div>
+          ) : times.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground mb-3">
+              {ar ? "لا توجد مواعيد في هذا اليوم — جرّب يومًا آخر." : "No available times — try another day."}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {times.map((t) => {
+                const active = t === selectedTime;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => { setSelectedTime(t); setStep(3); }}
+                    className={`rounded-lg border px-2 py-2 text-center text-xs font-medium transition flex items-center justify-center gap-1 ${
+                      active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background hover:border-primary hover:bg-primary/5"
+                    }`}
+                  >
+                    <Clock className="h-3 w-3" /> {t}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 3 — Patient info */}
+      {step === 3 && (
+        <div className="space-y-3">
+          <div className="text-xs text-muted-foreground mb-1">
+            {formatDateLabel(selectedDate, lang)} — {selectedTime}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">{ar ? "الاسم الكامل" : "Full name"} *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder={ar ? "الاسم الثلاثي" : "Your full name"}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">{ar ? "رقم الجوال" : "Mobile"} *</label>
+            <input
+              type="tel"
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="05XXXXXXXX"
+              dir="ltr"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">{ar ? "رقم الهوية / الإقامة (اختياري)" : "National ID (optional)"}</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={nationalId}
+              onChange={(e) => setNationalId(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="1XXXXXXXXX"
+              dir="ltr"
+              maxLength={10}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">{ar ? "الجنس" : "Gender"} *</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["male", "female"] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGender(g)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                    gender === g
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:border-primary/50"
+                  }`}
+                >
+                  {ar ? (g === "male" ? "ذكر" : "أنثى") : g === "male" ? "Male" : "Female"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">{ar ? "سبب الزيارة (اختياري)" : "Reason (optional)"}</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              maxLength={500}
+            />
+          </div>
+
+          {errorMsg && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+              {errorMsg}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              const err = validatePatient();
+              if (err) { setErrorMsg(err); return; }
+              setErrorMsg(null);
+              setStep(4);
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold hover:opacity-90"
+          >
+            {ar ? "مراجعة الحجز" : "Review booking"} <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+          </button>
+        </div>
+      )}
+
+      {/* Step 4 — Review + confirm */}
+      {step === 4 && (
+        <div className="space-y-3">
+          <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-1.5 text-sm">
+            <Row label={ar ? "الطبيب" : "Doctor"} value={doctorName} />
+            <Row label={ar ? "التاريخ" : "Date"} value={formatDateLabel(selectedDate, lang)} />
+            <Row label={ar ? "الوقت" : "Time"} value={selectedTime ?? "—"} />
+            <Row label={ar ? "الاسم" : "Name"} value={name} />
+            <Row label={ar ? "الجوال" : "Phone"} value={phone} />
+            {reason && <Row label={ar ? "السبب" : "Reason"} value={reason} />}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <input type="checkbox" checked={reminder24h} onChange={(e) => setReminder24h(e.target.checked)} className="rounded" />
+              {ar ? "تذكيري قبل 24 ساعة" : "Remind me 24h before"}
+            </label>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <input type="checkbox" checked={reminder2h} onChange={(e) => setReminder2h(e.target.checked)} className="rounded" />
+              {ar ? "تذكيري قبل ساعتين" : "Remind me 2h before"}
+            </label>
+          </div>
+
+          {errorMsg && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+              {errorMsg}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold hover:opacity-90 disabled:opacity-60"
+          >
+            {submitting ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> {ar ? "جارٍ التأكيد..." : "Confirming..."}</>
+            ) : (
+              <>{ar ? "تأكيد الحجز" : "Confirm booking"} <ArrowLeft className="h-4 w-4 rtl:rotate-180" /></>
+            )}
+          </button>
+
+          <p className="text-[11px] text-muted-foreground text-center">
+            {ar
+              ? "بالتأكيد فإنك توافق على تعليمات وسياسة الحجز."
+              : "By confirming you agree to the booking policy."}
+          </p>
+        </div>
+      )}
+
+      {/* Escape hatch to full wizard */}
+      {step < 4 && (
+        <div className="mt-3 text-center">
+          <Link
+            to="/book"
+            search={{ doctor: doctorId } as never}
+            className="text-xs text-muted-foreground hover:text-primary"
+          >
+            {ar ? "فتح النموذج الكامل ↗" : "Open full form ↗"}
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-2 text-xs">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-medium text-end">{value}</span>
+    </div>
+  );
+}
+
 
 function DoctorDetail() {
   const { slug } = Route.useParams();
