@@ -349,7 +349,15 @@ function DoctorDetail() {
               title={hasPhoto ? undefined : noPhotoLabel}
             >
               {hasPhoto ? (
-                <img src={gallery[0]} alt={photoAlt} className="h-full w-full object-cover" />
+                <ProgressiveImage
+                  src={gallery[0]}
+                  alt={photoAlt}
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover"
+                  loading="eager"
+                  fetchPriority="high"
+                  spinnerLight
+                />
               ) : (
                 <div className="flex flex-col items-center gap-1 text-white/90">
                   <User className="h-10 w-10" aria-hidden />
