@@ -522,3 +522,141 @@ function BookingPolicy({ lang }: { lang: string }) {
     </div>
   );
 }
+
+type RatingRow = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  patient_name: string | null;
+  created_at: string;
+  staff_reply: string | null;
+  staff_reply_at: string | null;
+};
+type SummaryRow = { average: number | null; count: number };
+
+function Stars({ value, size = 16 }: { value: number; size?: number }) {
+  return (
+    <div className="inline-flex items-center gap-0.5" aria-label={`${value} / 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={i <= Math.round(value) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}
+          style={{ width: size, height: size }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DoctorRatings({ doctorId, lang }: { doctorId: string; lang: string }) {
+  const ar = lang === "ar";
+  const summary = useQuery({
+    queryKey: ["doctor-rating-summary", doctorId],
+    queryFn: async (): Promise<SummaryRow> => {
+      const { data, error } = await supabase.rpc("get_public_doctor_rating_summary", { _doctor_id: doctorId });
+      if (error) throw error;
+      const row = (data as any[])?.[0];
+      return { average: row?.average ?? null, count: Number(row?.count ?? 0) };
+    },
+    staleTime: 60_000,
+  });
+  const list = useQuery({
+    queryKey: ["doctor-ratings", doctorId],
+    queryFn: async (): Promise<RatingRow[]> => {
+      const { data, error } = await supabase.rpc("list_public_doctor_ratings", { _doctor_id: doctorId, _limit: 20 });
+      if (error) throw error;
+      return (data as RatingRow[]) ?? [];
+    },
+    staleTime: 60_000,
+  });
+
+  const [showAll, setShowAll] = useState(false);
+  const items = list.data ?? [];
+  const shown = showAll ? items : items.slice(0, 5);
+  const count = summary.data?.count ?? 0;
+  const avg = summary.data?.average ?? 0;
+  const locale = ar ? "ar-SA" : "en-US";
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+        <MessageSquare className="h-5 w-5 text-primary" />
+        {ar ? "تقييمات المرضى" : "Patient reviews"}
+      </h2>
+
+      <div className="rounded-2xl border border-border bg-card p-6 mb-4">
+        {summary.isLoading ? (
+          <div className="text-sm text-muted-foreground">{ar ? "جاري التحميل..." : "Loading..."}</div>
+        ) : count === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            {ar ? "لا توجد تقييمات لهذا الطبيب بعد." : "No reviews for this doctor yet."}
+          </div>
+        ) : (
+          <div className="flex items-center gap-5">
+            <div className="text-center">
+              <div className="text-4xl font-extrabold text-primary leading-none">
+                {Number(avg).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{ar ? "من ٥" : "out of 5"}</div>
+            </div>
+            <div>
+              <Stars value={Number(avg)} size={20} />
+              <div className="mt-1 text-sm text-muted-foreground">
+                {ar
+                  ? `بناءً على ${count.toLocaleString(locale)} مراجعة`
+                  : `Based on ${count.toLocaleString(locale)} reviews`}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {items.length > 0 && (
+        <div className="space-y-3">
+          {shown.map((r) => (
+            <div key={r.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold">
+                    {(r.patient_name ?? "?").charAt(0)}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold">
+                      {r.patient_name || (ar ? "مريض" : "Patient")}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {new Date(r.created_at).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" })}
+                    </div>
+                  </div>
+                </div>
+                <Stars value={r.rating} />
+              </div>
+              {r.comment && (
+                <p className="text-sm text-muted-foreground leading-7 whitespace-pre-line">{r.comment}</p>
+              )}
+              {r.staff_reply && (
+                <div className="mt-3 rounded-lg bg-muted/50 border border-border p-3">
+                  <div className="text-xs font-semibold text-primary mb-1">
+                    {ar ? "رد المجمع" : "Clinic reply"}
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-6 whitespace-pre-line">{r.staff_reply}</p>
+                </div>
+              )}
+            </div>
+          ))}
+          {items.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {showAll
+                ? (ar ? "عرض أقل" : "Show less")
+                : (ar ? `عرض جميع المراجعات (${items.length})` : `Show all reviews (${items.length})`)}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
