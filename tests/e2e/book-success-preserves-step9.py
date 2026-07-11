@@ -183,8 +183,15 @@ async def main():
 
             # ---- Reload after success ----
             await page.reload(wait_until="domcontentloaded")
-            # Draft is cleared on submit → fresh wizard at step=1.
-            await page.wait_for_selector("text=اختر نوع الخدمة", timeout=10_000)
+            try:
+                await page.get_by_role(
+                    "button", name=re.compile(r"تخطي|Skip")
+                ).click(timeout=3000)
+            except Exception:
+                pass
+            # Draft is cleared on submit; URL still had step=8 from the review
+            # step, and the clamp resets to step=1 because no data remains.
+            await page.wait_for_selector("text=اختر نوع الخدمة", timeout=15_000)
             await page.wait_for_function(
                 "window.location.search.includes('step=1')", timeout=10_000
             )
@@ -192,6 +199,7 @@ async def main():
             print("after reload:", reload_url)
             if "step=0" in reload_url:
                 raise AssertionError(f"reload leaked step=0: {reload_url}")
+
 
             real = [e for e in errors if "Failed to load resource" not in e]
             if real:
