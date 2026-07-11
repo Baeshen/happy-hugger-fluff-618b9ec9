@@ -417,46 +417,68 @@ function DoctorDetail() {
 
       <section className="py-14">
         <div className="container-app grid gap-8 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-8">
-            <div>
-              <h2 className="text-xl font-bold mb-3">نبذة</h2>
-              <p className="text-muted-foreground leading-8 whitespace-pre-line">
-                {bio || "لا توجد نبذة متاحة حالياً."}
-              </p>
-            </div>
+          <div className="md:col-span-2">
+            <Tabs defaultValue="about" className="w-full">
+              <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 bg-muted/60 p-1">
+                <TabsTrigger value="about" className="gap-2">
+                  <FileText className="h-4 w-4" /> نبذة
+                </TabsTrigger>
+                <TabsTrigger value="expertise" className="gap-2">
+                  <Stethoscope className="h-4 w-4" /> تخصصات وخبرات
+                </TabsTrigger>
+                <TabsTrigger value="branches" className="gap-2">
+                  <Building2 className="h-4 w-4" /> فروع
+                </TabsTrigger>
+                <TabsTrigger value="ratings" className="gap-2">
+                  <MessageSquare className="h-4 w-4" /> تقييمات
+                </TabsTrigger>
+                <TabsTrigger value="policies" className="gap-2">
+                  <Info className="h-4 w-4" /> سياسات
+                </TabsTrigger>
+              </TabsList>
 
-            {gallery.length > 1 && <DoctorGallery photos={gallery} name={name} alt={photoAlt} lang={lang} />}
+              <TabsContent value="about" className="mt-6 space-y-8">
+                <div>
+                  <h2 className="text-xl font-bold mb-3">نبذة</h2>
+                  {bio ? (
+                    <p className="text-muted-foreground leading-8 whitespace-pre-line">{bio}</p>
+                  ) : (
+                    <EmptyState
+                      icon={<FileText className="h-6 w-6" />}
+                      text={ar ? "لا توجد نبذة متاحة لهذا الطبيب حالياً." : "No biography available yet."}
+                    />
+                  )}
+                </div>
+                {gallery.length > 1 && (
+                  <DoctorGallery photos={gallery} name={name} alt={photoAlt} lang={lang} />
+                )}
+              </TabsContent>
 
+              <TabsContent value="expertise" className="mt-6 space-y-8">
+                <ExpertiseTab
+                  ar={ar}
+                  specName={specName}
+                  specSlug={d.specialties?.slug ?? null}
+                  yearsExperience={d.years_experience}
+                  languages={d.languages}
+                  education={d.education}
+                  experience={d.experience}
+                />
+              </TabsContent>
 
+              <TabsContent value="branches" className="mt-6">
+                <DoctorBranchesTab doctorId={d.id} fallbackBranchId={d.branch_id} ar={ar} lang={lang} />
+              </TabsContent>
 
-            {d.education && (
-              <div>
-                <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5 text-primary" /> المؤهلات العلمية
-                </h2>
-                <p className="text-muted-foreground leading-8 whitespace-pre-line">
-                  {d.education}
-                </p>
-              </div>
-            )}
+              <TabsContent value="ratings" className="mt-6">
+                <DoctorRatings doctorId={d.id} lang={lang} />
+              </TabsContent>
 
-            {d.experience && (
-              <div>
-                <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-                  <Briefcase className="h-5 w-5 text-primary" /> الخبرات المهنية
-                </h2>
-                <p className="text-muted-foreground leading-8 whitespace-pre-line">
-                  {d.experience}
-                </p>
-              </div>
-            )}
-
-            <DoctorRatings doctorId={d.id} lang={lang} />
-
-            <BookingPolicy lang={lang} />
+              <TabsContent value="policies" className="mt-6">
+                <BookingPolicy lang={lang} />
+              </TabsContent>
+            </Tabs>
           </div>
-
-
 
           <aside className="space-y-6">
             <AvailabilityWidget doctorId={d.id} bookingEnabled={bookingEnabled} />
@@ -498,6 +520,282 @@ function DoctorDetail() {
     </div>
   );
 }
+
+function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
+      <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        {icon}
+      </div>
+      <p className="text-sm text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+function ExpertiseTab({
+  ar,
+  specName,
+  specSlug,
+  yearsExperience,
+  languages,
+  education,
+  experience,
+}: {
+  ar: boolean;
+  specName: string | null;
+  specSlug: string | null;
+  yearsExperience: number | null;
+  languages: string[] | null;
+  education: string | null;
+  experience: string | null;
+}) {
+  const hasAny =
+    !!specName || !!education || !!experience ||
+    (yearsExperience != null && yearsExperience > 0) ||
+    (languages && languages.length > 0);
+
+  if (!hasAny) {
+    return (
+      <EmptyState
+        icon={<Stethoscope className="h-6 w-6" />}
+        text={ar ? "لم تُضف تفاصيل التخصص والخبرة بعد." : "No expertise details added yet."}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {specName && (
+          <InfoCard
+            icon={<Stethoscope className="h-5 w-5" />}
+            label={ar ? "التخصص" : "Specialty"}
+            value={
+              specSlug ? (
+                <Link to="/specialties/$slug" params={{ slug: specSlug }} className="text-primary hover:underline">
+                  {specName}
+                </Link>
+              ) : (
+                specName
+              )
+            }
+          />
+        )}
+        {yearsExperience != null && yearsExperience > 0 && (
+          <InfoCard
+            icon={<Award className="h-5 w-5" />}
+            label={ar ? "سنوات الخبرة" : "Years of experience"}
+            value={`${yearsExperience}+ ${ar ? "سنة" : "years"}`}
+          />
+        )}
+        {languages && languages.length > 0 && (
+          <InfoCard
+            icon={<Languages className="h-5 w-5" />}
+            label={ar ? "اللغات" : "Languages"}
+            value={languages.join(ar ? "، " : ", ")}
+          />
+        )}
+      </div>
+
+      {education && (
+        <div>
+          <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+            <GraduationCap className="h-5 w-5 text-primary" /> {ar ? "المؤهلات العلمية" : "Education"}
+          </h3>
+          <p className="text-muted-foreground leading-8 whitespace-pre-line">{education}</p>
+        </div>
+      )}
+
+      {experience && (
+        <div>
+          <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-primary" /> {ar ? "الخبرات المهنية" : "Professional experience"}
+          </h3>
+          <p className="text-muted-foreground leading-8 whitespace-pre-line">{experience}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+      <div className="h-9 w-9 shrink-0 rounded-lg bg-primary/10 text-primary grid place-items-center">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
+        <div className="text-sm font-semibold break-words">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+type DoctorBranchRow = {
+  id: string;
+  slug: string;
+  name_ar: string;
+  name_en: string | null;
+  city_ar: string | null;
+  city_en: string | null;
+  address_ar: string | null;
+  address_en: string | null;
+  phone: string | null;
+  is_primary: boolean;
+};
+
+function DoctorBranchesTab({
+  doctorId,
+  fallbackBranchId,
+  ar,
+  lang,
+}: {
+  doctorId: string;
+  fallbackBranchId: string | null;
+  ar: boolean;
+  lang: string;
+}) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["doctor-branches", doctorId],
+    queryFn: async (): Promise<DoctorBranchRow[]> => {
+      const { data, error } = await supabase
+        .from("doctor_branches")
+        .select(
+          "is_primary, branches:branch_id(id, slug, name_ar, name_en, city_ar, city_en, address_ar, address_en, phone, is_active)",
+        )
+        .eq("doctor_id", doctorId);
+      if (error) throw error;
+      const rows = ((data ?? []) as any[])
+        .map((r) => {
+          const b = r.branches;
+          if (!b || b.is_active === false) return null;
+          return {
+            id: b.id,
+            slug: b.slug,
+            name_ar: b.name_ar,
+            name_en: b.name_en,
+            city_ar: b.city_ar,
+            city_en: b.city_en,
+            address_ar: b.address_ar,
+            address_en: b.address_en,
+            phone: b.phone,
+            is_primary: !!r.is_primary,
+          } as DoctorBranchRow;
+        })
+        .filter(Boolean) as DoctorBranchRow[];
+
+      if (rows.length === 0 && fallbackBranchId) {
+        const { data: b } = await supabase
+          .from("branches")
+          .select("id, slug, name_ar, name_en, city_ar, city_en, address_ar, address_en, phone")
+          .eq("id", fallbackBranchId)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (b) rows.push({ ...(b as any), is_primary: true });
+      }
+      // Primary first, then by name.
+      rows.sort((a, b) =>
+        a.is_primary === b.is_primary ? a.name_ar.localeCompare(b.name_ar, "ar") : a.is_primary ? -1 : 1,
+      );
+      return rows;
+    },
+    staleTime: 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <EmptyState
+        icon={<Building2 className="h-6 w-6" />}
+        text={ar ? "تعذّر تحميل الفروع، حاول لاحقاً." : "Failed to load branches."}
+      />
+    );
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={<Building2 className="h-6 w-6" />}
+        text={ar ? "لا توجد فروع مرتبطة بهذا الطبيب حالياً." : "No branches linked to this doctor yet."}
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {rows.map((b) => {
+        const bName = lang === "ar" ? b.name_ar : b.name_en || b.name_ar;
+        const bCity = lang === "ar" ? b.city_ar : b.city_en || b.city_ar;
+        const bAddr = lang === "ar" ? b.address_ar : b.address_en || b.address_ar;
+        return (
+          <div key={b.id} className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-bold">{bName}</div>
+                  {bCity && <div className="text-xs text-muted-foreground">{bCity}</div>}
+                </div>
+              </div>
+              {b.is_primary && (
+                <span className="text-[10px] font-semibold rounded-full bg-primary/10 text-primary px-2 py-0.5">
+                  {ar ? "الفرع الرئيسي" : "Primary"}
+                </span>
+              )}
+            </div>
+            {bAddr && (
+              <div className="mt-2 text-sm text-muted-foreground flex items-start gap-2">
+                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{bAddr}</span>
+              </div>
+            )}
+            {b.phone && (
+              <div className="mt-1.5 text-sm text-muted-foreground flex items-center gap-2">
+                <Phone className="h-4 w-4 shrink-0" />
+                <a href={`tel:${b.phone}`} className="hover:text-primary">{b.phone}</a>
+              </div>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                to="/branches/$slug"
+                params={{ slug: b.slug }}
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:border-primary hover:text-primary transition"
+              >
+                {ar ? "تفاصيل الفرع" : "Branch details"}
+              </Link>
+              <Link
+                to="/book"
+                search={{ doctor: doctorId, branch: b.id } as never}
+                className="inline-flex items-center gap-1 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:opacity-90 transition"
+              >
+                {ar ? "احجز في هذا الفرع" : "Book at this branch"}
+              </Link>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function BookingPolicy({ lang }: { lang: string }) {
   const ar = lang === "ar";
