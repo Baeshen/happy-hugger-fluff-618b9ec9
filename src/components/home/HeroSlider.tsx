@@ -123,6 +123,15 @@ export function HeroSlider() {
                       <div className="mt-8 flex flex-wrap gap-3">
                         <Link
                           to={s.primary.to}
+                          onClick={() =>
+                            trackEvent("hero_cta_click", {
+                              slide_index: i,
+                              slide_title: s.title.en,
+                              cta: "primary",
+                              label: s.primary.label.en,
+                              to: s.primary.to,
+                            })
+                          }
                           className="inline-flex items-center gap-2 rounded-lg bg-white text-primary px-5 py-3 text-sm font-bold hover:bg-white/90"
                         >
                           {s.primary.label[lang]}
@@ -131,6 +140,15 @@ export function HeroSlider() {
                         {s.secondary ? (
                           <Link
                             to={s.secondary.to}
+                            onClick={() =>
+                              trackEvent("hero_cta_click", {
+                                slide_index: i,
+                                slide_title: s.title.en,
+                                cta: "secondary",
+                                label: s.secondary!.label.en,
+                                to: s.secondary!.to,
+                              })
+                            }
                             className="inline-flex items-center gap-2 rounded-lg bg-white/10 border border-white/25 backdrop-blur px-5 py-3 text-sm font-bold hover:bg-white/20"
                           >
                             {s.secondary.label[lang]}
@@ -178,7 +196,10 @@ export function HeroSlider() {
             key={i}
             type="button"
             aria-label={`Slide ${i + 1}`}
-            onClick={() => emblaApi?.scrollTo(i)}
+            onClick={() => {
+              trackEvent("hero_dot_click", { to_index: i, from_index: selected });
+              emblaApi?.scrollTo(i);
+            }}
             className={`h-2 rounded-full transition-all ${
               selected === i ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/70"
             }`}
