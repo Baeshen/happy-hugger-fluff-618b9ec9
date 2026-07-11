@@ -422,17 +422,21 @@ function DoctorsPageBody() {
               </div>
             </div>
 
-            <DoctorResults
-              doctors={doctors}
-              isLoading={isLoading}
-              nextSlotMap={nextSlotMap}
-              onVisibleIdsChange={setVisibleIds}
-              onPageChange={() => {
-                if (typeof window !== "undefined") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-              }}
-            />
+            <div
+              className={`transition-opacity duration-200 ${flash ? "opacity-60" : "opacity-100"}`}
+            >
+              <DoctorResults
+                doctors={doctors}
+                isLoading={isLoading}
+                nextSlotMap={nextSlotMap}
+                onVisibleIdsChange={setVisibleIds}
+                onPageChange={() => {
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+              />
+            </div>
           </main>
         </div>
       </div>
