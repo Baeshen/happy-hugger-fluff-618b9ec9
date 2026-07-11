@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
 
-const BASE_URL = "https://happy-hugger-fluff.lovable.app";
+const BASE_URL = "https://bashenmedical.com";
 
 interface SitemapEntry {
   path: string;
@@ -38,6 +38,14 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/faq", changefreq: "monthly", priority: "0.7" },
           { path: "/contact", changefreq: "monthly", priority: "0.7" },
           { path: "/health", changefreq: "weekly", priority: "0.8" },
+          { path: "/accreditations", changefreq: "monthly", priority: "0.8" },
+          { path: "/corporate", changefreq: "monthly", priority: "0.6" },
+          { path: "/programs", changefreq: "monthly", priority: "0.6" },
+          { path: "/second-opinion", changefreq: "monthly", priority: "0.6" },
+          { path: "/media/stories", changefreq: "weekly", priority: "0.7" },
+          { path: "/app", changefreq: "monthly", priority: "0.5" },
+          { path: "/rate", changefreq: "monthly", priority: "0.4" },
+          { path: "/track", changefreq: "monthly", priority: "0.4" },
         ];
 
         const entries: SitemapEntry[] = [...staticEntries];
