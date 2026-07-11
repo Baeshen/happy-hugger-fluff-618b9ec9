@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Pill, Stethoscope, HeartHandshake } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { trackEvent } from "@/lib/analytics";
 
 type Slide = {
   eyebrow: { ar: string; en: string };
@@ -61,10 +62,24 @@ export function HeroSlider() {
     align: "start",
   });
   const [selected, setSelected] = useState(0);
+  const prevIndexRef = useRef(0);
 
   useEffect(() => {
     if (!emblaApi) return;
-    const onSelect = () => setSelected(emblaApi.selectedScrollSnap());
+    const onSelect = () => {
+      const idx = emblaApi.selectedScrollSnap();
+      const from = prevIndexRef.current;
+      setSelected(idx);
+      if (idx !== from) {
+        const s = SLIDES[idx];
+        trackEvent("hero_slide_change", {
+          from_index: from,
+          to_index: idx,
+          slide_title: s?.title.en ?? "",
+        });
+        prevIndexRef.current = idx;
+      }
+    };
     onSelect();
     emblaApi.on("select", onSelect);
     return () => void emblaApi.off("select", onSelect);
@@ -76,8 +91,14 @@ export function HeroSlider() {
     return () => window.clearInterval(id);
   }, [emblaApi]);
 
-  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const scrollPrev = useCallback(() => {
+    trackEvent("hero_nav_click", { direction: "prev", from_index: selected });
+    emblaApi?.scrollPrev();
+  }, [emblaApi, selected]);
+  const scrollNext = useCallback(() => {
+    trackEvent("hero_nav_click", { direction: "next", from_index: selected });
+    emblaApi?.scrollNext();
+  }, [emblaApi, selected]);
 
   return (
     <section className="relative overflow-hidden">
@@ -102,6 +123,15 @@ export function HeroSlider() {
                       <div className="mt-8 flex flex-wrap gap-3">
                         <Link
                           to={s.primary.to}
+                          onClick={() =>
+                            trackEvent("hero_cta_click", {
+                              slide_index: i,
+                              slide_title: s.title.en,
+                              cta: "primary",
+                              label: s.primary.label.en,
+                              to: s.primary.to,
+                            })
+                          }
                           className="inline-flex items-center gap-2 rounded-lg bg-white text-primary px-5 py-3 text-sm font-bold hover:bg-white/90"
                         >
                           {s.primary.label[lang]}
@@ -110,6 +140,15 @@ export function HeroSlider() {
                         {s.secondary ? (
                           <Link
                             to={s.secondary.to}
+                            onClick={() =>
+                              trackEvent("hero_cta_click", {
+                                slide_index: i,
+                                slide_title: s.title.en,
+                                cta: "secondary",
+                                label: s.secondary!.label.en,
+                                to: s.secondary!.to,
+                              })
+                            }
                             className="inline-flex items-center gap-2 rounded-lg bg-white/10 border border-white/25 backdrop-blur px-5 py-3 text-sm font-bold hover:bg-white/20"
                           >
                             {s.secondary.label[lang]}
@@ -157,7 +196,10 @@ export function HeroSlider() {
             key={i}
             type="button"
             aria-label={`Slide ${i + 1}`}
-            onClick={() => emblaApi?.scrollTo(i)}
+            onClick={() => {
+              trackEvent("hero_dot_click", { to_index: i, from_index: selected });
+              emblaApi?.scrollTo(i);
+            }}
             className={`h-2 rounded-full transition-all ${
               selected === i ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/70"
             }`}
