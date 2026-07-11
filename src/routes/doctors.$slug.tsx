@@ -750,6 +750,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   // single flick doesn't skip many photos. Prefer horizontal delta when present.
   const wheelAccumRef = useRef(0);
   const wheelCooldownRef = useRef(0);
+  // Holds the AbortController for the currently-inflight neighbor prefetches
+  // so a fast swipe/drag can cancel them the instant a new gesture starts,
+  // before `active` even changes.
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+  const abortInflightPrefetch = () => {
+    prefetchAbortRef.current?.abort();
+    prefetchAbortRef.current = null;
+  };
+
 
 
   const openerRef = useRef<HTMLButtonElement>(null);
