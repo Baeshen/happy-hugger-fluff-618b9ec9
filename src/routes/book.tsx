@@ -319,7 +319,8 @@ function BookPage() {
       sessionStorage.removeItem(STORAGE_KEY);
       sessionStorage.removeItem(RESULT_KEY);
     } catch {}
-    navigate({ to: "/book", search: {} });
+    // Explicit step=1 — otherwise the zod validator defaults `step` to 0.
+    navigate({ to: "/book", search: { step: 1 } });
   }
 
   const STEPS = lang === "ar"
