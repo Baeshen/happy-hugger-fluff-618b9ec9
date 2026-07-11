@@ -577,6 +577,42 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_branches: {
+        Row: {
+          branch_id: string
+          created_at: string
+          doctor_id: string
+          is_primary: boolean
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          doctor_id: string
+          is_primary?: boolean
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          doctor_id?: string
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_branches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_branches_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_leaves: {
         Row: {
           all_day: boolean
@@ -633,6 +669,7 @@ export type Database = {
       }
       doctors: {
         Row: {
+          avg_rating: number
           bio_ar: string | null
           bio_en: string | null
           booking_enabled: boolean
@@ -650,6 +687,7 @@ export type Database = {
           name_en: string
           photo_url: string | null
           photos: string[]
+          ratings_count: number
           slug: string | null
           sort_order: number
           specialty_id: string | null
@@ -658,6 +696,7 @@ export type Database = {
           years_experience: number | null
         }
         Insert: {
+          avg_rating?: number
           bio_ar?: string | null
           bio_en?: string | null
           booking_enabled?: boolean
@@ -675,6 +714,7 @@ export type Database = {
           name_en: string
           photo_url?: string | null
           photos?: string[]
+          ratings_count?: number
           slug?: string | null
           sort_order?: number
           specialty_id?: string | null
@@ -683,6 +723,7 @@ export type Database = {
           years_experience?: number | null
         }
         Update: {
+          avg_rating?: number
           bio_ar?: string | null
           bio_en?: string | null
           booking_enabled?: boolean
@@ -700,6 +741,7 @@ export type Database = {
           name_en?: string
           photo_url?: string | null
           photos?: string[]
+          ratings_count?: number
           slug?: string | null
           sort_order?: number
           specialty_id?: string | null
@@ -2364,6 +2406,10 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
         }[]
       }
+      doctor_next_available_date: {
+        Args: { _branch_id?: string; _doctor_id: string }
+        Returns: string
+      }
       doctor_occupancy: {
         Args: { _branch_id?: string; _days?: number }
         Returns: {
@@ -2477,41 +2523,75 @@ export type Database = {
           staff_reply_at: string
         }[]
       }
-      list_public_doctors: {
-        Args: {
-          _branch_id?: string
-          _gender?: string
-          _language?: string
-          _limit?: number
-          _offset?: number
-          _q?: string
-          _specialty_slug?: string
-        }
-        Returns: {
-          avg_rating: number
-          bio_ar: string
-          bio_en: string
-          booking_enabled: boolean
-          branch_id: string
-          branch_name_ar: string
-          branch_name_en: string
-          gender: string
-          id: string
-          languages: string[]
-          name_ar: string
-          name_en: string
-          photo_url: string
-          ratings_count: number
-          slug: string
-          specialty_id: string
-          specialty_name_ar: string
-          specialty_name_en: string
-          specialty_slug: string
-          title_ar: string
-          title_en: string
-          years_experience: number
-        }[]
-      }
+      list_public_doctors:
+        | {
+            Args: {
+              _branch?: string
+              _gender?: string
+              _language?: string
+              _limit?: number
+              _offset?: number
+              _q?: string
+              _specialty?: string
+            }
+            Returns: {
+              avg_rating: number
+              booking_enabled: boolean
+              branch_ids: string[]
+              branch_names_ar: string[]
+              branch_slugs: string[]
+              gender: string
+              id: string
+              languages: string[]
+              name_ar: string
+              name_en: string
+              photo_url: string
+              ratings_count: number
+              slug: string
+              specialty_id: string
+              specialty_name_ar: string
+              specialty_name_en: string
+              title_ar: string
+              title_en: string
+              total_count: number
+              years_experience: number
+            }[]
+          }
+        | {
+            Args: {
+              _branch_id?: string
+              _gender?: string
+              _language?: string
+              _limit?: number
+              _offset?: number
+              _q?: string
+              _specialty_slug?: string
+            }
+            Returns: {
+              avg_rating: number
+              bio_ar: string
+              bio_en: string
+              booking_enabled: boolean
+              branch_id: string
+              branch_name_ar: string
+              branch_name_en: string
+              gender: string
+              id: string
+              languages: string[]
+              name_ar: string
+              name_en: string
+              photo_url: string
+              ratings_count: number
+              slug: string
+              specialty_id: string
+              specialty_name_ar: string
+              specialty_name_en: string
+              specialty_slug: string
+              title_ar: string
+              title_en: string
+              years_experience: number
+            }[]
+          }
       list_public_doctors_for_rating: {
         Args: { _branch_id?: string }
         Returns: {
