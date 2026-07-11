@@ -207,7 +207,7 @@ function AccreditationsPage() {
                   type="button"
                   onClick={() =>
                     navigate({
-                      search: (prev) => ({ ...prev, cat: active ? "" : c }),
+                      search: (prev: { q: string; cat: string }) => ({ ...prev, cat: active ? "" : c }),
                       replace: true,
                     })
                   }
