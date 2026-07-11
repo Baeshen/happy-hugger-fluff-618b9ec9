@@ -25,7 +25,14 @@ export function StepDate({
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(monthStart.getFullYear(), monthStart.getMonth(), d));
 
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const monthLabel = monthStart.toLocaleDateString(lang === "ar" ? "ar-SA" : "en-US", { month: "long", year: "numeric" });
+  // Force Gregorian calendar to avoid SSR/browser hydration mismatch:
+  // browser Intl uses Umm al-Qura (Hijri) for "ar-SA" while Node/workerd
+  // falls back to Gregorian, producing e.g. "محرم ١٤٤٨ هـ" vs "يوليو ٢٠٢٦".
+  const monthLabel = monthStart.toLocaleDateString(
+    lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US",
+    { month: "long", year: "numeric" },
+  );
+
   const weekdayNames = lang === "ar"
     ? ["أحد", "إثن", "ثلا", "أرب", "خمي", "جمع", "سبت"]
     : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

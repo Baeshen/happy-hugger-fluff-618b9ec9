@@ -95,11 +95,9 @@ async def main():
             {"doctor": doc["id"], "specialty": doc["specialty_id"], "branch": br["id"]},
         )
 
-        # Filter out benign noise (404 assets, unrelated hydration mismatch)
-        real = [e for e in errors
-                if "Failed to load resource" not in e
-                and "Hydration failed" not in e
-                and "hydration" not in e.lower()]
+        # Filter out benign 404 asset noise if any.
+        real = [e for e in errors if "Failed to load resource" not in e]
+
         if real:
             print("console/page errors:", real)
             raise AssertionError("unexpected errors on page")
