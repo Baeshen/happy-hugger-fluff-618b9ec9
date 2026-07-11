@@ -401,7 +401,10 @@ function DoctorDetail() {
                 </p>
               </div>
             )}
+
+            <BookingPolicy lang={lang} />
           </div>
+
 
           <aside className="space-y-6">
             <AvailabilityWidget doctorId={d.id} bookingEnabled={bookingEnabled} />
