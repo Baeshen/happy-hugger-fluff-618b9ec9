@@ -243,8 +243,10 @@ function BookPage() {
       branchId: searchParams.branch ?? null,
       date: searchParams.date ?? null,
       time: searchParams.time ?? null,
-      // Jump ahead if a deep link is provided.
-      step: searchParams.doctor && searchParams.date && searchParams.time
+      // Prefer explicit ?step= (browser back/forward, refresh). Otherwise derive from deep-link.
+      step: searchParams.step && searchParams.step >= 1 && searchParams.step <= 9
+        ? searchParams.step
+        : searchParams.doctor && searchParams.date && searchParams.time
         ? 8
         : searchParams.doctor && searchParams.date
         ? 6
@@ -260,6 +262,25 @@ function BookPage() {
   useEffect(() => {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   }, [state]);
+
+  // Sync step to URL so browser back/forward walks the wizard naturally.
+  useEffect(() => {
+    if (state.step === 9) return; // success page: don't push
+    const t = window.setTimeout(() => {
+      navigate({
+        to: "/book",
+        search: (prev) => ({ ...prev, step: state.step }),
+        replace: true,
+      });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [state.step, navigate]);
+
+  // Scroll to top of the wizard card whenever the step changes.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [state.step]);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
