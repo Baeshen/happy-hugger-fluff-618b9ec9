@@ -850,7 +850,7 @@ function DoctorDetail() {
           </div>
 
           <aside className="space-y-6">
-            <AvailabilityWidget doctorId={d.id} bookingEnabled={bookingEnabled} />
+            <InlineBookingWidget doctorId={d.id} bookingEnabled={bookingEnabled} doctorName={name} />
 
             <div className="rounded-2xl border border-border bg-card p-6">
               <h3 className="font-bold mb-3">معلومات</h3>
