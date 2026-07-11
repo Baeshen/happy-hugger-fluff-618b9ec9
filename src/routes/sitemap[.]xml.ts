@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
 
-const BASE_URL = "https://happy-hugger-fluff.lovable.app";
+const BASE_URL = "https://bashenmedical.com";
 
 interface SitemapEntry {
   path: string;
@@ -38,6 +38,14 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/faq", changefreq: "monthly", priority: "0.7" },
           { path: "/contact", changefreq: "monthly", priority: "0.7" },
           { path: "/health", changefreq: "weekly", priority: "0.8" },
+          { path: "/accreditations", changefreq: "monthly", priority: "0.8" },
+          { path: "/corporate", changefreq: "monthly", priority: "0.6" },
+          { path: "/programs", changefreq: "monthly", priority: "0.6" },
+          { path: "/second-opinion", changefreq: "monthly", priority: "0.6" },
+          { path: "/media/stories", changefreq: "weekly", priority: "0.7" },
+          { path: "/app", changefreq: "monthly", priority: "0.5" },
+          { path: "/rate", changefreq: "monthly", priority: "0.4" },
+          { path: "/track", changefreq: "monthly", priority: "0.4" },
         ];
 
         const entries: SitemapEntry[] = [...staticEntries];
@@ -55,7 +63,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 
           if (url && key) {
             const headers = { apikey: key };
-            const [sr, dr, hr, br] = await Promise.all([
+            const [sr, dr, hr, br, ar, er, psr] = await Promise.all([
               fetch(
                 `${url}/rest/v1/specialties?select=slug,created_at&is_active=eq.true&order=sort_order`,
                 { headers },
@@ -72,11 +80,26 @@ export const Route = createFileRoute("/sitemap.xml")({
                 `${url}/rest/v1/branches?select=slug,updated_at,created_at&is_active=eq.true&order=sort_order`,
                 { headers },
               ),
+              fetch(
+                `${url}/rest/v1/accreditations?select=id,created_at&order=sort_order`,
+                { headers },
+              ),
+              fetch(
+                `${url}/rest/v1/excellence_centers?select=slug,created_at&order=sort_order`,
+                { headers },
+              ),
+              fetch(
+                `${url}/rest/v1/patient_stories?select=slug,updated_at,created_at&is_published=eq.true&order=created_at.desc`,
+                { headers },
+              ),
             ]);
             const specialtiesRes = sr.ok ? await sr.json() : [];
             const doctorsRes = dr.ok ? await dr.json() : [];
             const articlesRes = hr.ok ? await hr.json() : [];
             const branchesRes = br.ok ? await br.json() : [];
+            const accreditationsRes = ar.ok ? await ar.json() : [];
+            const excellenceRes = er.ok ? await er.json() : [];
+            const storiesRes = psr.ok ? await psr.json() : [];
 
             for (const s of (specialtiesRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
@@ -108,6 +131,30 @@ export const Route = createFileRoute("/sitemap.xml")({
                 lastmod: (b.updated_at || b.created_at || "").slice(0, 10) || undefined,
                 changefreq: "monthly",
                 priority: "0.8",
+              });
+            }
+            for (const a of (accreditationsRes as Array<{ id: string; created_at: string }>) ?? []) {
+              entries.push({
+                path: `/accreditations/${encodeURIComponent(a.id)}`,
+                lastmod: a.created_at?.slice(0, 10),
+                changefreq: "yearly",
+                priority: "0.6",
+              });
+            }
+            for (const e of (excellenceRes as Array<{ slug: string; created_at: string }>) ?? []) {
+              entries.push({
+                path: `/excellence/${encodeURIComponent(e.slug)}`,
+                lastmod: e.created_at?.slice(0, 10),
+                changefreq: "monthly",
+                priority: "0.7",
+              });
+            }
+            for (const s of (storiesRes as Array<{ slug: string; updated_at: string | null; created_at: string }>) ?? []) {
+              entries.push({
+                path: `/media/stories/${encodeURIComponent(s.slug)}`,
+                lastmod: (s.updated_at || s.created_at || "").slice(0, 10) || undefined,
+                changefreq: "monthly",
+                priority: "0.6",
               });
             }
           }

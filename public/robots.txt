@@ -7,4 +7,4 @@ Disallow: /settings
 Disallow: /auth
 Disallow: /api/
 
-Sitemap: https://happy-hugger-fluff.lovable.app/sitemap.xml
+Sitemap: https://bashenmedical.com/sitemap.xml
