@@ -295,6 +295,10 @@ export const retryReminderDeliveriesBulk = createServerFn({ method: "POST" })
       .update({ send_status: "pending", last_error: null, sent_at: null } as never)
       .in("id", eligible);
     if (error) throw new Error(error.message);
+    await logAppEvent(context.supabase, "notifications.bulk_retry", {
+      requested: data.ids.length,
+      retried: eligible.length,
+    });
     return { ok: true, retried: eligible.length, skipped: data.ids.length - eligible.length };
   });
 
