@@ -7,6 +7,7 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { useI18n } from "@/lib/i18n";
 import { PageHero } from "@/components/PageShell";
 import { accreditationsQuery, type Accreditation } from "@/lib/accreditations";
+import { trackEvent } from "@/lib/analytics";
 
 const searchSchema = z.object({
   q: fallback(z.string(), "").default(""),
