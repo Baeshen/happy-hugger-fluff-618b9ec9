@@ -578,6 +578,15 @@ function BookPage() {
                   يمكنك اختيار طبيب معيّن أو ترك النظام يقترح أقرب طبيب متاح.
                 </p>
                 <div className="grid gap-2.5">
+                  {filteredDoctors.length > 8 && (
+                    <input
+                      type="search"
+                      value={doctorSearch}
+                      onChange={(e) => setDoctorSearch(e.target.value)}
+                      placeholder="ابحث باسم الطبيب…"
+                      className={INPUT_CLS}
+                    />
+                  )}
                   <button
                     onClick={() => setDoctorId(null)}
                     className={`flex items-center gap-3 text-start rounded-xl border p-4 transition ${
