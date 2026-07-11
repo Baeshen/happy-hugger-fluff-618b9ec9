@@ -750,6 +750,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   // single flick doesn't skip many photos. Prefer horizontal delta when present.
   const wheelAccumRef = useRef(0);
   const wheelCooldownRef = useRef(0);
+  // Holds the AbortController for the currently-inflight neighbor prefetches
+  // so a fast swipe/drag can cancel them the instant a new gesture starts,
+  // before `active` even changes.
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+  const abortInflightPrefetch = () => {
+    prefetchAbortRef.current?.abort();
+    prefetchAbortRef.current = null;
+  };
+
 
 
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -823,6 +832,7 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   useEffect(() => {
     if (!open || total <= 1) return;
     const controller = new AbortController();
+    prefetchAbortRef.current = controller;
     const neighbors = Array.from(
       new Set([
         photos[(active + 1) % total],
@@ -852,7 +862,11 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
 
     return () => {
       controller.abort();
+      if (prefetchAbortRef.current === controller) {
+        prefetchAbortRef.current = null;
+      }
     };
+
   }, [open, active, total, photos]);
 
 
@@ -967,7 +981,11 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             onTouchStart={(e) => {
               const t = e.touches[0];
               swipeStartRef.current = { x: t.clientX, y: t.clientY };
+              // A new swipe may head to a different neighbor than we're
+              // currently warming — cancel in-flight prefetches immediately.
+              abortInflightPrefetch();
             }}
+
             onTouchEnd={(e) => {
               const start = swipeStartRef.current;
               swipeStartRef.current = null;
@@ -985,12 +1003,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
               // Touch is handled by onTouchStart/End; only track mouse/pen drag here.
               if (e.pointerType === "touch") return;
               swipeStartRef.current = { x: e.clientX, y: e.clientY };
+              // Cancel neighbor prefetches: the drag may go either direction.
+              abortInflightPrefetch();
               try {
                 (e.currentTarget as Element).setPointerCapture(e.pointerId);
               } catch {
                 /* no-op */
               }
             }}
+
             onPointerUp={(e) => {
               if (e.pointerType === "touch") return;
               const start = swipeStartRef.current;
