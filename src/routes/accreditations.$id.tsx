@@ -1,8 +1,10 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Award, ShieldCheck, Trophy, ArrowRight, Calendar, Tag } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { accreditationQuery, accreditationsQuery, type Accreditation } from "@/lib/accreditations";
+import { trackEvent } from "@/lib/analytics";
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 
@@ -75,6 +77,15 @@ function AccreditationDetail() {
   const title = lang === "ar" ? a.title_ar : a.title_en;
   const desc = lang === "ar" ? a.description_ar : a.description_en;
   const related = (allData ?? []).filter((x) => x.id !== a.id).slice(0, 3);
+
+  useEffect(() => {
+    trackEvent("accreditation_view", {
+      id: a.id,
+      title: a.title_ar,
+      category: a.category ?? "",
+      year: a.year ?? "",
+    });
+  }, [a.id, a.title_ar, a.category, a.year]);
 
   return (
     <article className="container-app py-10 max-w-4xl mx-auto">
