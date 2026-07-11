@@ -45,6 +45,8 @@ const searchSchema = z.object({
   page: fallback(z.number().int(), 1).default(1),
 });
 
+type SearchParams = z.infer<typeof searchSchema>;
+
 const csvToList = (v: string): string[] =>
   v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
 const listToCsv = (l: string[]): string => l.join(",");
