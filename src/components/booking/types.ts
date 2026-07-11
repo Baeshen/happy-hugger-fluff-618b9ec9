@@ -1,0 +1,144 @@
+import { z } from "zod";
+
+/* ================================================================
+   Booking Wizard — shared types, constants, validators, reducer
+   Extracted from src/routes/book.tsx (behavior-preserving).
+   ================================================================ */
+
+export type ServiceType = "clinic" | "radiology" | "lab" | "followup";
+export type Gender = "male" | "female";
+
+export type State = {
+  step: number; // 1..9
+  serviceType: ServiceType | null;
+  branchId: string | null;
+  specialtyId: string | null;
+  doctorId: string | null;
+  date: string | null;      // YYYY-MM-DD
+  time: string | null;      // HH:MM
+  patient: {
+    name: string;
+    phone: string;
+    nationalId: string;
+    gender: Gender | null;
+    reason: string;
+    reminder24h: boolean;
+    reminder2h: boolean;
+  };
+};
+
+export const INITIAL: State = {
+  step: 1,
+  serviceType: null,
+  branchId: null,
+  specialtyId: null,
+  doctorId: null,
+  date: null,
+  time: null,
+  patient: {
+    name: "",
+    phone: "",
+    nationalId: "",
+    gender: null,
+    reason: "",
+    reminder24h: true,
+    reminder2h: true,
+  },
+};
+
+export type Action =
+  | { t: "set"; p: Partial<State> }
+  | { t: "setPatient"; p: Partial<State["patient"]> }
+  | { t: "goto"; step: number }
+  | { t: "reset" };
+
+export function reducer(s: State, a: Action): State {
+  switch (a.t) {
+    case "set":         return { ...s, ...a.p };
+    case "setPatient":  return { ...s, patient: { ...s.patient, ...a.p } };
+    case "goto":        return { ...s, step: Math.max(1, Math.min(9, a.step)) };
+    case "reset":       return { ...INITIAL };
+  }
+}
+
+export const STORAGE_KEY = "booking:draft";
+
+export function loadDraft(initial: Partial<State>): State {
+  if (typeof window === "undefined") return { ...INITIAL, ...initial };
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as State;
+      return { ...INITIAL, ...parsed, ...initial };
+    }
+  } catch {/* ignore */}
+  return { ...INITIAL, ...initial };
+}
+
+/* ---------------- Availability response ---------------- */
+export type AvailResp = { ok: boolean; times: string[]; booked: string[] };
+
+/* ---------------- Formatting helpers ---------------- */
+export function formatArDate(iso: string | null, lang: "ar" | "en"): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
+  } catch { return iso; }
+}
+
+/* ---------------- Patient validation ---------------- */
+export const NAME_MIN = 2, NAME_MAX = 120;
+export const PHONE_MIN = 6, PHONE_MAX = 32;
+export const NID_MAX = 20;
+export const REASON_MAX = 500;
+export const PHONE_RE = /^[+0-9\s\-()]+$/;
+// Saudi mobile: local 05XXXXXXXX (10 digits) OR international +9665XXXXXXXX / 009665XXXXXXXX.
+export const SA_PHONE_RE = /^(?:(?:\+?966)|0)?5\d{8}$/;
+// 10-digit Saudi National ID / Iqama (starts with 1 or 2).
+export const SA_NID_RE = /^[12]\d{9}$/;
+// Full name should have at least two words (given + family), letters/spaces only.
+export const NAME_RE = /^[\p{L}][\p{L}\s'.-]{1,}$/u;
+
+export const patientSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(NAME_MIN, "الاسم قصير جدًا (٢ أحرف على الأقل)")
+    .max(NAME_MAX, "الاسم طويل جدًا")
+    .regex(NAME_RE, "الاسم يحتوي على أحرف غير مسموحة")
+    .refine((v) => v.split(/\s+/).filter(Boolean).length >= 2, "أدخل الاسم كاملاً (اسمان على الأقل)"),
+  phone: z
+    .string()
+    .trim()
+    .min(PHONE_MIN, "رقم الجوال قصير جدًا")
+    .max(PHONE_MAX, "رقم الجوال طويل جدًا")
+    .refine((v) => SA_PHONE_RE.test(v.replace(/[\s\-()]/g, "")), "رقم جوال سعودي غير صالح (مثال: 05XXXXXXXX)"),
+  nationalId: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || SA_NID_RE.test(v), "رقم هوية غير صالح (10 أرقام يبدأ بـ 1 أو 2)"),
+  gender: z.enum(["male", "female"], { message: "اختر الجنس" }),
+  reason: z.string().trim().max(REASON_MAX, `السبب طويل جدًا (الحد ${REASON_MAX} حرفًا)`),
+});
+
+export type PatientErrors = Partial<Record<"name" | "phone" | "nationalId" | "gender" | "reason", string>>;
+
+export function validatePatient(p: State["patient"]): { ok: boolean; errors: PatientErrors } {
+  const r = patientSchema.safeParse({
+    name: p.name,
+    phone: p.phone,
+    nationalId: p.nationalId,
+    gender: p.gender ?? undefined,
+    reason: p.reason,
+  });
+  if (r.success) return { ok: true, errors: {} };
+  const errors: PatientErrors = {};
+  for (const issue of r.error.issues) {
+    const k = issue.path[0] as keyof PatientErrors;
+    if (k && !errors[k]) errors[k] = issue.message;
+  }
+  return { ok: false, errors };
+}
