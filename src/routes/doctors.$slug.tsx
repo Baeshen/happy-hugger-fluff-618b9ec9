@@ -357,6 +357,8 @@ function DoctorDetail() {
                   loading="eager"
                   fetchPriority="high"
                   spinnerLight
+                  widths={[128, 256, 384]}
+                  sizes="128px"
                 />
               ) : (
                 <div className="flex flex-col items-center gap-1 text-white/90">
