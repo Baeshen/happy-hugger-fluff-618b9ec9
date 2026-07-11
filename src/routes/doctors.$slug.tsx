@@ -718,7 +718,7 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
         <div className="aspect-[16/10] bg-muted">
           <img
             src={photos[active]}
-            alt={`${name} — ${active + 1}/${total}`}
+            alt={`${alt} (${active + 1}/${total})`}
             className="h-full w-full object-cover"
             loading="lazy"
           />
