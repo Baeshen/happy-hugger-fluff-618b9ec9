@@ -5,6 +5,32 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import type { Plugin } from "vite";
+
+/**
+ * Neutralise `@tanstack/devtools:inject-source` (dev-only plugin bundled by
+ * @lovable.dev/vite-tanstack-config). It annotates every JSX opening element
+ * with `data-tsd-source="/src/…:L:C"`, which then differs between the SSR
+ * pass and the client pass for some files (dynamically-imported or
+ * client-only subtrees) and produces noisy — non-critical — hydration
+ * warnings in dev. Prod builds don't run this plugin so nothing changes there.
+ */
+function disableTanstackDevtoolsInjectSource(): Plugin {
+  return {
+    name: "lovable:disable-tsd-inject-source",
+    enforce: "pre",
+    configResolved(config) {
+      for (const plugin of config.plugins as ReadonlyArray<Plugin>) {
+        if (plugin?.name === "@tanstack/devtools:inject-source") {
+          // Replace the JSX transform with a no-op so no `data-tsd-source`
+          // attributes are emitted, then hide the plugin from later dispatch.
+          (plugin as { transform?: unknown }).transform = undefined;
+          (plugin as { apply?: unknown }).apply = () => false;
+        }
+      }
+    },
+  };
+}
 
 export default defineConfig({
   tanstackStart: {
@@ -12,4 +38,5 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  plugins: [disableTanstackDevtoolsInjectSource()],
 });
