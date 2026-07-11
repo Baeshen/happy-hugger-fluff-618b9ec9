@@ -323,6 +323,25 @@ function DoctorsPage() {
   const start = (safePage - 1) * PER_PAGE;
   const paged = filtered.slice(start, start + PER_PAGE);
 
+  // Fetch next available slot for currently visible doctors only.
+  const pagedIds = useMemo(() => paged.map((d) => d.id).sort(), [paged]);
+  const { data: nextSlotMap = {} as Record<string, string> } = useQuery({
+    queryKey: ["doctors-next-slots", pagedIds],
+    enabled: pagedIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_doctors_next_slot", {
+        _doctor_ids: pagedIds,
+      });
+      if (error) return {};
+      const out: Record<string, string> = {};
+      for (const row of (data ?? []) as Array<{ doctor_id: string; next_slot_at: string }>) {
+        out[row.doctor_id] = row.next_slot_at;
+      }
+      return out;
+    },
+  });
+
   const goPage = (p: number) => {
     const clamped = Math.max(1, Math.min(totalPages, p));
     navigate({ search: (prev: SearchParams) => ({ ...prev, page: clamped }) });
