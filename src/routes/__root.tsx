@@ -17,6 +17,7 @@ import { Footer } from "@/components/Footer";
 import { Toaster } from "sonner";
 import { IntroOverlay } from "@/components/IntroOverlay";
 import { ChatbotBubble } from "@/components/ChatbotBubble";
+import { WhatsAppFab } from "@/components/WhatsAppFab";
 
 function NotFoundComponent() {
   return (
@@ -146,6 +147,7 @@ function RootComponent() {
           <Footer />
           <Toaster position="top-center" richColors closeButton />
           <ChatbotBubble />
+          <WhatsAppFab />
         </div>
       </I18nProvider>
     </QueryClientProvider>

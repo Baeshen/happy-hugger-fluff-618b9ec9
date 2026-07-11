@@ -58,6 +58,7 @@ export function Footer() {
             <li><Link to="/faq" className="hover:text-primary">{t("nav_faq")}</Link></li>
             <li><Link to="/health" className="hover:text-primary">{t("nav_health")}</Link></li>
             <li><Link to="/careers" className="hover:text-primary">{isAr ? "الوظائف" : "Careers"}</Link></li>
+            <li><Link to="/accreditations" className="hover:text-primary">{isAr ? "الاعتمادات والجوائز" : "Accreditations"}</Link></li>
           </ul>
         </div>
 

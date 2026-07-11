@@ -53,6 +53,48 @@ export type Database = {
         }
         Relationships: []
       }
+      accreditations: {
+        Row: {
+          category: string | null
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          id: string
+          image_url: string | null
+          sort_order: number
+          title_ar: string
+          title_en: string
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          id?: string
+          image_url?: string | null
+          sort_order?: number
+          title_ar: string
+          title_en: string
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          id?: string
+          image_url?: string | null
+          sort_order?: number
+          title_ar?: string
+          title_en?: string
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
       appointment_audit: {
         Row: {
           appointment_id: string
@@ -2594,6 +2636,13 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      specialty_doctor_counts: {
+        Args: never
+        Returns: {
+          doctor_count: number
+          specialty_id: string
+        }[]
       }
       submit_public_rating: {
         Args: {

@@ -7,6 +7,8 @@ import { SITE } from "@/lib/site";
 import { ShieldCheck, Pill, Users, ArrowLeft, Stethoscope } from "lucide-react";
 import { buildLocalBusinessSchema, SITE_URL } from "@/lib/localBusinessSchema";
 import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
+import { StatsBar } from "@/components/home/StatsBar";
+import { AwardsMarquee } from "@/components/home/AwardsMarquee";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(clinicSettingsQuery()),
@@ -118,6 +120,8 @@ function HomePage() {
 
       <QuickBar />
 
+      <StatsBar />
+
       {/* Specialties grid */}
       <section className="py-16">
         <div className="container-app">
@@ -217,6 +221,8 @@ function HomePage() {
           </div>
         </div>
       </section>
+
+      <AwardsMarquee />
 
       {/* Map/Location */}
       <section className="py-16 bg-muted/40">

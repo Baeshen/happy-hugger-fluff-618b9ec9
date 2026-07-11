@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { Stethoscope } from "lucide-react";
+import { Stethoscope, Users } from "lucide-react";
 import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
+import { specialtyDoctorCountsQuery } from "@/lib/accreditations";
 
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
@@ -86,6 +87,7 @@ function SpecialtiesPage() {
     queryKey: ["specialties"],
     queryFn: fetchSpecialties,
   });
+  const { data: counts } = useQuery(specialtyDoctorCountsQuery());
   return (
     <div className="container-app py-12">
       <header className="mb-10">
@@ -99,8 +101,15 @@ function SpecialtiesPage() {
             key={s.id}
             className="rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-md transition"
           >
-            <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center text-primary">
-              <Stethoscope className="h-6 w-6" />
+            <div className="flex items-center justify-between">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center text-primary">
+                <Stethoscope className="h-6 w-6" />
+              </div>
+              {counts?.[s.id] ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2.5 py-1 text-[11px] font-semibold">
+                  <Users className="h-3 w-3" /> {counts[s.id]}+ {lang === "ar" ? "طبيب" : "doctors"}
+                </span>
+              ) : null}
             </div>
             <h3 className="mt-4 font-bold text-lg">
               <Link
