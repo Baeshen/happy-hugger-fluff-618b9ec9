@@ -250,6 +250,9 @@ export function buildLocalBusinessSchema({
         },
       ],
     },
+  };
+
+
 
   if (amenities && amenities.length > 0) {
     base.amenityFeature = amenities.map((a) => ({
