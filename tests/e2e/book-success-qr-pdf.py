@@ -158,11 +158,14 @@ async def main():
         async with ctx.expect_page(timeout=8_000) as new_page_info:
             await page.locator('[data-testid="booking-pdf-btn"]').click()
         pdf_page = await new_page_info.value
-        await pdf_page.wait_for_load_state("domcontentloaded")
+        await pdf_page.wait_for_load_state("load")
+        await pdf_page.wait_for_timeout(500)
         html_text = await pdf_page.content()
-        if "تأكيد حجز" not in html_text and "Booking" not in html_text:
+        if "تأكيد حجز" not in html_text and "مجمع باعشن" not in html_text:
+            print("PDF snippet:", html_text[:500])
             raise AssertionError("PDF window content missing expected header")
         print("[ok] PDF window opened with confirmation content")
+        await pdf_page.close()
         await pdf_page.close()
 
         real = [e for e in errors if "Failed to load resource" not in e and "Manifest" not in e]
