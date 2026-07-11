@@ -962,6 +962,7 @@ function ProgressiveImage({
   spinnerLight,
   widths,
   sizes,
+  onLoadingChange,
 }: {
   src: string;
   alt: string;
@@ -975,6 +976,8 @@ function ProgressiveImage({
   widths?: number[];
   /** CSS `sizes` attribute — required for `widths` to be effective. */
   sizes?: string;
+  /** Notifies parent whenever loading state flips (true = still loading). */
+  onLoadingChange?: (loading: boolean) => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -983,6 +986,12 @@ function ProgressiveImage({
     setLoaded(false);
     setFailed(false);
   }, [src]);
+
+  const isLoading = !loaded && !failed;
+  useEffect(() => {
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
+
 
   const srcSet = widths && widths.length ? buildSrcSet(src, widths) : undefined;
 
