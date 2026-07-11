@@ -995,7 +995,7 @@ function ProgressiveImage({
 
   const srcSet = widths && widths.length ? buildSrcSet(src, widths) : undefined;
 
-  const isLoading = !loaded && !failed;
+
 
   return (
     <div
