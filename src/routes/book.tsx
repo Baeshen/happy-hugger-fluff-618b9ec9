@@ -229,8 +229,18 @@ function BookPage() {
       doctorId: searchParams.doctor ?? null,
       specialtyId: searchParams.specialty ?? null,
       branchId: searchParams.branch ?? null,
+      date: searchParams.date ?? null,
+      time: searchParams.time ?? null,
       // Jump ahead if a deep link is provided.
-      step: searchParams.doctor ? 5 : searchParams.specialty ? 4 : 1,
+      step: searchParams.doctor && searchParams.date && searchParams.time
+        ? 8
+        : searchParams.doctor && searchParams.date
+        ? 6
+        : searchParams.doctor
+        ? 5
+        : searchParams.specialty
+        ? 4
+        : 1,
     }),
   );
 
