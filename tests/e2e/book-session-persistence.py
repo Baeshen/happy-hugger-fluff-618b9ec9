@@ -27,31 +27,25 @@ async def main():
 
         await page.goto(f"{BASE}/book", wait_until="domcontentloaded")
 
-        # Step 1 — service type: pick "عيادات تخصصية"
+        # Step 1 — service type
         await page.wait_for_selector("text=عيادات تخصصية", timeout=10_000)
-        await page.get_by_text("عيادات تخصصية", exact=False).first.click()
-        await page.wait_for_timeout(150)
-
-        # Step 2 — branch: pick first branch card
+        await page.locator("button", has_text="عيادات تخصصية").first.click()
         await page.wait_for_selector("text=اختر الفرع", timeout=10_000)
-        first_branch = page.locator("button").filter(
-            has=page.locator("div.font-semibold")
-        ).first
+
+        # Step 2 — branch: pick first branch button
+        first_branch = page.locator("button:has(div.font-semibold)").first
         branch_label = (await first_branch.inner_text()).strip().split("\n")[0]
         await first_branch.click()
-        await page.wait_for_timeout(150)
+        await page.wait_for_selector("text=اختر التخصص", timeout=10_000)
 
         # Step 3 — specialty: pick first tile
-        await page.wait_for_selector("text=اختر التخصص", timeout=10_000)
-        first_spec = page.locator("button").filter(
-            has=page.locator("div.font-semibold")
-        ).first
+        first_spec = page.locator("button:has(div.font-semibold)").first
         spec_label = (await first_spec.inner_text()).strip().split("\n")[0]
         await first_spec.click()
-        await page.wait_for_timeout(300)
 
         # We should now be on step 4 (اختر الطبيب)
         await page.wait_for_selector("text=اختر الطبيب", timeout=10_000)
+        await page.wait_for_timeout(200)
 
         draft_before = await page.evaluate(
             f"() => window.sessionStorage.getItem({json.dumps(STORAGE_KEY)})"
