@@ -864,3 +864,62 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
     </div>
   );
 }
+
+/**
+ * Progressive image with a skeleton shimmer that fades away once the
+ * image has loaded. Uses native lazy loading + async decoding by default.
+ */
+function ProgressiveImage({
+  src,
+  alt,
+  className = "",
+  imgClassName = "",
+  loading = "lazy",
+  fetchPriority,
+  ariaHidden,
+  spinnerLight,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  imgClassName?: string;
+  loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
+  ariaHidden?: boolean;
+  spinnerLight?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // Reset when the src changes.
+  useEffect(() => {
+    setLoaded(false);
+    setFailed(false);
+  }, [src]);
+
+  return (
+    <div className={`relative overflow-hidden bg-muted ${className}`}>
+      {!loaded && !failed && (
+        <div
+          className={`absolute inset-0 animate-pulse ${
+            spinnerLight ? "bg-white/10" : "bg-gradient-to-br from-muted via-muted/60 to-muted"
+          }`}
+          aria-hidden
+        />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        aria-hidden={ariaHidden || undefined}
+        loading={loading}
+        decoding="async"
+        // React types accept the camelCase prop; DOM lowercases at render.
+        {...(fetchPriority ? { fetchpriority: fetchPriority } : {})}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+        className={`${imgClassName} transition-opacity duration-500 ${
+          loaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+}
