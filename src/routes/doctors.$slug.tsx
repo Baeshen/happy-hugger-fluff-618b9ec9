@@ -758,6 +758,7 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   // Prefetch neighboring images while the lightbox is open so navigation
   // between photos feels instant. Uses fetch() with an AbortController so
   // rapid navigation cancels in-flight warm-ups instead of piling up.
+  // Skips images already marked ready in the module-level cache.
   useEffect(() => {
     if (!open || total <= 1) return;
     const controller = new AbortController();
@@ -766,27 +767,33 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
         photos[(active + 1) % total],
         photos[(active - 1 + total) % total],
       ]),
-    ).filter((src): src is string => Boolean(src) && src !== photos[active]);
+    ).filter(
+      (src): src is string =>
+        Boolean(src) && src !== photos[active] && !isImageReady(src),
+    );
 
     neighbors.forEach((src) => {
-      // `force-cache` lets the response populate the HTTP cache so the
-      // subsequent <img> render is a cache hit. Errors are ignored — this
-      // is a best-effort warm-up, not a hard dependency.
+      // `force-cache` populates the HTTP cache so the subsequent <img>
+      // render is a cache hit. On success we mark the URL ready so future
+      // navigations skip the fetch entirely.
       fetch(src, {
         signal: controller.signal,
         cache: "force-cache",
         credentials: "omit",
         mode: "no-cors",
         priority: "low",
-      } as RequestInit).catch(() => {
-        /* aborted or offline — safe to ignore */
-      });
+      } as RequestInit)
+        .then(() => markImageReady(src))
+        .catch(() => {
+          /* aborted or offline — safe to ignore */
+        });
     });
 
     return () => {
       controller.abort();
     };
   }, [open, active, total, photos]);
+
 
 
 
