@@ -69,6 +69,10 @@ const ERROR_META: Record<
 };
 
 export const Route = createFileRoute("/track")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    ref: typeof search.ref === "string" ? search.ref : undefined,
+    phone4: typeof search.phone4 === "string" ? search.phone4 : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "تتبع رقم طلبك | مجمع باعشن الطبي" },
