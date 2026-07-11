@@ -1150,6 +1150,41 @@ function StepSuccess({
     }
   }
 
+  // Build a readable plain-text block for "نسخ التفاصيل".
+  const detailsText = useMemo(() => {
+    const header = lang === "ar"
+      ? "تأكيد حجز — مجمع باعشن الطبي"
+      : "Booking confirmation — Baeshen Medical Complex";
+    const lines: string[] = [header, ""];
+    if (reference) {
+      lines.push(`${lang === "ar" ? "رقم الحجز" : "Reference"}: ${reference}`);
+    }
+    for (const r of rows) lines.push(`${r.label}: ${r.value}`);
+    return lines.join("\n");
+  }, [rows, reference, lang]);
+
+  async function copyAll() {
+    try {
+      await navigator.clipboard.writeText(detailsText);
+      toast.success(lang === "ar" ? "تم نسخ تفاصيل الحجز" : "Booking details copied");
+    } catch {
+      toast.error(lang === "ar" ? "تعذّر النسخ" : "Copy failed");
+    }
+  }
+
+  async function copyRow(value: string) {
+    if (!value || value === "—") return;
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(lang === "ar" ? "تم النسخ" : "Copied");
+    } catch {
+      toast.error(lang === "ar" ? "تعذّر النسخ" : "Copy failed");
+    }
+  }
+
+  // Last 4 digits of the phone (Latin digits only) — used to auto-fill /track.
+  const phone4 = (phone.match(/\d/g) ?? []).slice(-4).join("");
+
   return (
     <div className="max-w-xl mx-auto text-center">
       <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 grid place-items-center mb-4">
@@ -1181,36 +1216,56 @@ function StepSuccess({
         </div>
       )}
 
-      <dl className="mt-6 rounded-xl border border-border divide-y divide-border overflow-hidden text-start">
+      <div className="mt-6 flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">
+          {lang === "ar" ? "تفاصيل الحجز" : "Booking details"}
+        </div>
+        <Button variant="ghost" size="sm" onClick={copyAll} className="gap-1 text-primary">
+          <ClipboardList className="h-4 w-4"/>
+          {lang === "ar" ? "نسخ الكل" : "Copy all"}
+        </Button>
+      </div>
+      <dl className="rounded-xl border border-border divide-y divide-border overflow-hidden text-start">
         {rows.map((r) => (
-          <div key={r.label} className="grid grid-cols-3 p-3 text-sm">
-            <dt className="text-muted-foreground col-span-1">{r.label}</dt>
-            <dd className="col-span-2 font-medium">{r.value}</dd>
+          <div key={r.label} className="grid grid-cols-[1fr,2fr,auto] items-center p-3 text-sm gap-2">
+            <dt className="text-muted-foreground">{r.label}</dt>
+            <dd className="font-medium break-words">{r.value}</dd>
+            <button
+              type="button"
+              onClick={() => copyRow(String(r.value ?? ""))}
+              aria-label={lang === "ar" ? `نسخ ${r.label}` : `Copy ${r.label}`}
+              className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition"
+            >
+              <ClipboardList className="h-3.5 w-3.5"/>
+            </button>
           </div>
         ))}
       </dl>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Link
+          to="/track"
+          search={{ ref: reference ?? undefined, phone4: phone4 || undefined } as never}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-bold hover:opacity-90"
+        >
+          <ClipboardList className="h-4 w-4"/>
+          {lang === "ar" ? "متابعة في حجوزاتي" : "Track in my bookings"}
+        </Link>
+        <Link
           to="/booking-confirmation"
           search={{ ref: reference ?? undefined, phone } as never}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-bold hover:opacity-90"
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-bold hover:bg-muted"
         >
           <CheckCircle2 className="h-4 w-4"/>
           {lang === "ar" ? "عرض التفاصيل الكاملة" : "View full details"}
         </Link>
-        <Button variant="outline" onClick={onNewBooking} className="gap-2 h-auto py-3">
+      </div>
+      <div className="mt-3">
+        <Button variant="outline" onClick={onNewBooking} className="gap-2 h-auto py-2 w-full">
           <CalIcon className="h-4 w-4"/>
           {lang === "ar" ? "حجز جديد" : "New booking"}
         </Button>
       </div>
-
-      <p className="mt-4 text-xs text-muted-foreground">
-        {lang === "ar" ? "لديك استفسار؟ " : "Questions? "}
-        <Link to="/track" className="text-primary hover:underline">
-          {lang === "ar" ? "تتبع حجزك" : "Track your booking"}
-        </Link>
-      </p>
     </div>
   );
 }

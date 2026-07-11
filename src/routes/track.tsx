@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -69,6 +69,10 @@ const ERROR_META: Record<
 };
 
 export const Route = createFileRoute("/track")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    ref: typeof search.ref === "string" ? search.ref : undefined,
+    phone4: typeof search.phone4 === "string" ? search.phone4 : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "تتبع رقم طلبك | مجمع باعشن الطبي" },
@@ -157,12 +161,14 @@ function formatArabicDate(iso: string) {
 }
 
 function TrackPage() {
-  const [reference, setReference] = useState("");
-  const [phone4, setPhone4] = useState("");
+  const { ref: initialRef, phone4: initialPhone4 } = Route.useSearch();
+  const [reference, setReference] = useState(initialRef ?? "");
+  const [phone4, setPhone4] = useState(initialPhone4 ?? "");
   const [loading, setLoading] = useState(false);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [error, setError] = useState<LookupError | null>(null);
   const lastQueryRef = useRef<{ reference: string; phone_last4: string } | null>(null);
+  const autoRanRef = useRef(false);
 
   async function runLookup(payload: { reference: string; phone_last4: string }) {
     setLoading(true);
@@ -246,6 +252,19 @@ function TrackPage() {
     const last = lastQueryRef.current;
     if (last) void runLookup(last);
   }
+
+  // Auto-lookup on mount when both ?ref & ?phone4 arrive from the wizard's
+  // "متابعة إلى حجوزاتي" button — user shouldn't re-type what we already know.
+  useEffect(() => {
+    if (autoRanRef.current) return;
+    if (!initialRef || !initialPhone4) return;
+    autoRanRef.current = true;
+    const parsed = schema.safeParse({ reference: initialRef, phone_last4: initialPhone4 });
+    if (!parsed.success) return;
+    lastQueryRef.current = parsed.data;
+    void runLookup(parsed.data);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRef, initialPhone4]);
 
   const status = appointment ? STATUS[appointment.status] ?? STATUS.new : null;
   const errorMeta = error ? ERROR_META[error.kind] : null;
