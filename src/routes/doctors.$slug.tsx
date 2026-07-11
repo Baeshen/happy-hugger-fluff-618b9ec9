@@ -981,7 +981,11 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             onTouchStart={(e) => {
               const t = e.touches[0];
               swipeStartRef.current = { x: t.clientX, y: t.clientY };
+              // A new swipe may head to a different neighbor than we're
+              // currently warming — cancel in-flight prefetches immediately.
+              abortInflightPrefetch();
             }}
+
             onTouchEnd={(e) => {
               const start = swipeStartRef.current;
               swipeStartRef.current = null;
