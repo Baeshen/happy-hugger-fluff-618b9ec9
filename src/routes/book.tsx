@@ -30,13 +30,25 @@ import { submitBooking } from "@/lib/booking-submit";
 import { SubmitErrorBanner } from "@/components/SubmitErrorBanner";
 import { Button } from "@/components/ui/button";
 
+import { fallback } from "@tanstack/zod-adapter";
 const search = z.object({
   specialty: z.string().optional(),
   doctor: z.string().optional(),
   branch: z.string().optional(),
   date: z.string().optional(),
   time: z.string().optional(),
+  step: fallback(z.number().int(), 0).default(0),
 });
+
+function formatArDate(iso: string | null, lang: "ar" | "en"): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
+  } catch { return iso; }
+}
 
 const NAME_MIN = 2, NAME_MAX = 120;
 const PHONE_MIN = 6, PHONE_MAX = 32;
@@ -231,8 +243,10 @@ function BookPage() {
       branchId: searchParams.branch ?? null,
       date: searchParams.date ?? null,
       time: searchParams.time ?? null,
-      // Jump ahead if a deep link is provided.
-      step: searchParams.doctor && searchParams.date && searchParams.time
+      // Prefer explicit ?step= (browser back/forward, refresh). Otherwise derive from deep-link.
+      step: searchParams.step && searchParams.step >= 1 && searchParams.step <= 9
+        ? searchParams.step
+        : searchParams.doctor && searchParams.date && searchParams.time
         ? 8
         : searchParams.doctor && searchParams.date
         ? 6
@@ -248,6 +262,25 @@ function BookPage() {
   useEffect(() => {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   }, [state]);
+
+  // Sync step to URL so browser back/forward walks the wizard naturally.
+  useEffect(() => {
+    if (state.step === 9) return; // success page: don't push
+    const t = window.setTimeout(() => {
+      navigate({
+        to: "/book",
+        search: (prev: Record<string, unknown>) => ({ ...prev, step: state.step }),
+        replace: true,
+      });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [state.step, navigate]);
+
+  // Scroll to top of the wizard card whenever the step changes.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [state.step]);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -358,16 +391,46 @@ function BookPage() {
           if (i + 1 < state.step) dispatch({ t: "goto", step: i + 1 });
         }}/>
 
-        <div className="mt-6 rounded-2xl bg-card border border-border shadow-sm p-5 md:p-8 min-h-[420px]">
-          {state.step === 1 && <StepService lang={lang} value={state.serviceType} onPick={(v) => { dispatch({ t: "set", p: { serviceType: v } }); dispatch({ t: "goto", step: 2 }); }}/>}
-          {state.step === 2 && <StepBranch lang={lang} branches={branches} value={state.branchId} onPick={(v) => { dispatch({ t: "set", p: { branchId: v } }); dispatch({ t: "goto", step: 3 }); }}/>}
-          {state.step === 3 && <StepSpecialty lang={lang} specialties={specialties} value={state.specialtyId} onPick={(v) => { dispatch({ t: "set", p: { specialtyId: v, doctorId: null } }); dispatch({ t: "goto", step: 4 }); }}/>}
-          {state.step === 4 && <StepDoctor lang={lang} doctors={doctors} value={state.doctorId} onPick={(v) => { dispatch({ t: "set", p: { doctorId: v, date: null, time: null } }); dispatch({ t: "goto", step: 5 }); }}/>}
-          {state.step === 5 && <StepDate lang={lang} value={state.date} onPick={(v) => { dispatch({ t: "set", p: { date: v, time: null } }); dispatch({ t: "goto", step: 6 }); }} doctorId={state.doctorId} specialtyId={state.specialtyId} branchId={state.branchId}/>}
-          {state.step === 6 && <StepTime lang={lang} value={state.time} avail={avail} onPick={(v) => { dispatch({ t: "set", p: { time: v } }); dispatch({ t: "goto", step: 7 }); }}/>}
-          {state.step === 7 && <StepPatient lang={lang} value={state.patient} errors={patientValidation.errors} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
-          {state.step === 8 && <StepReview lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} errorMsg={errorMsg} submitting={submitting} onSubmit={handleSubmit} patientValid={patientValidation.ok} onEditPatient={() => dispatch({ t: "goto", step: 7 })}/>}
-          {state.step === 9 && result && <StepSuccess lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} reference={result.reference} phone={result.phone} onNewBooking={handleReset}/>}
+        {/* Progress bar */}
+        {state.step < 9 && (
+          <div className="mt-3">
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${Math.round(((state.step - 1) / 7) * 100)}%` }}
+              />
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground text-center">
+              {lang === "ar"
+                ? `الخطوة ${state.step} من 8`
+                : `Step ${state.step} of 8`}
+            </div>
+          </div>
+        )}
+
+        <div className={`mt-6 grid gap-6 ${state.step >= 2 && state.step <= 8 ? "md:grid-cols-[1fr,300px]" : ""}`}>
+          <div className="rounded-2xl bg-card border border-border shadow-sm p-5 md:p-8 min-h-[420px]">
+            {state.step === 1 && <StepService lang={lang} value={state.serviceType} onPick={(v) => { dispatch({ t: "set", p: { serviceType: v } }); dispatch({ t: "goto", step: 2 }); }}/>}
+            {state.step === 2 && <StepBranch lang={lang} branches={branches} value={state.branchId} onPick={(v) => { dispatch({ t: "set", p: { branchId: v } }); dispatch({ t: "goto", step: 3 }); }}/>}
+            {state.step === 3 && <StepSpecialty lang={lang} specialties={specialties} value={state.specialtyId} onPick={(v) => { dispatch({ t: "set", p: { specialtyId: v, doctorId: null } }); dispatch({ t: "goto", step: 4 }); }}/>}
+            {state.step === 4 && <StepDoctor lang={lang} doctors={doctors} value={state.doctorId} onPick={(v) => { dispatch({ t: "set", p: { doctorId: v, date: null, time: null } }); dispatch({ t: "goto", step: 5 }); }}/>}
+            {state.step === 5 && <StepDate lang={lang} value={state.date} onPick={(v) => { dispatch({ t: "set", p: { date: v, time: null } }); dispatch({ t: "goto", step: 6 }); }} doctorId={state.doctorId} specialtyId={state.specialtyId} branchId={state.branchId}/>}
+            {state.step === 6 && <StepTime lang={lang} value={state.time} avail={avail} onPick={(v) => { dispatch({ t: "set", p: { time: v } }); dispatch({ t: "goto", step: 7 }); }}/>}
+            {state.step === 7 && <StepPatient lang={lang} value={state.patient} errors={patientValidation.errors} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
+            {state.step === 8 && <StepReview lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} errorMsg={errorMsg} submitting={submitting} onSubmit={handleSubmit} patientValid={patientValidation.ok} onEditPatient={() => dispatch({ t: "goto", step: 7 })}/>}
+            {state.step === 9 && result && <StepSuccess lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} reference={result.reference} phone={result.phone} onNewBooking={handleReset}/>}
+          </div>
+
+          {state.step >= 2 && state.step <= 8 && (
+            <SummarySidebar
+              lang={lang}
+              state={state}
+              branches={branches}
+              specialties={specialties}
+              doctors={doctors}
+              onEdit={(step: number) => dispatch({ t: "goto", step })}
+            />
+          )}
         </div>
 
         {state.step < 9 && (
@@ -896,7 +959,7 @@ function StepReview({
     { label: lang === "ar" ? "الفرع" : "Branch", value: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : "—" },
     { label: lang === "ar" ? "التخصص" : "Specialty", value: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : "—" },
     { label: lang === "ar" ? "الطبيب" : "Doctor", value: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : "—" },
-    { label: lang === "ar" ? "التاريخ" : "Date", value: state.date ?? "—" },
+    { label: lang === "ar" ? "التاريخ" : "Date", value: formatArDate(state.date, lang) },
     { label: lang === "ar" ? "الوقت" : "Time", value: state.time ?? "—" },
     { label: lang === "ar" ? "الاسم" : "Name", value: state.patient.name },
     { label: lang === "ar" ? "الجوال" : "Phone", value: state.patient.phone },
@@ -971,7 +1034,7 @@ function StepSuccess({
     { label: lang === "ar" ? "الفرع" : "Branch", value: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : "—" },
     { label: lang === "ar" ? "التخصص" : "Specialty", value: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : "—" },
     { label: lang === "ar" ? "الطبيب" : "Doctor", value: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : "—" },
-    { label: lang === "ar" ? "التاريخ" : "Date", value: state.date ?? "—" },
+    { label: lang === "ar" ? "التاريخ" : "Date", value: formatArDate(state.date, lang) },
     { label: lang === "ar" ? "الوقت" : "Time", value: state.time ?? "—" },
     { label: lang === "ar" ? "الاسم" : "Name", value: state.patient.name },
     { label: lang === "ar" ? "الجوال" : "Phone", value: phone },
@@ -1049,5 +1112,103 @@ function StepSuccess({
         </Link>
       </p>
     </div>
+  );
+}
+
+/* ================================================================
+   Summary sidebar — sticky recap of user's selections
+   ================================================================ */
+
+function SummarySidebar({
+  lang, state, branches, specialties, doctors, onEdit,
+}: {
+  lang: "ar" | "en";
+  state: State;
+  branches: any[];
+  specialties: any[];
+  doctors: any[];
+  onEdit: (step: number) => void;
+}) {
+  const branch = branches.find((b) => b.id === state.branchId);
+  const spec = specialties.find((s) => s.id === state.specialtyId);
+  const doc = doctors.find((d: any) => d.id === state.doctorId);
+
+  const serviceLabels: Record<ServiceType, { ar: string; en: string }> = {
+    clinic: { ar: "عيادات تخصصية", en: "Specialty Clinics" },
+    followup: { ar: "متابعة", en: "Follow-up" },
+    radiology: { ar: "الأشعة", en: "Radiology" },
+    lab: { ar: "المختبر", en: "Laboratory" },
+  };
+
+  const rows: { label: string; value: string | null; step: number; icon: any }[] = [
+    {
+      label: lang === "ar" ? "الخدمة" : "Service",
+      value: state.serviceType ? (lang === "ar" ? serviceLabels[state.serviceType].ar : serviceLabels[state.serviceType].en) : null,
+      step: 1, icon: ClipboardList,
+    },
+    {
+      label: lang === "ar" ? "الفرع" : "Branch",
+      value: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : null,
+      step: 2, icon: Building2,
+    },
+    {
+      label: lang === "ar" ? "التخصص" : "Specialty",
+      value: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : null,
+      step: 3, icon: Stethoscope,
+    },
+    {
+      label: lang === "ar" ? "الطبيب" : "Doctor",
+      value: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : null,
+      step: 4, icon: UserCircle2,
+    },
+    {
+      label: lang === "ar" ? "التاريخ" : "Date",
+      value: state.date ? formatArDate(state.date, lang) : null,
+      step: 5, icon: CalIcon,
+    },
+    {
+      label: lang === "ar" ? "الوقت" : "Time",
+      value: state.time,
+      step: 6, icon: Clock,
+    },
+    {
+      label: lang === "ar" ? "المريض" : "Patient",
+      value: state.patient.name || null,
+      step: 7, icon: User,
+    },
+  ];
+
+  const filled = rows.filter((r) => r.value);
+  if (filled.length === 0) return null;
+
+  return (
+    <aside className="md:sticky md:top-6 h-fit">
+      <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
+        <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+          <ClipboardList className="h-4 w-4 text-primary" />
+          {lang === "ar" ? "ملخّص الحجز" : "Booking summary"}
+        </h3>
+        <ul className="space-y-2.5">
+          {filled.map((r) => (
+            <li key={r.label} className="flex items-start gap-2 text-sm group">
+              <r.icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-muted-foreground">{r.label}</div>
+                <div className="font-medium truncate">{r.value}</div>
+              </div>
+              {state.step > r.step && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(r.step)}
+                  className="text-[11px] text-primary opacity-0 group-hover:opacity-100 hover:underline shrink-0"
+                >
+                  {lang === "ar" ? "تعديل" : "Edit"}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
   );
 }
