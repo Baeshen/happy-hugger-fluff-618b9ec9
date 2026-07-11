@@ -148,7 +148,7 @@ async function fetchSpecialties() {
 }
 async function fetchDoctors(specialtyId: string | null, branchId: string | null) {
   const { data, error } = await supabase.rpc("list_public_doctors", {
-    _limit: 200, _offset: 0, _branch_id: branchId,
+    _limit: 200, _offset: 0, _branch_id: branchId ?? undefined,
   });
   if (error) return [];
   const list = (data ?? []) as any[];
