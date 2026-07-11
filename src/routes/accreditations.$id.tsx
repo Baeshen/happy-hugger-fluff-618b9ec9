@@ -78,6 +78,15 @@ function AccreditationDetail() {
   const desc = lang === "ar" ? a.description_ar : a.description_en;
   const related = (allData ?? []).filter((x) => x.id !== a.id).slice(0, 3);
 
+  useEffect(() => {
+    trackEvent("accreditation_view", {
+      id: a.id,
+      title: a.title_ar,
+      category: a.category ?? "",
+      year: a.year ?? "",
+    });
+  }, [a.id, a.title_ar, a.category, a.year]);
+
   return (
     <article className="container-app py-10 max-w-4xl mx-auto">
       <Link
