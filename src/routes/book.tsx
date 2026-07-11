@@ -871,10 +871,11 @@ function Field({ label, required, error, children }: { label: string; required?:
 /* ------------ Review + submit ------------ */
 
 function StepReview({
-  lang, state, branches, specialties, doctors, errorMsg, submitting, onSubmit,
+  lang, state, branches, specialties, doctors, errorMsg, submitting, onSubmit, patientValid, onEditPatient,
 }: {
   lang: "ar"|"en"; state: State; branches: any[]; specialties: any[]; doctors: any[];
   errorMsg: string | null; submitting: boolean; onSubmit: () => void;
+  patientValid: boolean; onEditPatient: () => void;
 }) {
   const branch = branches.find((b) => b.id === state.branchId);
   const spec   = specialties.find((s) => s.id === state.specialtyId);
@@ -900,11 +901,20 @@ function StepReview({
           ))}
         </dl>
 
+        {!patientValid && (
+          <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between gap-3">
+            <span>{lang === "ar" ? "بيانات المريض غير مكتملة أو غير صحيحة." : "Patient info is incomplete or invalid."}</span>
+            <Button variant="outline" size="sm" onClick={onEditPatient}>
+              {lang === "ar" ? "تعديل" : "Edit"}
+            </Button>
+          </div>
+        )}
+
         {errorMsg && <div className="mt-4"><SubmitErrorBanner kind="unknown" message={errorMsg}/></div>}
 
         <Button
           onClick={onSubmit}
-          disabled={submitting}
+          disabled={submitting || !patientValid}
           className="w-full mt-6 gap-2 h-12 text-base"
         >
           {submitting
