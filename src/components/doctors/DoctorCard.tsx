@@ -148,7 +148,11 @@ export function DoctorCard({ d, lang, nextSlotIso }: { d: DoctorRow; lang: "ar" 
           ) : (
             <Link
               to="/book"
-              search={{ doctor: d.id }}
+              search={{
+                doctor: d.id,
+                ...(d.specialty_id ? { specialty: d.specialty_id } : {}),
+                ...(d.branch_ids && d.branch_ids.length === 1 ? { branch: d.branch_ids[0] } : {}),
+              }}
               className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1 transition-colors"
             >
               <Calendar className="h-3.5 w-3.5" />
