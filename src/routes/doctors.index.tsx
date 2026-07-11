@@ -229,8 +229,25 @@ function DoctorsPageBody() {
     return Array.from(s);
   }, [doctors]);
 
-  // Derived counts shown in the hero.
+  // Derived state shown in the hero + faceted counts for filter previews.
   const { filtered, start, perPage } = useFilteredDoctors(doctors, { ar });
+  const counts = useFilterCounts(doctors);
+
+  // Live-preview visual feedback: briefly fade the results whenever the
+  // filter/sort signature changes, so the user perceives the update.
+  const { q, specialty, branch, gender, language, sort: activeSort } = useDoctorSearch();
+  const filterKey = `${q}|${specialty.join(",")}|${branch.join(",")}|${gender}|${language.join(",")}|${activeSort}`;
+  const [flash, setFlash] = useState(false);
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    setFlash(true);
+    const t = window.setTimeout(() => setFlash(false), 220);
+    return () => window.clearTimeout(t);
+  }, [filterKey]);
 
   // Fetch next available slot for currently visible doctors only.
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
@@ -266,7 +283,12 @@ function DoctorsPageBody() {
           : "Name (A-Z)";
 
   const filtersPanel = (
-    <DoctorFilters specialties={specialties} branches={branches} languages={allLangs} />
+    <DoctorFilters
+      specialties={specialties}
+      branches={branches}
+      languages={allLangs}
+      counts={counts}
+    />
   );
 
   return (
