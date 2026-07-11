@@ -33,6 +33,7 @@ import { Route as BookingConfirmationRouteImport } from './routes/booking-confir
 import { Route as BookRouteImport } from './routes/book'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as AccreditationsRouteImport } from './routes/accreditations'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -197,6 +198,11 @@ const AuthRoute = AuthRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccreditationsRoute = AccreditationsRouteImport.update({
+  id: '/accreditations',
+  path: '/accreditations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -444,6 +450,7 @@ const ApiPublicBookAvailabilityRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/accreditations': typeof AccreditationsRoute
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
@@ -514,6 +521,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/accreditations': typeof AccreditationsRoute
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
@@ -586,6 +594,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/accreditations': typeof AccreditationsRoute
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
@@ -658,6 +667,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/accreditations'
     | '/app'
     | '/auth'
     | '/book'
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/accreditations'
     | '/app'
     | '/auth'
     | '/book'
@@ -799,6 +810,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/about'
+    | '/accreditations'
     | '/app'
     | '/auth'
     | '/book'
@@ -871,6 +883,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
+  AccreditationsRoute: typeof AccreditationsRoute
   AppRoute: typeof AppRoute
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
@@ -1078,6 +1091,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accreditations': {
+      id: '/accreditations'
+      path: '/accreditations'
+      fullPath: '/accreditations'
+      preLoaderRoute: typeof AccreditationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -1499,6 +1519,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AboutRoute: AboutRoute,
+  AccreditationsRoute: AccreditationsRoute,
   AppRoute: AppRoute,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
