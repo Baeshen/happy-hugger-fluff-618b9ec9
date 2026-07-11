@@ -357,6 +357,8 @@ function DoctorDetail() {
                   loading="eager"
                   fetchPriority="high"
                   spinnerLight
+                  widths={[128, 256, 384]}
+                  sizes="128px"
                 />
               ) : (
                 <div className="flex flex-col items-center gap-1 text-white/90">
@@ -762,6 +764,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
           imgClassName="h-full w-full object-cover"
           loading="eager"
           fetchPriority="high"
+          widths={[480, 768, 1024, 1440]}
+          sizes="(min-width: 768px) 66vw, 100vw"
         />
 
       </button>
@@ -791,6 +795,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
               className="h-full w-full"
               imgClassName="h-full w-full object-cover"
               loading="lazy"
+              widths={[128, 192, 256]}
+              sizes="(min-width: 768px) 130px, 20vw"
             />
           </button>
         ))}
@@ -857,6 +863,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
               loading="eager"
               fetchPriority="high"
               spinnerLight
+              widths={[768, 1024, 1440, 1920]}
+              sizes="92vw"
             />
             <figcaption className="text-white/90 text-sm text-center max-w-[92vw]">
               <span className="block">{alt}</span>
@@ -877,6 +885,37 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
  * Progressive image with a skeleton shimmer that fades away once the
  * image has loaded. Uses native lazy loading + async decoding by default.
  */
+/**
+ * Rewrites a Supabase Storage public object URL to the on-the-fly render
+ * endpoint with a width query. Returns the original URL for any other host
+ * so external images still work (browser will just ignore the srcset entry).
+ */
+function withWidth(src: string, width: number): string {
+  try {
+    const u = new URL(src, typeof window !== "undefined" ? window.location.href : "http://localhost");
+    if (u.pathname.includes("/storage/v1/object/public/")) {
+      u.pathname = u.pathname.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/");
+    }
+    if (u.pathname.includes("/storage/v1/render/image/public/")) {
+      u.searchParams.set("width", String(width));
+      u.searchParams.set("quality", "80");
+      return u.toString();
+    }
+  } catch {
+    /* ignore malformed URL */
+  }
+  return src;
+}
+
+function buildSrcSet(src: string, widths: number[]): string | undefined {
+  const rewritten = widths.map((w) => `${withWidth(src, w)} ${w}w`);
+  // Only emit srcset when at least one entry actually differs from the src
+  // (i.e. the URL supports transformation) — otherwise skip to avoid
+  // repeating the same URL at every descriptor.
+  const usable = widths.some((w) => withWidth(src, w) !== src);
+  return usable ? rewritten.join(", ") : undefined;
+}
+
 function ProgressiveImage({
   src,
   alt,
@@ -886,6 +925,8 @@ function ProgressiveImage({
   fetchPriority,
   ariaHidden,
   spinnerLight,
+  widths,
+  sizes,
 }: {
   src: string;
   alt: string;
@@ -895,6 +936,10 @@ function ProgressiveImage({
   fetchPriority?: "high" | "low" | "auto";
   ariaHidden?: boolean;
   spinnerLight?: boolean;
+  /** Candidate widths in px. When provided, an srcSet is built. */
+  widths?: number[];
+  /** CSS `sizes` attribute — required for `widths` to be effective. */
+  sizes?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -903,6 +948,8 @@ function ProgressiveImage({
     setLoaded(false);
     setFailed(false);
   }, [src]);
+
+  const srcSet = widths && widths.length ? buildSrcSet(src, widths) : undefined;
 
   return (
     <div className={`relative overflow-hidden bg-muted ${className}`}>
@@ -916,6 +963,8 @@ function ProgressiveImage({
       )}
       <img
         src={src}
+        srcSet={srcSet}
+        sizes={srcSet ? sizes : undefined}
         alt={alt}
         aria-hidden={ariaHidden || undefined}
         loading={loading}
