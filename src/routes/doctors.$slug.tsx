@@ -45,7 +45,7 @@ const doctorQuery = (slug: string) => ({
     const { data, error } = await supabase
       .from("doctors")
       .select(
-        "id, slug, name_ar, name_en, title_ar, title_en, bio_ar, bio_en, photo_url, languages, gender, years_experience, education, experience, booking_enabled, branch_id, specialties(id, slug, name_ar, name_en), branches(id, name_ar, name_en)",
+        "id, slug, name_ar, name_en, title_ar, title_en, bio_ar, bio_en, photo_url, photos, languages, gender, years_experience, education, experience, booking_enabled, branch_id, specialties(id, slug, name_ar, name_en), branches(id, name_ar, name_en)",
       )
       .eq("slug", slug)
       .eq("is_active", true)
