@@ -25,6 +25,12 @@ export function AwardsMarquee() {
           </div>
           <Link
             to="/accreditations"
+            onClick={() =>
+              trackEvent("accreditations_view_all_click", {
+                location: "home_awards_marquee",
+                total: list.length,
+              })
+            }
             className="hidden md:inline text-sm font-semibold text-primary hover:underline"
           >
             عرض الكل ←
