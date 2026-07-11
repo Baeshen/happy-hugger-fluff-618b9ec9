@@ -294,19 +294,6 @@ function BookPage() {
         </header>
 
         <Stepper steps={STEPS} current={state.step} onJump={(i) => {
-          // Allow jumping back only.
-          if (i + 1 < state.step) dispatch({ t: "goto", step: i + 1 });
-        }}/>
-
-        <div className="mt-6 rounded-2xl bg-card border border-border shadow-sm p-5 md:p-8 min-h-[420px]">
-          {state.step === 1 && <StepService lang={lang} value={state.serviceType} onPick={(v) => { dispatch({ t: "set", p: { serviceType: v } }); dispatch({ t: "goto", step: 2 }); }}/>}
-          {state.step === 2 && <StepBranch lang={lang} branches={branches} value={state.branchId} onPick={(v) => { dispatch({ t: "set", p: { branchId: v } }); dispatch({ t: "goto", step: 3 }); }}/>}
-          {state.step === 3 && <StepSpecialty lang={lang} specialties={specialties} value={state.specialtyId} onPick={(v) => { dispatch({ t: "set", p: { specialtyId: v, doctorId: null } }); dispatch({ t: "goto", step: 4 }); }}/>}
-          {state.step === 4 && <StepDoctor lang={lang} doctors={doctors} value={state.doctorId} onPick={(v) => { dispatch({ t: "set", p: { doctorId: v, date: null, time: null } }); dispatch({ t: "goto", step: 5 }); }}/>}
-          {state.step === 5 && <StepDate lang={lang} value={state.date} onPick={(v) => { dispatch({ t: "set", p: { date: v, time: null } }); dispatch({ t: "goto", step: 6 }); }} doctorId={state.doctorId} specialtyId={state.specialtyId} branchId={state.branchId}/>}
-          {state.step === 6 && <StepTime lang={lang} value={state.time} avail={avail} onPick={(v) => { dispatch({ t: "set", p: { time: v } }); dispatch({ t: "goto", step: 7 }); }}/>}
-          {state.step === 7 && <StepPatient lang={lang} value={state.patient} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
-        <Stepper steps={STEPS} current={state.step} onJump={(i) => {
           // Allow jumping back only, and never off the success step.
           if (state.step === 9) return;
           if (i + 1 < state.step) dispatch({ t: "goto", step: i + 1 });
