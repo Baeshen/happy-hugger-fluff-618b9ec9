@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-type Role = "admin" | "reception" | "pharmacy";
+type Role = "admin" | "reception" | "pharmacy" | "super_admin";
 
 async function getRoles(supabase: any, userId: string): Promise<Role[]> {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -10,6 +10,8 @@ async function getRoles(supabase: any, userId: string): Promise<Role[]> {
 }
 
 function ensureRole(roles: Role[], allowed: Role[]) {
+  // super_admin يملك جميع الصلاحيات ضمنيًا
+  if (roles.includes("super_admin")) return;
   if (!roles.some((r) => allowed.includes(r))) {
     throw new Error("ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
   }
@@ -155,7 +157,7 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
 
     // 1) Authenticated user (middleware) + role gate
     const roles = (await getRoles(sb, actorId)) as StaffRole[];
-    if (!roles.some((r) => (["admin", "reception"] as StaffRole[]).includes(r))) {
+    if (!roles.some((r) => (["admin", "reception", "super_admin"] as any[]).includes(r as any))) {
       await logDenied("role_denied", null, { roles });
       throw new Error("ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
     }

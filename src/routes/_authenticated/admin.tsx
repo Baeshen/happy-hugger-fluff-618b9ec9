@@ -135,7 +135,12 @@ function AdminDashboard() {
   const myRolesFn = useServerFn(getMyRoles);
   const rolesQuery = useQuery({ queryKey: ["my-roles"], queryFn: () => myRolesFn() });
 
-  const roles = rolesQuery.data?.roles ?? [];
+  const rawRoles = rolesQuery.data?.roles ?? [];
+  const isSuperAdmin = rawRoles.includes("super_admin" as any);
+  // super_admin يرث كل الصلاحيات
+  const roles = isSuperAdmin
+    ? (Array.from(new Set([...rawRoles, "admin", "reception", "pharmacy"])) as typeof rawRoles)
+    : rawRoles;
   const isAdmin = roles.includes("admin");
   const isReception = roles.includes("reception");
   const isPharmacy = roles.includes("pharmacy");

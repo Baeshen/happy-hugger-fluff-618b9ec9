@@ -56,7 +56,7 @@ export function checkAppointmentTransition(
       message: `لا يمكن تغيير الحالة من "${from}" إلى "${to}".`,
     };
   }
-  if (!roles.some((r) => rule.roles.includes(r))) {
+  if (!(roles as string[]).includes("super_admin") && !roles.some((r) => rule.roles.includes(r))) {
     return {
       ok: false,
       code: "FORBIDDEN_ROLE",
