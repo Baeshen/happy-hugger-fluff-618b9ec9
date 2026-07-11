@@ -863,6 +863,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
               loading="eager"
               fetchPriority="high"
               spinnerLight
+              widths={[768, 1024, 1440, 1920]}
+              sizes="92vw"
             />
             <figcaption className="text-white/90 text-sm text-center max-w-[92vw]">
               <span className="block">{alt}</span>
