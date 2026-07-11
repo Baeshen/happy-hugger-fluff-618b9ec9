@@ -442,6 +442,7 @@ function BookPage() {
       return;
     }
     const ref = result.reference ?? "";
+    if (typeof window !== "undefined") localStorage.removeItem(DRAFT_KEY);
     navigate({
       to: "/booking-confirmation",
       search: { ref, phone: v.phone, wa: "1" },
