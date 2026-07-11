@@ -10,7 +10,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Filter, Users, ArrowUpDown } from "lucide-react";
 import { z } from "zod";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
@@ -26,6 +26,7 @@ import {
   type UrlPatch,
 } from "@/components/doctors/DoctorSearchContext";
 import { useFilteredDoctors } from "@/components/doctors/useFilteredDoctors";
+import { useFilterCounts } from "@/components/doctors/useFilterCounts";
 import { DoctorSearchBar } from "@/components/doctors/DoctorSearchBar";
 import { DoctorFilters } from "@/components/doctors/DoctorFilters";
 import { DoctorResults } from "@/components/doctors/DoctorResults";
@@ -228,8 +229,25 @@ function DoctorsPageBody() {
     return Array.from(s);
   }, [doctors]);
 
-  // Derived counts shown in the hero.
+  // Derived state shown in the hero + faceted counts for filter previews.
   const { filtered, start, perPage } = useFilteredDoctors(doctors, { ar });
+  const counts = useFilterCounts(doctors);
+
+  // Live-preview visual feedback: briefly fade the results whenever the
+  // filter/sort signature changes, so the user perceives the update.
+  const { q, specialty, branch, gender, language, sort: activeSort } = useDoctorSearch();
+  const filterKey = `${q}|${specialty.join(",")}|${branch.join(",")}|${gender}|${language.join(",")}|${activeSort}`;
+  const [flash, setFlash] = useState(false);
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    setFlash(true);
+    const t = window.setTimeout(() => setFlash(false), 220);
+    return () => window.clearTimeout(t);
+  }, [filterKey]);
 
   // Fetch next available slot for currently visible doctors only.
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
@@ -265,7 +283,12 @@ function DoctorsPageBody() {
           : "Name (A-Z)";
 
   const filtersPanel = (
-    <DoctorFilters specialties={specialties} branches={branches} languages={allLangs} />
+    <DoctorFilters
+      specialties={specialties}
+      branches={branches}
+      languages={allLangs}
+      counts={counts}
+    />
   );
 
   return (
@@ -336,22 +359,24 @@ function DoctorsPageBody() {
 
           <main>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground" aria-live="polite">
                 {ar ? (
                   <>
                     عرض{" "}
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold text-foreground tabular-nums">
                       {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + perPage, filtered.length)}
                     </span>{" "}
-                    من أصل <span className="font-semibold text-foreground">{filtered.length}</span>
+                    من أصل{" "}
+                    <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span>
                   </>
                 ) : (
                   <>
                     Showing{" "}
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold text-foreground tabular-nums">
                       {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + perPage, filtered.length)}
                     </span>{" "}
-                    of <span className="font-semibold text-foreground">{filtered.length}</span>
+                    of{" "}
+                    <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span>
                   </>
                 )}
               </p>
@@ -397,17 +422,21 @@ function DoctorsPageBody() {
               </div>
             </div>
 
-            <DoctorResults
-              doctors={doctors}
-              isLoading={isLoading}
-              nextSlotMap={nextSlotMap}
-              onVisibleIdsChange={setVisibleIds}
-              onPageChange={() => {
-                if (typeof window !== "undefined") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-              }}
-            />
+            <div
+              className={`transition-opacity duration-200 ${flash ? "opacity-60" : "opacity-100"}`}
+            >
+              <DoctorResults
+                doctors={doctors}
+                isLoading={isLoading}
+                nextSlotMap={nextSlotMap}
+                onVisibleIdsChange={setVisibleIds}
+                onPageChange={() => {
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+              />
+            </div>
           </main>
         </div>
       </div>

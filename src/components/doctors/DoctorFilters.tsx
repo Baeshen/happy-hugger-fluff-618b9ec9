@@ -17,6 +17,8 @@ type Props = {
   specialties: SpecialtyOption[];
   branches: BranchOption[];
   languages: string[];
+  /** Live counts per option — from useFilterCounts(doctors). */
+  counts?: import("./useFilterCounts").FilterCounts;
   /** Show/hide individual sections. */
   show?: {
     specialty?: boolean;
@@ -27,7 +29,7 @@ type Props = {
   };
 };
 
-export function DoctorFilters({ specialties, branches, languages, show }: Props) {
+export function DoctorFilters({ specialties, branches, languages, counts, show }: Props) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const {
@@ -73,6 +75,7 @@ export function DoctorFilters({ specialties, branches, languages, show }: Props)
               checked={selSpec.includes(s.id)}
               onChange={() => toggleSpecialty(s.id)}
               label={ar ? s.name_ar : s.name_en}
+              count={counts?.specialty[s.id] ?? (counts ? 0 : undefined)}
             />
           ))}
         </FilterGroup>
@@ -86,6 +89,7 @@ export function DoctorFilters({ specialties, branches, languages, show }: Props)
               checked={selBranch.includes(b.id)}
               onChange={() => toggleBranch(b.id)}
               label={ar ? b.name_ar : b.name_en}
+              count={counts?.branch[b.id] ?? (counts ? 0 : undefined)}
             />
           ))}
         </FilterGroup>
@@ -99,6 +103,7 @@ export function DoctorFilters({ specialties, branches, languages, show }: Props)
               checked={selGender === g}
               onChange={(v) => setGender(v ? g : "")}
               label={g === "male" ? (ar ? "طبيب" : "Male") : ar ? "طبيبة" : "Female"}
+              count={counts?.gender[g]}
             />
           ))}
         </FilterGroup>
@@ -112,6 +117,7 @@ export function DoctorFilters({ specialties, branches, languages, show }: Props)
               checked={selLangs.includes(l)}
               onChange={() => toggleLanguage(l)}
               label={LANG_LABELS[l]?.[lang] ?? l}
+              count={counts?.language[l] ?? (counts ? 0 : undefined)}
             />
           ))}
           {selLangs.length > 1 && (
@@ -126,3 +132,4 @@ export function DoctorFilters({ specialties, branches, languages, show }: Props)
     </div>
   );
 }
+
