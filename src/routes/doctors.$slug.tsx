@@ -851,8 +851,8 @@ function DoctorDetail() {
                   specSlug={d.specialties?.slug ?? null}
                   yearsExperience={d.years_experience}
                   languages={d.languages}
-                  education={d.education}
-                  experience={d.experience}
+                  education={ar ? d.education_ar : d.education_en}
+                  experience={ar ? d.experience_ar : d.experience_en}
                 />
               </TabsContent>
 
