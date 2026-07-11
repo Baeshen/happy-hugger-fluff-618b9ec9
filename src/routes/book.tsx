@@ -328,7 +328,7 @@ function BookPage() {
           </p>
         </header>
 
-        <Stepper steps={STEPS} current={state.step} onJump={(i) => {
+        <Stepper steps={STEPS} current={displayedStep} onJump={(i) => {
           if (state.step === 9) return;
           if (i + 1 < state.step) goto(i + 1);
         }}/>
@@ -338,13 +338,13 @@ function BookPage() {
             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${Math.round(((state.step - 1) / 7) * 100)}%` }}
+                style={{ width: `${Math.round(((displayedStep - 1) / 7) * 100)}%` }}
               />
             </div>
             <div className="mt-1 text-[11px] text-muted-foreground text-center">
               {lang === "ar"
-                ? `الخطوة ${state.step} من 8`
-                : `Step ${state.step} of 8`}
+                ? `الخطوة ${displayedStep} من 8`
+                : `Step ${displayedStep} of 8`}
             </div>
           </div>
         )}
