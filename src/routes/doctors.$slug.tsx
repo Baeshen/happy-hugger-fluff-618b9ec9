@@ -747,14 +747,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
         className="block w-full overflow-hidden rounded-2xl border border-border bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         aria-label={ar ? `عرض الصورة بالحجم الكامل — ${alt}` : `View full size — ${alt}`}
       >
-        <div className="aspect-[16/10] bg-muted">
-          <img
-            src={photos[active]}
-            alt={`${alt} (${active + 1}/${total})`}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        </div>
+        <ProgressiveImage
+          src={photos[active]}
+          alt={`${alt} (${active + 1}/${total})`}
+          className="aspect-[16/10] w-full"
+          imgClassName="h-full w-full object-cover"
+          loading="eager"
+          fetchPriority="high"
+        />
+
       </button>
 
       <div
@@ -775,7 +776,14 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             aria-selected={i === active}
             aria-current={i === active ? "true" : undefined}
           >
-            <img src={src} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
+            <ProgressiveImage
+              src={src}
+              alt=""
+              ariaHidden
+              className="h-full w-full"
+              imgClassName="h-full w-full object-cover"
+              loading="lazy"
+            />
           </button>
         ))}
       </div>
@@ -833,10 +841,14 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             aria-live="polite"
             aria-atomic="true"
           >
-            <img
+            <ProgressiveImage
               src={photos[active]}
               alt={caption}
-              className="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
+              className="max-h-[80vh] max-w-[92vw]"
+              imgClassName="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
+              loading="eager"
+              fetchPriority="high"
+              spinnerLight
             />
             <figcaption className="text-white/90 text-sm text-center max-w-[92vw]">
               <span className="block">{alt}</span>
@@ -849,6 +861,65 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
           </figure>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Progressive image with a skeleton shimmer that fades away once the
+ * image has loaded. Uses native lazy loading + async decoding by default.
+ */
+function ProgressiveImage({
+  src,
+  alt,
+  className = "",
+  imgClassName = "",
+  loading = "lazy",
+  fetchPriority,
+  ariaHidden,
+  spinnerLight,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  imgClassName?: string;
+  loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
+  ariaHidden?: boolean;
+  spinnerLight?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // Reset when the src changes.
+  useEffect(() => {
+    setLoaded(false);
+    setFailed(false);
+  }, [src]);
+
+  return (
+    <div className={`relative overflow-hidden bg-muted ${className}`}>
+      {!loaded && !failed && (
+        <div
+          className={`absolute inset-0 animate-pulse ${
+            spinnerLight ? "bg-white/10" : "bg-gradient-to-br from-muted via-muted/60 to-muted"
+          }`}
+          aria-hidden
+        />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        aria-hidden={ariaHidden || undefined}
+        loading={loading}
+        decoding="async"
+        // React types accept the camelCase prop; DOM lowercases at render.
+        {...(fetchPriority ? { fetchpriority: fetchPriority } : {})}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+        className={`${imgClassName} transition-opacity duration-500 ${
+          loaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
     </div>
   );
 }
