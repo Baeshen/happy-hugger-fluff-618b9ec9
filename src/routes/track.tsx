@@ -236,6 +236,7 @@ function TrackPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
+    setAutoFailed(false);
 
     const parsed = schema.safeParse({ reference, phone_last4: phone4 });
     if (!parsed.success) {
