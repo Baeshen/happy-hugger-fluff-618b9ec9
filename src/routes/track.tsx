@@ -169,6 +169,8 @@ function TrackPage() {
   const [error, setError] = useState<LookupError | null>(null);
   const lastQueryRef = useRef<{ reference: string; phone_last4: string } | null>(null);
   const autoRanRef = useRef(false);
+  const [autoSearching, setAutoSearching] = useState(false);
+  const [autoFailed, setAutoFailed] = useState(false);
 
   async function runLookup(payload: { reference: string; phone_last4: string }) {
     setLoading(true);
