@@ -305,6 +305,15 @@ function BookPage() {
     ? ["نوع الخدمة", "الفرع", "التخصص", "الطبيب", "التاريخ", "الوقت", "بياناتك", "المراجعة", "التأكيد"]
     : ["Service", "Branch", "Specialty", "Doctor", "Date", "Time", "Your info", "Review", "Confirmed"];
 
+  // Displayed step for the indicator/progress bar — never allowed to exceed
+  // the highest step whose prerequisites are met. Prevents a transient flash
+  // where the URL/state briefly asks for step N but doctor/specialty/branch
+  // are missing. The clamp effect further up rewrites state + URL to match;
+  // this memo keeps the visual indicator honest until it runs.
+  const displayedStep = state.step === 9
+    ? 9
+    : Math.min(state.step, maxReachableStep(state, patientValidation.ok));
+
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="container-app py-8 md:py-12 max-w-5xl">
@@ -319,7 +328,7 @@ function BookPage() {
           </p>
         </header>
 
-        <Stepper steps={STEPS} current={state.step} onJump={(i) => {
+        <Stepper steps={STEPS} current={displayedStep} onJump={(i) => {
           if (state.step === 9) return;
           if (i + 1 < state.step) goto(i + 1);
         }}/>
@@ -329,13 +338,13 @@ function BookPage() {
             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${Math.round(((state.step - 1) / 7) * 100)}%` }}
+                style={{ width: `${Math.round(((displayedStep - 1) / 7) * 100)}%` }}
               />
             </div>
             <div className="mt-1 text-[11px] text-muted-foreground text-center">
               {lang === "ar"
-                ? `الخطوة ${state.step} من 8`
-                : `Step ${state.step} of 8`}
+                ? `الخطوة ${displayedStep} من 8`
+                : `Step ${displayedStep} of 8`}
             </div>
           </div>
         )}
