@@ -141,6 +141,7 @@ function BookPage() {
   // browser Back/Forward buttons walk the wizard naturally. Also called from
   // popstate below with `pushUrl=false` (browser already moved the URL).
   const goto = (step: number) => {
+    console.log("[book] goto()", step, "state.step=", state.step, "url.step=", searchParams.step);
     dispatch({ t: "goto", step });
     if (step === 9) return; // success page: don't push
     if (typeof window === "undefined") return;
@@ -149,6 +150,7 @@ function BookPage() {
       search: (prev: Record<string, unknown>) => ({ ...prev, step }),
     });
   };
+
 
 
   // Deep-link fill-in: when the URL has no explicit step (schema default 0)
