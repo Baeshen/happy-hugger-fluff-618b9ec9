@@ -249,10 +249,8 @@ describe("DoctorFilters", () => {
   });
 
   test("options with 0 matches are disabled", () => {
-    // With language=[ur] pre-selected, no doctors match; then facet counts for
-    // other langs should all be 0 (leave-one-out on language, but language=[ur]
-    // itself is dropped for language facet → falls back to baseline). Instead
-    // constrain via gender=female → only 2/4 remain; fr count = 1, ar = 2, en = 2.
+    // Constrain by gender=female → only doctors 2 & 4 remain (both speak ar/en,
+    // 4 also speaks fr). Nobody speaks 'ur' → its facet count is 0 → disabled.
     function Setup() {
       const counts = useFilterCounts(DOCS);
       return (
@@ -272,8 +270,17 @@ describe("DoctorFilters", () => {
         </LocalDoctorSearchProvider>
       </I18nProvider>,
     );
-    // 'ur' has zero doctors → its checkbox is disabled.
-    const urInput = screen.getByText("ur").closest("label")!.querySelector("input")!;
-    expect((urInput as HTMLInputElement).disabled).toBe(true);
+    // "الأوردو" = Arabic label for Urdu (default lang is ar).
+    const urInput = screen
+      .getByText("الأوردو")
+      .closest("label")!
+      .querySelector("input") as HTMLInputElement;
+    expect(urInput.disabled).toBe(true);
+    // 'fr' has 1 match (doctor 4) → NOT disabled.
+    const frInput = screen
+      .getByText("الفرنسية")
+      .closest("label")!
+      .querySelector("input") as HTMLInputElement;
+    expect(frInput.disabled).toBe(false);
   });
 });
