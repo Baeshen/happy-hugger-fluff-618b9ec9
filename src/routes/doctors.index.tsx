@@ -4,25 +4,19 @@
  * All filter/search/sort/page state is synced with URL for shareable links,
  * RTL-aware controls, and browser back/forward navigation.
  * Powered by public RPC list_public_doctors() (multi-branch aware).
+ * Presentational pieces (DoctorCard, FilterGroup, CheckItem, Pagination) live
+ * in src/components/doctors/*.
  */
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
-  Star,
-  MapPin,
-  Languages,
-  Award,
-  Calendar,
-  Stethoscope,
   Filter,
   X,
   Users,
-  ChevronLeft,
-  ChevronRight,
   ArrowUpDown,
 } from "lucide-react";
 import { z } from "zod";
@@ -30,6 +24,11 @@ import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { LANG_LABELS, type DoctorRow } from "@/components/doctors/types";
+import { FilterGroup } from "@/components/doctors/FilterGroup";
+import { CheckItem } from "@/components/doctors/CheckItem";
+import { Pagination } from "@/components/doctors/Pagination";
+import { DoctorCard } from "@/components/doctors/DoctorCard";
 
 const PER_PAGE = 12;
 const SORT_KEYS = ["rating", "experience", "name"] as const;
@@ -57,29 +56,6 @@ const PAGE_TITLE = "أطباؤنا | مجمع باعشن الطبي";
 const PAGE_DESC =
   "استشاريون وأخصائيون في مختلف التخصصات الطبية بمجمع باعشن الطبي — احجز موعدًا مع طبيبك في صبيا، جازان.";
 
-type DoctorRow = {
-  id: string;
-  slug: string | null;
-  name_ar: string;
-  name_en: string;
-  title_ar: string | null;
-  title_en: string | null;
-  photo_url: string | null;
-  gender: string | null;
-  years_experience: number | null;
-  languages: string[] | null;
-  specialty_id: string | null;
-  specialty_name_ar: string | null;
-  specialty_name_en: string | null;
-  branch_ids: string[] | null;
-  branch_names_ar: string[] | null;
-  branch_slugs: string[] | null;
-  avg_rating: number;
-  ratings_count: number;
-  booking_enabled: boolean;
-  total_count: number;
-};
-
 async function fetchDoctors(): Promise<DoctorRow[]> {
   const { data, error } = await supabase.rpc("list_public_doctors", {
     _limit: 200,
@@ -88,6 +64,7 @@ async function fetchDoctors(): Promise<DoctorRow[]> {
   if (error) throw error;
   return (data ?? []) as unknown as DoctorRow[];
 }
+
 
 export const Route = createFileRoute("/doctors/")({
   validateSearch: zodValidator(searchSchema),
@@ -179,13 +156,6 @@ export const Route = createFileRoute("/doctors/")({
   component: DoctorsPage,
 });
 
-const LANG_LABELS: Record<string, { ar: string; en: string }> = {
-  ar: { ar: "العربية", en: "Arabic" },
-  en: { ar: "الإنجليزية", en: "English" },
-  ur: { ar: "الأوردو", en: "Urdu" },
-  hi: { ar: "الهندية", en: "Hindi" },
-  fr: { ar: "الفرنسية", en: "French" },
-};
 
 function DoctorsPage() {
   const params = Route.useSearch();
@@ -642,267 +612,3 @@ function DoctorsPage() {
   );
 }
 
-function Pagination({
-  page,
-  totalPages,
-  onGo,
-  ar,
-}: {
-  page: number;
-  totalPages: number;
-  onGo: (p: number) => void;
-  ar: boolean;
-}) {
-  // Build a compact page list: [1, …, page-1, page, page+1, …, total]
-  const pages = useMemo(() => {
-    const set = new Set<number>([1, totalPages, page - 1, page, page + 1]);
-    return Array.from(set)
-      .filter((p) => p >= 1 && p <= totalPages)
-      .sort((a, b) => a - b);
-  }, [page, totalPages]);
-
-  // In RTL, keep visual order matching reading order — a horizontal flex
-  // in an RTL container already flips; icons use dir-safe rotation.
-  return (
-    <nav
-      className="mt-8 flex items-center justify-center gap-1"
-      role="navigation"
-      aria-label={ar ? "التنقل بين الصفحات" : "Pagination"}
-    >
-      <button
-        type="button"
-        onClick={() => onGo(page - 1)}
-        disabled={page <= 1}
-        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
-        aria-label={ar ? "السابق" : "Previous"}
-      >
-        {ar ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        <span className="hidden sm:inline">{ar ? "السابق" : "Previous"}</span>
-      </button>
-
-      {pages.map((p, i) => {
-        const prev = pages[i - 1];
-        const gap = prev != null && p - prev > 1;
-        return (
-          <span key={p} className="flex items-center gap-1">
-            {gap && <span className="px-1 text-muted-foreground">…</span>}
-            <button
-              type="button"
-              onClick={() => onGo(p)}
-              aria-current={p === page ? "page" : undefined}
-              className={`h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold transition ${
-                p === page
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card hover:border-primary hover:text-primary"
-              }`}
-            >
-              {p.toLocaleString(ar ? "ar-SA" : "en-US")}
-            </button>
-          </span>
-        );
-      })}
-
-      <button
-        type="button"
-        onClick={() => onGo(page + 1)}
-        disabled={page >= totalPages}
-        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
-        aria-label={ar ? "التالي" : "Next"}
-      >
-        <span className="hidden sm:inline">{ar ? "التالي" : "Next"}</span>
-        {ar ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-      </button>
-    </nav>
-  );
-}
-
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="font-semibold text-sm mb-2.5 text-foreground/90">{title}</div>
-      <div className="space-y-2 max-h-56 overflow-y-auto pe-1">{children}</div>
-    </div>
-  );
-}
-
-function CheckItem({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex items-center gap-2.5 text-sm cursor-pointer hover:text-primary transition-colors group">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="rounded border-border accent-primary h-4 w-4"
-      />
-      <span className={checked ? "font-medium text-primary" : ""}>{label}</span>
-    </label>
-  );
-}
-
-function DoctorCard({ d, lang, nextSlotIso }: { d: DoctorRow; lang: "ar" | "en"; nextSlotIso?: string }) {
-  const name = lang === "ar" ? d.name_ar : d.name_en;
-  const title = lang === "ar" ? d.title_ar : d.title_en;
-  const specName = lang === "ar" ? d.specialty_name_ar : d.specialty_name_en;
-  const branchNames = (d.branch_names_ar ?? []).filter(Boolean);
-  const branchLabel = branchNames.length
-    ? branchNames.length === 1
-      ? branchNames[0]
-      : `${branchNames[0]} +${branchNames.length - 1}`
-    : null;
-
-  const nextSlotLabel = useMemo(() => {
-    if (!nextSlotIso) return null;
-    const dt = new Date(nextSlotIso);
-    if (isNaN(dt.getTime())) return null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const isToday = dt >= today && dt < tomorrow;
-    const isTomorrow = dt >= tomorrow && dt < new Date(tomorrow.getTime() + 86400000);
-    const timeStr = dt.toLocaleTimeString(lang === "ar" ? "ar-SA" : "en-US", {
-      hour: "2-digit", minute: "2-digit",
-    });
-    if (isToday) return lang === "ar" ? `اليوم ${timeStr}` : `Today ${timeStr}`;
-    if (isTomorrow) return lang === "ar" ? `غدًا ${timeStr}` : `Tomorrow ${timeStr}`;
-    const dateStr = dt.toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US", {
-      weekday: "short", day: "numeric", month: "short",
-    });
-    return `${dateStr} · ${timeStr}`;
-  }, [nextSlotIso, lang]);
-
-  return (
-    <article className="group rounded-2xl border border-border bg-card overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all flex flex-col">
-      <div className="p-5 flex gap-4">
-        <div className="h-24 w-24 shrink-0 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary grid place-items-center text-2xl font-bold overflow-hidden ring-1 ring-primary/10">
-          {d.photo_url ? (
-            <img
-              src={d.photo_url}
-              alt={name}
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <span aria-hidden>{name.charAt(0)}</span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-lg leading-tight truncate">
-            {d.slug ? (
-              <Link
-                to="/doctors/$slug"
-                params={{ slug: d.slug }}
-                className="hover:text-primary transition-colors"
-              >
-                {name}
-              </Link>
-            ) : (
-              name
-            )}
-          </h3>
-          {title && (
-            <div className="text-xs text-muted-foreground mt-0.5 truncate">{title}</div>
-          )}
-          {specName && (
-            <div className="text-sm text-primary mt-1 flex items-center gap-1 truncate">
-              <Stethoscope className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{specName}</span>
-            </div>
-          )}
-          {d.ratings_count > 0 && (
-            <div className="flex items-center gap-1 mt-2 text-sm">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="font-semibold">{Number(d.avg_rating).toFixed(1)}</span>
-              <span className="text-muted-foreground text-xs">({d.ratings_count})</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {nextSlotLabel && d.booking_enabled && (
-        <div className="mx-5 mb-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 px-3 py-2 flex items-center gap-2 text-xs">
-          <Calendar className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-          <span className="text-emerald-800 dark:text-emerald-300">
-            {lang === "ar" ? "أقرب موعد: " : "Next slot: "}
-            <span className="font-semibold">{nextSlotLabel}</span>
-          </span>
-        </div>
-      )}
-
-      <div className="px-5 pb-4 space-y-1.5 text-xs text-muted-foreground">
-        {branchLabel && (
-          <div className="flex items-center gap-2">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate" title={branchNames.join(" • ")}>
-              {branchLabel}
-            </span>
-          </div>
-        )}
-        {d.years_experience != null && (
-          <div className="flex items-center gap-2">
-            <Award className="h-3.5 w-3.5 shrink-0" />
-            {lang === "ar"
-              ? `خبرة ${d.years_experience}+ سنة`
-              : `${d.years_experience}+ years experience`}
-          </div>
-        )}
-        {d.languages && d.languages.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Languages className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">
-              {d.languages.map((l) => LANG_LABELS[l]?.[lang] ?? l).join(" · ")}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-auto grid grid-cols-2 gap-2 p-4 pt-3 border-t border-border">
-        {d.slug ? (
-          <Link
-            to="/doctors/$slug"
-            params={{ slug: d.slug }}
-            className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-center hover:bg-muted transition-colors"
-          >
-            {lang === "ar" ? "الملف الشخصي" : "View profile"}
-          </Link>
-        ) : (
-          <div />
-        )}
-        {d.booking_enabled ? (
-          d.slug ? (
-            <Link
-              to="/doctors/$slug"
-              params={{ slug: d.slug }}
-              hash="book"
-              className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1 transition-colors"
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              {lang === "ar" ? "احجز موعد" : "Book"}
-            </Link>
-          ) : (
-            <Link
-              to="/book"
-              search={{ doctor: d.id }}
-              className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1 transition-colors"
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              {lang === "ar" ? "احجز موعد" : "Book"}
-            </Link>
-          )
-        ) : (
-          <span className="rounded-lg bg-muted text-muted-foreground px-3 py-2 text-xs text-center">
-            {lang === "ar" ? "الحجز غير متاح" : "Booking closed"}
-          </span>
-        )}
-      </div>
-    </article>
-  );
-}
