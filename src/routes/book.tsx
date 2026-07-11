@@ -276,8 +276,8 @@ function BookPage() {
   }
 
   const STEPS = lang === "ar"
-    ? ["نوع الخدمة", "الفرع", "التخصص", "الطبيب", "التاريخ", "الوقت", "بياناتك", "المراجعة"]
-    : ["Service", "Branch", "Specialty", "Doctor", "Date", "Time", "Your info", "Review"];
+    ? ["نوع الخدمة", "الفرع", "التخصص", "الطبيب", "التاريخ", "الوقت", "بياناتك", "المراجعة", "التأكيد"]
+    : ["Service", "Branch", "Specialty", "Doctor", "Date", "Time", "Your info", "Review", "Confirmed"];
 
   return (
     <div className="min-h-screen bg-muted/30">
