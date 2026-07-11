@@ -776,7 +776,14 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             aria-selected={i === active}
             aria-current={i === active ? "true" : undefined}
           >
-            <img src={src} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
+            <ProgressiveImage
+              src={src}
+              alt=""
+              ariaHidden
+              className="h-full w-full"
+              imgClassName="h-full w-full object-cover"
+              loading="lazy"
+            />
           </button>
         ))}
       </div>
