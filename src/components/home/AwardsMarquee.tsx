@@ -48,6 +48,14 @@ export function AwardsMarquee() {
               key={`${a.id}-${i}`}
               to="/accreditations/$id"
               params={{ id: a.id }}
+              onClick={() =>
+                trackEvent("accreditation_card_click", {
+                  id: a.id,
+                  title: a.title_ar,
+                  category: a.category ?? "",
+                  location: "home_awards_marquee",
+                })
+              }
               className="w-64 shrink-0 rounded-2xl border border-border bg-card p-4 flex items-center gap-3 hover:border-primary/40 hover:shadow-md transition"
             >
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
