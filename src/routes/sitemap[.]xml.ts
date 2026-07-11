@@ -63,7 +63,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 
           if (url && key) {
             const headers = { apikey: key };
-            const [sr, dr, hr, br] = await Promise.all([
+            const [sr, dr, hr, br, ar, er, psr] = await Promise.all([
               fetch(
                 `${url}/rest/v1/specialties?select=slug,created_at&is_active=eq.true&order=sort_order`,
                 { headers },
@@ -80,11 +80,26 @@ export const Route = createFileRoute("/sitemap.xml")({
                 `${url}/rest/v1/branches?select=slug,updated_at,created_at&is_active=eq.true&order=sort_order`,
                 { headers },
               ),
+              fetch(
+                `${url}/rest/v1/accreditations?select=id,created_at&order=sort_order`,
+                { headers },
+              ),
+              fetch(
+                `${url}/rest/v1/excellence_centers?select=slug,created_at&order=sort_order`,
+                { headers },
+              ),
+              fetch(
+                `${url}/rest/v1/patient_stories?select=slug,updated_at,created_at&is_published=eq.true&order=created_at.desc`,
+                { headers },
+              ),
             ]);
             const specialtiesRes = sr.ok ? await sr.json() : [];
             const doctorsRes = dr.ok ? await dr.json() : [];
             const articlesRes = hr.ok ? await hr.json() : [];
             const branchesRes = br.ok ? await br.json() : [];
+            const accreditationsRes = ar.ok ? await ar.json() : [];
+            const excellenceRes = er.ok ? await er.json() : [];
+            const storiesRes = psr.ok ? await psr.json() : [];
 
             for (const s of (specialtiesRes as Array<{ slug: string; created_at: string }>) ?? []) {
               entries.push({
