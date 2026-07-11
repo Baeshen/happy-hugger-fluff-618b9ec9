@@ -101,8 +101,15 @@ function SpecialtiesPage() {
             key={s.id}
             className="rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-md transition"
           >
-            <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center text-primary">
-              <Stethoscope className="h-6 w-6" />
+            <div className="flex items-center justify-between">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center text-primary">
+                <Stethoscope className="h-6 w-6" />
+              </div>
+              {counts?.[s.id] ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2.5 py-1 text-[11px] font-semibold">
+                  <Users className="h-3 w-3" /> {counts[s.id]}+ {lang === "ar" ? "طبيب" : "doctors"}
+                </span>
+              ) : null}
             </div>
             <h3 className="mt-4 font-bold text-lg">
               <Link
