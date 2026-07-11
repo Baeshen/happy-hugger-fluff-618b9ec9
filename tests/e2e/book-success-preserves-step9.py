@@ -43,24 +43,28 @@ async def main():
         try:
             # ---- Full wizard drive (mirrors tests/e2e/booking-flow.py) ----
             await page.goto(f"{BASE}/book", wait_until="domcontentloaded")
-            await page.wait_for_selector("h1", timeout=10_000)
 
+            # Step 1 — service
+            await page.wait_for_selector("text=اختر نوع الخدمة", timeout=10_000)
             await page.locator(
                 "button", has_text=re.compile(r"عيادات تخصصية|Specialty Clinics")
             ).first.click()
-            await page.wait_for_timeout(600)
 
+            # Step 2 — branch
+            await page.wait_for_selector("text=اختر الفرع", timeout=10_000)
             await page.locator("button.text-start.rounded-xl.border-2").first.click()
-            await page.wait_for_timeout(400)
 
+            # Step 3 — specialty
+            await page.wait_for_selector("text=اختر التخصص", timeout=10_000)
             await page.locator("button.rounded-xl.border-2.p-4.text-center").first.click()
-            await page.wait_for_timeout(600)
 
+            # Step 4 — doctor
+            await page.wait_for_selector("text=اختر الطبيب", timeout=10_000)
             doc = page.locator("button.text-start.rounded-xl.border-2:not([disabled])").first
             if await doc.count() == 0:
                 raise AssertionError("no doctor available")
             await doc.click()
-            await page.wait_for_timeout(600)
+
 
             # date + time picker with retry across days
             await page.wait_for_timeout(1200)
