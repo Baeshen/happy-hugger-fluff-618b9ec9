@@ -17,6 +17,8 @@ type Props = {
   specialties: SpecialtyOption[];
   branches: BranchOption[];
   languages: string[];
+  /** Live counts per option — from useFilterCounts(doctors). */
+  counts?: import("./useFilterCounts").FilterCounts;
   /** Show/hide individual sections. */
   show?: {
     specialty?: boolean;
