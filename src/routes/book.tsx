@@ -1185,6 +1185,20 @@ function StepSuccess({
   // Last 4 digits of the phone (Latin digits only) — used to auto-fill /track.
   const phone4 = (phone.match(/\d/g) ?? []).slice(-4).join("");
 
+  // Pre-composed WhatsApp message with all confirmed booking details.
+  const waMessage = useMemo(() => {
+    const header = lang === "ar"
+      ? "مرحبًا، لدي حجز في مجمع باعشن الطبي وأحتاج للمساعدة:"
+      : "Hello, I have a booking at Baeshen Medical Complex and need assistance:";
+    const parts: string[] = [header, ""];
+    if (reference) {
+      parts.push(`${lang === "ar" ? "رقم الحجز" : "Reference"}: ${reference}`);
+    }
+    for (const r of rows) parts.push(`${r.label}: ${r.value}`);
+    return parts.join("\n");
+  }, [rows, reference, lang]);
+  const waHref = `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(waMessage)}`;
+
   return (
     <div className="max-w-xl mx-auto text-center">
       <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 grid place-items-center mb-4">
