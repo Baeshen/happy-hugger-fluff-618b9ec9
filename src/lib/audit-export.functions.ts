@@ -195,10 +195,10 @@ async function fetchDashboardRecent(supabase: any, f: z.infer<typeof filterSchem
 export const fetchAuditExport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => filterSchema.parse(d ?? {}))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<AuditRow[]> => {
     await assertStaff(context.supabase, context.userId);
     const supabase = context.supabase;
-    let rows: unknown[] = [];
+    let rows: AuditRow[] = [];
     switch (data.kind) {
       case "appointment_audit":
         rows = await fetchAppointmentAudit(supabase, data); break;
