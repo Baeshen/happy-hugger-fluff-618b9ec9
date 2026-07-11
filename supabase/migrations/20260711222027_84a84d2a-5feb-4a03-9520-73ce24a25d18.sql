@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.track_appointment(text, text) TO anon, authenticated;
