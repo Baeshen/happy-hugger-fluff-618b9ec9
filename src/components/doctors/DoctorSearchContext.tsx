@@ -106,19 +106,26 @@ export type UrlSearchParams = {
   page: number;
 };
 
+/** Search-params patch applied by the route's typed navigate. */
+export type UrlPatch = Partial<UrlSearchParams>;
+
 type UrlProviderProps = {
   /** Current parsed search params from Route.useSearch(). */
   params: UrlSearchParams;
-  /** Route path passed to useNavigate, e.g. "/doctors/". */
-  from: string;
+  /**
+   * Apply a partial patch to the URL search params. The route owns the typed
+   * navigate() call so the provider stays route-agnostic. When resetPage is
+   * true (the default), the implementation should also set page back to 1.
+   */
+  onPatch: (patch: UrlPatch, resetPage: boolean) => void;
+  /** Reset every filter/search field, keep current sort. */
+  onReset: () => void;
   children: ReactNode;
 };
 
-export function UrlDoctorSearchProvider({ params, from, children }: UrlProviderProps) {
-  const navigate = useNavigate({ from });
-
+export function UrlDoctorSearchProvider({ params, onPatch, onReset, children }: UrlProviderProps) {
   const derived = useMemo<DoctorSearchState>(() => {
-    const state = {
+    return {
       q: params.q,
       qInput: params.q, // seeded; local input state below tracks live typing
       specialty: csvToList(params.specialty),
@@ -128,7 +135,6 @@ export function UrlDoctorSearchProvider({ params, from, children }: UrlProviderP
       sort: clampSort(params.sort),
       page: Math.max(1, params.page),
     };
-    return state;
   }, [params.q, params.specialty, params.branch, params.gender, params.language, params.sort, params.page]);
 
   // Live text input, debounced writes to URL. Kept in sync with external URL
@@ -143,10 +149,7 @@ export function UrlDoctorSearchProvider({ params, from, children }: UrlProviderP
     if (qInput === derived.q) return;
     if (qTimer.current) window.clearTimeout(qTimer.current);
     qTimer.current = window.setTimeout(() => {
-      navigate({
-        search: (prev) => ({ ...prev, q: qInput, page: 1 }),
-        replace: true,
-      });
+      onPatch({ q: qInput }, true);
     }, 300);
     return () => {
       if (qTimer.current) window.clearTimeout(qTimer.current);
@@ -155,13 +158,8 @@ export function UrlDoctorSearchProvider({ params, from, children }: UrlProviderP
   }, [qInput]);
 
   const patch = useCallback(
-    (p: Partial<Record<string, unknown>>, resetPage = true) => {
-      navigate({
-        search: (prev) => ({ ...prev, ...p, ...(resetPage ? { page: 1 } : null) }),
-        replace: true,
-      });
-    },
-    [navigate],
+    (p: UrlPatch, resetPage = true) => onPatch(p, resetPage),
+    [onPatch],
   );
 
   const actions = useMemo<DoctorSearchActions>(
@@ -176,21 +174,9 @@ export function UrlDoctorSearchProvider({ params, from, children }: UrlProviderP
       toggleLanguage: (l) => patch({ language: listToCsv(toggle(derived.language, l)) }),
       setSort: (s) => patch({ sort: s }, false),
       setPage: (p) => patch({ page: Math.max(1, p) }, false),
-      clearAll: () =>
-        navigate({
-          search: () => ({
-            q: "",
-            specialty: "",
-            branch: "",
-            gender: "",
-            language: "",
-            sort: derived.sort,
-            page: 1,
-          }),
-          replace: true,
-        }),
+      clearAll: onReset,
     }),
-    [patch, navigate, derived.specialty, derived.branch, derived.language, derived.sort],
+    [patch, onReset, derived.specialty, derived.branch, derived.language],
   );
 
   const value: DoctorSearchContextValue = {
