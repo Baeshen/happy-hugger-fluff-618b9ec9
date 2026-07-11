@@ -712,6 +712,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   const ar = lang === "ar";
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
+  const [lightboxLoading, setLightboxLoading] = useState(false);
+  const [showSpinner, setShowSpinner] = useState(false);
+  // Delay the spinner ~180ms so cached images never flash it.
+  useEffect(() => {
+    if (!lightboxLoading) { setShowSpinner(false); return; }
+    const t = window.setTimeout(() => setShowSpinner(true), 180);
+    return () => window.clearTimeout(t);
+  }, [lightboxLoading, active]);
+
   const total = photos.length;
   const go = (dir: 1 | -1) => setActive((i) => (i + dir + total) % total);
   const titleId = useId();
