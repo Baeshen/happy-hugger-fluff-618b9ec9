@@ -4,25 +4,19 @@
  * All filter/search/sort/page state is synced with URL for shareable links,
  * RTL-aware controls, and browser back/forward navigation.
  * Powered by public RPC list_public_doctors() (multi-branch aware).
+ * Presentational pieces (DoctorCard, FilterGroup, CheckItem, Pagination) live
+ * in src/components/doctors/*.
  */
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
-  Star,
-  MapPin,
-  Languages,
-  Award,
-  Calendar,
-  Stethoscope,
   Filter,
   X,
   Users,
-  ChevronLeft,
-  ChevronRight,
   ArrowUpDown,
 } from "lucide-react";
 import { z } from "zod";
@@ -30,6 +24,11 @@ import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { LANG_LABELS, type DoctorRow } from "@/components/doctors/types";
+import { FilterGroup } from "@/components/doctors/FilterGroup";
+import { CheckItem } from "@/components/doctors/CheckItem";
+import { Pagination } from "@/components/doctors/Pagination";
+import { DoctorCard } from "@/components/doctors/DoctorCard";
 
 const PER_PAGE = 12;
 const SORT_KEYS = ["rating", "experience", "name"] as const;
@@ -57,29 +56,6 @@ const PAGE_TITLE = "أطباؤنا | مجمع باعشن الطبي";
 const PAGE_DESC =
   "استشاريون وأخصائيون في مختلف التخصصات الطبية بمجمع باعشن الطبي — احجز موعدًا مع طبيبك في صبيا، جازان.";
 
-type DoctorRow = {
-  id: string;
-  slug: string | null;
-  name_ar: string;
-  name_en: string;
-  title_ar: string | null;
-  title_en: string | null;
-  photo_url: string | null;
-  gender: string | null;
-  years_experience: number | null;
-  languages: string[] | null;
-  specialty_id: string | null;
-  specialty_name_ar: string | null;
-  specialty_name_en: string | null;
-  branch_ids: string[] | null;
-  branch_names_ar: string[] | null;
-  branch_slugs: string[] | null;
-  avg_rating: number;
-  ratings_count: number;
-  booking_enabled: boolean;
-  total_count: number;
-};
-
 async function fetchDoctors(): Promise<DoctorRow[]> {
   const { data, error } = await supabase.rpc("list_public_doctors", {
     _limit: 200,
@@ -88,6 +64,7 @@ async function fetchDoctors(): Promise<DoctorRow[]> {
   if (error) throw error;
   return (data ?? []) as unknown as DoctorRow[];
 }
+
 
 export const Route = createFileRoute("/doctors/")({
   validateSearch: zodValidator(searchSchema),
