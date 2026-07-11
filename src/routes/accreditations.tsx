@@ -1,9 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Award, ShieldCheck, Trophy } from "lucide-react";
+import { Award, ShieldCheck, Trophy, Search, X } from "lucide-react";
+import { useMemo } from "react";
+import { z } from "zod";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { useI18n } from "@/lib/i18n";
 import { PageHero } from "@/components/PageShell";
 import { accreditationsQuery, type Accreditation } from "@/lib/accreditations";
+
+const searchSchema = z.object({
+  q: fallback(z.string(), "").default(""),
+  cat: fallback(z.string(), "").default(""),
+});
 
 const SITE_URL = "https://bashenmedical.com";
 const PAGE_URL = `${SITE_URL}/accreditations`;
