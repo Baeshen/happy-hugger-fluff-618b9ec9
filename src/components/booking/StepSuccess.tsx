@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Calendar as CalIcon, CheckCircle2, ClipboardList, MessageCircle } from "lucide-react";
+import QRCode from "qrcode";
+import { Calendar as CalIcon, CheckCircle2, ClipboardList, Download, MessageCircle, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SITE } from "@/lib/site";
+import { downloadBookingConfirmationPdf } from "@/lib/booking-pdf";
 import { formatArDate, type State } from "./types";
 
 export function StepSuccess({
