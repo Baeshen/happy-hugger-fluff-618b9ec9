@@ -401,7 +401,16 @@ export const exportReminderDeliveriesCsv = createServerFn({ method: "POST" })
       );
     }
     // Prepend BOM so Excel opens Arabic content correctly
-    return { csv: "\uFEFF" + lines.join("\n") + "\n", count: rows?.length ?? 0, filename: buildFilename() };
+    const count = rows?.length ?? 0;
+    await logAppEvent(context.supabase, "notifications.export_csv", {
+      row_count: count,
+      branch_id: data.branchId ?? null,
+      from: data.dateFrom ?? null,
+      to: data.dateTo ?? null,
+      channel: data.channel ?? null,
+      status: data.status ?? null,
+    });
+    return { csv: "\uFEFF" + lines.join("\n") + "\n", count, filename: buildFilename() };
   });
 
 function buildFilename() {
