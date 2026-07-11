@@ -750,6 +750,33 @@ function LookupPage() {
                   <div className="text-sm font-semibold text-destructive">
                     {t("cancel_confirm")}
                   </div>
+                  <div className="mt-3">
+                    <div className="text-xs font-medium text-muted-foreground mb-2">
+                      اختر سببًا سريعًا أو اكتب بنفسك:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "ظرف طارئ",
+                        "تحسّنت حالتي",
+                        "تغيير الطبيب",
+                        "لا يناسبني الوقت",
+                        "سأعيد الحجز لاحقًا",
+                      ].map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setCancelReason(chip)}
+                          className={`rounded-full border px-3 py-1 text-xs transition ${
+                            cancelReason === chip
+                              ? "border-destructive bg-destructive text-destructive-foreground"
+                              : "border-border bg-background hover:border-destructive/50 hover:bg-destructive/5"
+                          }`}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <textarea
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
@@ -758,6 +785,9 @@ function LookupPage() {
                     maxLength={500}
                     className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   />
+                  <div className="mt-1 text-[11px] text-muted-foreground text-end">
+                    {cancelReason.length}/500
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-2 justify-end">
                     <button
                       onClick={() => {
