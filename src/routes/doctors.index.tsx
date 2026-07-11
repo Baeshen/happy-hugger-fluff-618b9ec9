@@ -1,14 +1,25 @@
 /**
  * صفحة الأطباء — Doctors listing (UDH-style)
- * Hero + sidebar filters (specialty/branch/gender/language) + big cards
- * Powered by public RPC list_public_doctors().
+ * Hero + sidebar filters (specialty/branch/gender/language) + big cards.
+ * Powered by public RPC list_public_doctors() (multi-branch aware).
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useMemo, useState } from "react";
-import { Search, Star, MapPin, Languages, Award, Calendar, Stethoscope, Filter } from "lucide-react";
+import {
+  Search,
+  Star,
+  MapPin,
+  Languages,
+  Award,
+  Calendar,
+  Stethoscope,
+  Filter,
+  X,
+  Users,
+} from "lucide-react";
 import { z } from "zod";
 import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -35,22 +46,20 @@ type DoctorRow = {
   name_en: string;
   title_ar: string | null;
   title_en: string | null;
-  bio_ar: string | null;
-  bio_en: string | null;
   photo_url: string | null;
   gender: string | null;
   years_experience: number | null;
   languages: string[] | null;
-  booking_enabled: boolean;
-  branch_id: string | null;
-  branch_name_ar: string | null;
-  branch_name_en: string | null;
   specialty_id: string | null;
-  specialty_slug: string | null;
   specialty_name_ar: string | null;
   specialty_name_en: string | null;
-  ratings_count: number;
+  branch_ids: string[] | null;
+  branch_names_ar: string[] | null;
+  branch_slugs: string[] | null;
   avg_rating: number;
+  ratings_count: number;
+  booking_enabled: boolean;
+  total_count: number;
 };
 
 async function fetchDoctors(): Promise<DoctorRow[]> {
@@ -96,10 +105,15 @@ export const Route = createFileRoute("/doctors/")({
       links: [{ rel: "canonical", href: PAGE_URL }],
       scripts: [
         { type: "application/ld+json", children: JSON.stringify(buildLocalBusinessSchema({ pageUrl: PAGE_URL })) },
-        { type: "application/ld+json", children: JSON.stringify(buildBreadcrumbs([
-          { name: "الرئيسية", path: "/" },
-          { name: "الأطباء", path: "/doctors" },
-        ])) },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify(
+            buildBreadcrumbs([
+              { name: "الرئيسية", path: "/" },
+              { name: "الأطباء", path: "/doctors" },
+            ]),
+          ),
+        },
         ...(itemList.itemListElement.length > 0
           ? [{ type: "application/ld+json", children: JSON.stringify(itemList) }]
           : []),
@@ -135,8 +149,13 @@ function DoctorsPage() {
   const { data: specialties = [] } = useQuery({
     queryKey: ["specialties-active"],
     queryFn: async () =>
-      (await supabase.from("specialties").select("id,slug,name_ar,name_en").eq("is_active", true).order("sort_order"))
-        .data ?? [],
+      (
+        await supabase
+          .from("specialties")
+          .select("id,slug,name_ar,name_en")
+          .eq("is_active", true)
+          .order("sort_order")
+      ).data ?? [],
     staleTime: 5 * 60_000,
   });
 
@@ -158,8 +177,11 @@ function DoctorsPage() {
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return doctors.filter((d) => {
-      if (selSpec.length && (!d.specialty_slug || !selSpec.includes(d.specialty_slug))) return false;
-      if (selBranch.length && (!d.branch_id || !selBranch.includes(d.branch_id))) return false;
+      if (selSpec.length && (!d.specialty_id || !selSpec.includes(d.specialty_id))) return false;
+      if (selBranch.length) {
+        const ids = d.branch_ids ?? [];
+        if (!ids.some((b) => selBranch.includes(b))) return false;
+      }
       if (selGender && d.gender !== selGender) return false;
       if (selLang && !(d.languages ?? []).includes(selLang)) return false;
       if (query) {
@@ -186,8 +208,9 @@ function DoctorsPage() {
       {activeCount > 0 && (
         <button
           onClick={clearAll}
-          className="text-xs text-primary hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
         >
+          <X className="h-3.5 w-3.5" />
           {lang === "ar" ? `مسح كل الفلاتر (${activeCount})` : `Clear filters (${activeCount})`}
         </button>
       )}
@@ -196,11 +219,9 @@ function DoctorsPage() {
         {specialties.map((s) => (
           <CheckItem
             key={s.id}
-            checked={selSpec.includes(s.slug ?? "")}
+            checked={selSpec.includes(s.id)}
             onChange={(v) =>
-              setSelSpec((prev) =>
-                v ? [...prev, s.slug ?? ""] : prev.filter((x) => x !== s.slug),
-              )
+              setSelSpec((prev) => (v ? [...prev, s.id] : prev.filter((x) => x !== s.id)))
             }
             label={lang === "ar" ? s.name_ar : s.name_en}
           />
@@ -226,11 +247,7 @@ function DoctorsPage() {
             key={g}
             checked={selGender === g}
             onChange={(v) => setSelGender(v ? g : null)}
-            label={
-              g === "male"
-                ? lang === "ar" ? "طبيب" : "Male"
-                : lang === "ar" ? "طبيبة" : "Female"
-            }
+            label={g === "male" ? (lang === "ar" ? "طبيب" : "Male") : lang === "ar" ? "طبيبة" : "Female"}
           />
         ))}
       </FilterGroup>
@@ -250,52 +267,114 @@ function DoctorsPage() {
     </div>
   );
 
+  const totalDoctors = doctors.length;
+  const totalSpecs = specialties.length;
+
   return (
     <div className="bg-muted/30 min-h-screen">
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-primary/10 via-background to-background border-b border-border">
-        <div className="container-app py-14 md:py-20">
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
-            {lang === "ar" ? "أطباؤنا" : "Our Doctors"}
-          </h1>
-          <p className="mt-3 text-muted-foreground max-w-2xl">
-            {lang === "ar"
-              ? "نخبة من الأطباء الاستشاريين والأخصائيين في مختلف التخصصات. ابحث عن طبيبك واحجز موعدك بسهولة."
-              : "A selection of consultants and specialists across specialties. Find your doctor and book easily."}
-          </p>
+      {/* Hero — larger, UDH-inspired */}
+      <section className="relative overflow-hidden border-b border-border bg-gradient-to-br from-primary/10 via-primary/5 to-background">
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
+            backgroundSize: "24px 24px",
+          }}
+          aria-hidden
+        />
+        <div className="container-app relative py-16 md:py-24">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold mb-4">
+              <Users className="h-3.5 w-3.5" />
+              {lang === "ar" ? "الفريق الطبي" : "Medical team"}
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.1]">
+              {lang === "ar" ? "أطباؤنا الاستشاريون" : "Our Consultant Doctors"}
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl">
+              {lang === "ar"
+                ? "نخبة من الأطباء الاستشاريين والأخصائيين في مختلف التخصصات. ابحث عن طبيبك، تعرف على خبرته، واحجز موعدك في دقائق."
+                : "A selection of consultants and specialists across many specialties. Find your doctor, review their expertise, and book in minutes."}
+            </p>
 
-          <div className="mt-8 max-w-xl relative">
-            <Search className="absolute top-1/2 -translate-y-1/2 start-4 h-5 w-5 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={lang === "ar" ? "ابحث بالاسم أو التخصص…" : "Search by name or specialty…"}
-              className="w-full h-14 rounded-full border border-border bg-card shadow-sm ps-12 pe-4 text-base focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div className="mt-8 relative">
+              <Search className="absolute top-1/2 -translate-y-1/2 start-5 h-5 w-5 text-muted-foreground pointer-events-none" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={
+                  lang === "ar" ? "ابحث بالاسم أو التخصص…" : "Search by name or specialty…"
+                }
+                className="w-full h-16 rounded-2xl border border-border bg-card shadow-md ps-14 pe-4 text-base focus:outline-none focus:ring-2 focus:ring-primary"
+                aria-label={lang === "ar" ? "بحث" : "Search"}
+              />
+              {q && (
+                <button
+                  onClick={() => setQ("")}
+                  className="absolute top-1/2 -translate-y-1/2 end-4 rounded-full p-1.5 text-muted-foreground hover:bg-muted"
+                  aria-label={lang === "ar" ? "مسح" : "Clear"}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Stats strip */}
+            <div className="mt-8 flex flex-wrap gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-primary">{totalDoctors}+</span>
+                <span className="text-muted-foreground">
+                  {lang === "ar" ? "طبيب واستشاري" : "Doctors & consultants"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-primary">{totalSpecs}+</span>
+                <span className="text-muted-foreground">
+                  {lang === "ar" ? "تخصص طبي" : "Specialties"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-primary">{branches.length}</span>
+                <span className="text-muted-foreground">
+                  {lang === "ar" ? "فروع" : "Branches"}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <div className="container-app py-8">
-        <div className="grid lg:grid-cols-[280px_1fr] gap-8">
-          {/* Sidebar (desktop) */}
+        <div className="grid lg:grid-cols-[300px_1fr] gap-8">
+          {/* Sidebar (desktop) — RTL-aware: sits on the right in Arabic, left in English */}
           <aside className="hidden lg:block">
-            <div className="sticky top-24 rounded-2xl border border-border bg-card p-6">
-              <h3 className="font-bold mb-4 flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                {lang === "ar" ? "تصفية" : "Filters"}
-              </h3>
+            <div className="sticky top-24 rounded-2xl border border-border bg-card p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-primary" />
+                  {lang === "ar" ? "تصفية النتائج" : "Filter results"}
+                </h3>
+              </div>
               {FiltersPanel}
             </div>
           </aside>
 
           {/* Results */}
           <main>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-5">
               <p className="text-sm text-muted-foreground">
-                {lang === "ar"
-                  ? `${filtered.length} طبيب${filtered.length === 1 ? "" : "/طبيبة"}`
-                  : `${filtered.length} doctor${filtered.length === 1 ? "" : "s"}`}
+                {lang === "ar" ? (
+                  <>
+                    عرض <span className="font-semibold text-foreground">{filtered.length}</span> من
+                    أصل {doctors.length}
+                  </>
+                ) : (
+                  <>
+                    Showing <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
+                    of {doctors.length}
+                  </>
+                )}
               </p>
 
               {/* Mobile filters trigger */}
@@ -305,15 +384,16 @@ function DoctorsPage() {
                     <Filter className="h-4 w-4" />
                     {lang === "ar" ? "تصفية" : "Filters"}
                     {activeCount > 0 && (
-                      <span className="rounded-full bg-primary text-primary-foreground text-xs px-2">
+                      <span className="rounded-full bg-primary text-primary-foreground text-xs px-2 py-0.5">
                         {activeCount}
                       </span>
                     )}
                   </Button>
                 </SheetTrigger>
                 <SheetContent side={lang === "ar" ? "right" : "left"} className="overflow-y-auto">
-                  <h3 className="font-bold mb-4 mt-4">
-                    {lang === "ar" ? "تصفية" : "Filters"}
+                  <h3 className="font-bold mb-4 mt-4 flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-primary" />
+                    {lang === "ar" ? "تصفية النتائج" : "Filter results"}
                   </h3>
                   {FiltersPanel}
                 </SheetContent>
@@ -321,18 +401,31 @@ function DoctorsPage() {
             </div>
 
             {isLoading && (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-5 sm:grid-cols-2">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-52 rounded-2xl bg-card border border-border animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-64 rounded-2xl bg-card border border-border animate-pulse"
+                    aria-hidden
+                  />
                 ))}
               </div>
             )}
 
             {!isLoading && filtered.length === 0 && (
               <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
+                <Search className="h-8 w-8 mx-auto mb-3 opacity-40" />
                 {lang === "ar"
                   ? "لا يوجد أطباء يطابقون معايير البحث."
                   : "No doctors match your filters."}
+                {activeCount > 0 && (
+                  <button
+                    onClick={clearAll}
+                    className="block mx-auto mt-3 text-sm text-primary hover:underline"
+                  >
+                    {lang === "ar" ? "مسح الفلاتر" : "Clear filters"}
+                  </button>
+                )}
               </div>
             )}
 
@@ -351,8 +444,8 @@ function DoctorsPage() {
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="font-semibold text-sm mb-2">{title}</div>
-      <div className="space-y-1.5 max-h-56 overflow-y-auto pe-1">{children}</div>
+      <div className="font-semibold text-sm mb-2.5 text-foreground/90">{title}</div>
+      <div className="space-y-2 max-h-56 overflow-y-auto pe-1">{children}</div>
     </div>
   );
 }
@@ -367,14 +460,14 @@ function CheckItem({
   label: string;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-primary">
+    <label className="flex items-center gap-2.5 text-sm cursor-pointer hover:text-primary transition-colors group">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="rounded border-border accent-primary"
+        className="rounded border-border accent-primary h-4 w-4"
       />
-      <span>{label}</span>
+      <span className={checked ? "font-medium text-primary" : ""}>{label}</span>
     </label>
   );
 }
@@ -383,39 +476,57 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
   const name = lang === "ar" ? d.name_ar : d.name_en;
   const title = lang === "ar" ? d.title_ar : d.title_en;
   const specName = lang === "ar" ? d.specialty_name_ar : d.specialty_name_en;
-  const branchName = lang === "ar" ? d.branch_name_ar : d.branch_name_en;
+  const branchNames = (d.branch_names_ar ?? []).filter(Boolean);
+  const branchLabel = branchNames.length
+    ? branchNames.length === 1
+      ? branchNames[0]
+      : lang === "ar"
+        ? `${branchNames[0]} +${branchNames.length - 1}`
+        : `${branchNames[0]} +${branchNames.length - 1}`
+    : null;
 
   return (
-    <article className="rounded-2xl border border-border bg-card overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+    <article className="group rounded-2xl border border-border bg-card overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all flex flex-col">
       <div className="p-5 flex gap-4">
-        <div className="h-24 w-24 shrink-0 rounded-2xl bg-primary/10 text-primary grid place-items-center text-2xl font-bold overflow-hidden">
+        <div className="h-24 w-24 shrink-0 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary grid place-items-center text-2xl font-bold overflow-hidden ring-1 ring-primary/10">
           {d.photo_url ? (
-            <img src={d.photo_url} alt={name} className="h-full w-full object-cover" loading="lazy" />
+            <img
+              src={d.photo_url}
+              alt={name}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
           ) : (
-            name.charAt(0)
+            <span aria-hidden>{name.charAt(0)}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold text-lg leading-tight truncate">
             {d.slug ? (
-              <Link to="/doctors/$slug" params={{ slug: d.slug }} className="hover:text-primary">
+              <Link
+                to="/doctors/$slug"
+                params={{ slug: d.slug }}
+                className="hover:text-primary transition-colors"
+              >
                 {name}
               </Link>
             ) : (
               name
             )}
           </h3>
-          {title && <div className="text-xs text-muted-foreground mt-0.5">{title}</div>}
+          {title && (
+            <div className="text-xs text-muted-foreground mt-0.5 truncate">{title}</div>
+          )}
           {specName && (
-            <div className="text-sm text-primary mt-1 flex items-center gap-1">
-              <Stethoscope className="h-3.5 w-3.5" />
-              {specName}
+            <div className="text-sm text-primary mt-1 flex items-center gap-1 truncate">
+              <Stethoscope className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{specName}</span>
             </div>
           )}
           {d.ratings_count > 0 && (
             <div className="flex items-center gap-1 mt-2 text-sm">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="font-semibold">{d.avg_rating.toFixed(1)}</span>
+              <span className="font-semibold">{Number(d.avg_rating).toFixed(1)}</span>
               <span className="text-muted-foreground text-xs">({d.ratings_count})</span>
             </div>
           )}
@@ -423,10 +534,12 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
       </div>
 
       <div className="px-5 pb-4 space-y-1.5 text-xs text-muted-foreground">
-        {branchName && (
+        {branchLabel && (
           <div className="flex items-center gap-2">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{branchName}</span>
+            <span className="truncate" title={branchNames.join(" • ")}>
+              {branchLabel}
+            </span>
           </div>
         )}
         {d.years_experience != null && (
@@ -452,7 +565,7 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
           <Link
             to="/doctors/$slug"
             params={{ slug: d.slug }}
-            className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-center hover:bg-muted"
+            className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-center hover:bg-muted transition-colors"
           >
             {lang === "ar" ? "الملف الشخصي" : "View profile"}
           </Link>
@@ -463,7 +576,7 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
           <Link
             to="/book"
             search={{ doctor: d.id }}
-            className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1"
+            className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1 transition-colors"
           >
             <Calendar className="h-3.5 w-3.5" />
             {lang === "ar" ? "احجز موعد" : "Book"}
