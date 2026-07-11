@@ -37,9 +37,11 @@ export function AwardsMarquee() {
       >
         <div className="flex gap-4 animate-[marquee_40s_linear_infinite] w-max">
           {doubled.map((a, i) => (
-            <div
+            <Link
               key={`${a.id}-${i}`}
-              className="w-64 shrink-0 rounded-2xl border border-border bg-card p-4 flex items-center gap-3"
+              to="/accreditations/$id"
+              params={{ id: a.id }}
+              className="w-64 shrink-0 rounded-2xl border border-border bg-card p-4 flex items-center gap-3 hover:border-primary/40 hover:shadow-md transition"
             >
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                 {a.image_url ? (
@@ -54,7 +56,7 @@ export function AwardsMarquee() {
                   {lang === "ar" ? a.title_ar : a.title_en}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
