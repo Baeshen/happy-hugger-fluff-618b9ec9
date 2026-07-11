@@ -215,10 +215,14 @@ async def main():
                 "button", name=re.compile("حجز جديد|New booking")
             ).click()
             await page.wait_for_selector("text=اختر نوع الخدمة", timeout=10_000)
+            await page.wait_for_function(
+                "window.location.search.includes('step=1')", timeout=10_000
+            )
             after_reset = page.url
             print("after reset:", after_reset)
             if "step=0" in after_reset:
                 raise AssertionError(f"reset leaked step=0: {after_reset}")
+
 
 
 
