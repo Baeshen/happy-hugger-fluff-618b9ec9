@@ -1,54 +1,46 @@
 /**
  * صفحة الأطباء — Doctors listing (UDH-style)
- * Hero + sidebar filters (specialty/branch/gender/language) + sort + pagination.
- * All filter/search/sort/page state is synced with URL for shareable links,
- * RTL-aware controls, and browser back/forward navigation.
- * Powered by public RPC list_public_doctors() (multi-branch aware).
- * Presentational pieces (DoctorCard, FilterGroup, CheckItem, Pagination) live
- * in src/components/doctors/*.
+ *
+ * Composes shared building blocks: <UrlDoctorSearchProvider> owns URL-synced
+ * state; <DoctorSearchBar>, <DoctorFilters>, and <DoctorResults> read/write
+ * through the same context (see src/components/doctors/DoctorSearchContext).
+ * The same trio can be embedded elsewhere with <LocalDoctorSearchProvider>.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Search,
-  Filter,
-  X,
-  Users,
-  ArrowUpDown,
-} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Filter, Users, ArrowUpDown } from "lucide-react";
 import { z } from "zod";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { LANG_LABELS, type DoctorRow } from "@/components/doctors/types";
-import { FilterGroup } from "@/components/doctors/FilterGroup";
-import { CheckItem } from "@/components/doctors/CheckItem";
-import { Pagination } from "@/components/doctors/Pagination";
-import { DoctorCard } from "@/components/doctors/DoctorCard";
-
-const PER_PAGE = 12;
-const SORT_KEYS = ["rating", "experience", "name"] as const;
-type SortKey = (typeof SORT_KEYS)[number];
+import { type DoctorRow } from "@/components/doctors/types";
+import {
+  UrlDoctorSearchProvider,
+  useDoctorSearch,
+  SORT_KEYS,
+  type SortKey,
+  type UrlPatch,
+} from "@/components/doctors/DoctorSearchContext";
+import { useFilteredDoctors } from "@/components/doctors/useFilteredDoctors";
+import { DoctorSearchBar } from "@/components/doctors/DoctorSearchBar";
+import { DoctorFilters } from "@/components/doctors/DoctorFilters";
+import { DoctorResults } from "@/components/doctors/DoctorResults";
 
 const searchSchema = z.object({
   q: fallback(z.string(), "").default(""),
-  specialty: fallback(z.string(), "").default(""), // CSV of ids
-  branch: fallback(z.string(), "").default(""),    // CSV of ids
-  gender: fallback(z.string(), "").default(""),    // "male" | "female" | ""
+  specialty: fallback(z.string(), "").default(""),
+  branch: fallback(z.string(), "").default(""),
+  gender: fallback(z.string(), "").default(""),
   language: fallback(z.string(), "").default(""),
   sort: fallback(z.string(), "rating").default("rating"),
   page: fallback(z.number().int(), 1).default(1),
 });
 
 type SearchParams = z.infer<typeof searchSchema>;
-
-const csvToList = (v: string): string[] =>
-  v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
-const listToCsv = (l: string[]): string => l.join(",");
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
 const PAGE_URL = `${SITE_URL}/doctors`;
@@ -64,7 +56,6 @@ async function fetchDoctors(): Promise<DoctorRow[]> {
   if (error) throw error;
   return (data ?? []) as unknown as DoctorRow[];
 }
-
 
 export const Route = createFileRoute("/doctors/")({
   validateSearch: zodValidator(searchSchema),
@@ -156,57 +147,52 @@ export const Route = createFileRoute("/doctors/")({
   component: DoctorsPage,
 });
 
-
 function DoctorsPage() {
   const params = Route.useSearch();
   const navigate = useNavigate({ from: "/doctors/" });
-  const { lang } = useI18n();
-  const ar = lang === "ar";
 
-  // Clamp `sort` after read (schema uses fallback so `sort` is always string).
-  const sort = (SORT_KEYS as readonly string[]).includes(params.sort)
-    ? (params.sort as SortKey)
-    : "rating";
-  const page = Math.max(1, params.page);
-
-  const selSpec = useMemo(() => csvToList(params.specialty), [params.specialty]);
-  const selBranch = useMemo(() => csvToList(params.branch), [params.branch]);
-  const selGender = params.gender === "male" || params.gender === "female" ? params.gender : "";
-  const selLangs = useMemo(() => csvToList(params.language), [params.language]);
-  const qUrl = params.q;
-
-  // Local search state so typing doesn't hit history on every keystroke.
-  // We debounce writes to the URL to preserve back/forward semantics.
-  const [qLocal, setQLocal] = useState(qUrl);
-  useEffect(() => {
-    // Sync from URL when it changes externally (browser back/forward).
-    setQLocal(qUrl);
-  }, [qUrl]);
-  const qTimerRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (qLocal === qUrl) return;
-    if (qTimerRef.current) window.clearTimeout(qTimerRef.current);
-    qTimerRef.current = window.setTimeout(() => {
+  // Route-owned typed patch/reset callbacks. The provider stays generic.
+  const onPatch = useCallback(
+    (patch: UrlPatch, resetPage: boolean) => {
       navigate({
-        search: (prev: SearchParams) => ({ ...prev, q: qLocal, page: 1 }),
+        search: (prev: SearchParams) => ({
+          ...prev,
+          ...patch,
+          ...(resetPage ? { page: 1 } : null),
+        }),
         replace: true,
       });
-    }, 300);
-    return () => {
-      if (qTimerRef.current) window.clearTimeout(qTimerRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qLocal]);
+    },
+    [navigate],
+  );
+  const onReset = useCallback(
+    () =>
+      navigate({
+        search: (prev: SearchParams) => ({
+          q: "",
+          specialty: "",
+          branch: "",
+          gender: "",
+          language: "",
+          sort: prev.sort,
+          page: 1,
+        }),
+        replace: true,
+      }),
+    [navigate],
+  );
 
-  const setSearch = (patch: Record<string, unknown>) => {
-    navigate({
-      search: (prev: SearchParams) => ({ ...prev, ...patch, page: 1 }),
-      replace: true,
-    });
-  };
+  return (
+    <UrlDoctorSearchProvider params={params} onPatch={onPatch} onReset={onReset}>
+      <DoctorsPageBody />
+    </UrlDoctorSearchProvider>
+  );
+}
 
-  const toggleInCsv = (current: string[], id: string): string =>
-    listToCsv(current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
+function DoctorsPageBody() {
+  const { lang } = useI18n();
+  const ar = lang === "ar";
+  const { sort, activeCount, setSort } = useDoctorSearch();
 
   const { data: doctors = [], isLoading } = useQuery({
     queryKey: ["public-doctors"],
@@ -242,69 +228,19 @@ function DoctorsPage() {
     return Array.from(s);
   }, [doctors]);
 
-  const filtered = useMemo(() => {
-    // Filter uses the URL-persisted `q` so bookmarks/shares work; the local
-    // input value stays in sync via the debounce effect above.
-    const query = qUrl.trim().toLowerCase();
-    const list = doctors.filter((d) => {
-      if (selSpec.length && (!d.specialty_id || !selSpec.includes(d.specialty_id))) return false;
-      if (selBranch.length) {
-        const ids = d.branch_ids ?? [];
-        if (!ids.some((b) => selBranch.includes(b))) return false;
-      }
-      if (selGender && d.gender !== selGender) return false;
-      if (selLangs.length) {
-        const langs = d.languages ?? [];
-        if (!selLangs.every((l) => langs.includes(l))) return false;
-      }
-      if (query) {
-        const name = `${d.name_ar} ${d.name_en}`.toLowerCase();
-        const spec = `${d.specialty_name_ar ?? ""} ${d.specialty_name_en ?? ""}`.toLowerCase();
-        if (!name.includes(query) && !spec.includes(query)) return false;
-      }
-      return true;
-    });
-
-    // Sort (RTL-safe locale-aware compare for names).
-    const collator = new Intl.Collator(ar ? "ar" : "en", { sensitivity: "base" });
-    list.sort((a, b) => {
-      if (sort === "rating") {
-        const diff = Number(b.avg_rating ?? 0) - Number(a.avg_rating ?? 0);
-        if (diff !== 0) return diff;
-        return (b.ratings_count ?? 0) - (a.ratings_count ?? 0);
-      }
-      if (sort === "experience") {
-        return (b.years_experience ?? 0) - (a.years_experience ?? 0);
-      }
-      // name
-      const an = ar ? a.name_ar : a.name_en || a.name_ar;
-      const bn = ar ? b.name_ar : b.name_en || b.name_ar;
-      return collator.compare(an, bn);
-    });
-    return list;
-  }, [doctors, qUrl, selSpec, selBranch, selGender, selLangs, sort, ar]);
-
-  // Pagination — clamp page to available range after filters change.
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const safePage = Math.min(page, totalPages);
-  useEffect(() => {
-    if (safePage !== page) {
-      navigate({ search: (prev: SearchParams) => ({ ...prev, page: safePage }), replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safePage, page]);
-  const start = (safePage - 1) * PER_PAGE;
-  const paged = filtered.slice(start, start + PER_PAGE);
+  // Derived counts shown in the hero.
+  const { filtered, start, perPage } = useFilteredDoctors(doctors, { ar });
 
   // Fetch next available slot for currently visible doctors only.
-  const pagedIds = useMemo(() => paged.map((d) => d.id).sort(), [paged]);
+  const [visibleIds, setVisibleIds] = useState<string[]>([]);
+  const visibleKey = useMemo(() => [...visibleIds].sort(), [visibleIds]);
   const { data: nextSlotMap = {} as Record<string, string> } = useQuery({
-    queryKey: ["doctors-next-slots", pagedIds],
-    enabled: pagedIds.length > 0,
+    queryKey: ["doctors-next-slots", visibleKey],
+    enabled: visibleKey.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("list_doctors_next_slot", {
-        _doctor_ids: pagedIds,
+        _doctor_ids: visibleKey,
       });
       if (error) return {};
       const out: Record<string, string> = {};
@@ -314,95 +250,6 @@ function DoctorsPage() {
       return out;
     },
   });
-
-  const goPage = (p: number) => {
-    const clamped = Math.max(1, Math.min(totalPages, p));
-    navigate({ search: (prev: SearchParams) => ({ ...prev, page: clamped }) });
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const clearAll = () =>
-    navigate({
-      search: () => ({ q: "", specialty: "", branch: "", gender: "", language: "", sort, page: 1 }),
-      replace: true,
-    });
-
-  const activeCount =
-    selSpec.length +
-    selBranch.length +
-    (selGender ? 1 : 0) +
-    selLangs.length +
-    (qUrl ? 1 : 0);
-
-  const FiltersPanel = (
-    <div className="space-y-6">
-      {activeCount > 0 && (
-        <button
-          onClick={clearAll}
-          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-        >
-          <X className="h-3.5 w-3.5" />
-          {ar ? `مسح كل الفلاتر (${activeCount})` : `Clear filters (${activeCount})`}
-        </button>
-      )}
-
-      <FilterGroup title={ar ? "التخصص" : "Specialty"}>
-        {specialties.map((s) => (
-          <CheckItem
-            key={s.id}
-            checked={selSpec.includes(s.id)}
-            onChange={() => setSearch({ specialty: toggleInCsv(selSpec, s.id) })}
-            label={ar ? s.name_ar : s.name_en}
-          />
-        ))}
-      </FilterGroup>
-
-      <FilterGroup title={ar ? "الفرع" : "Branch"}>
-        {branches.map((b) => (
-          <CheckItem
-            key={b.id}
-            checked={selBranch.includes(b.id)}
-            onChange={() => setSearch({ branch: toggleInCsv(selBranch, b.id) })}
-            label={ar ? b.name_ar : b.name_en}
-          />
-        ))}
-      </FilterGroup>
-
-      <FilterGroup title={ar ? "الجنس" : "Gender"}>
-        {(["male", "female"] as const).map((g) => (
-          <CheckItem
-            key={g}
-            checked={selGender === g}
-            onChange={(v) => setSearch({ gender: v ? g : "" })}
-            label={g === "male" ? (ar ? "طبيب" : "Male") : ar ? "طبيبة" : "Female"}
-          />
-        ))}
-      </FilterGroup>
-
-      {allLangs.length > 0 && (
-        <FilterGroup title={ar ? "اللغة" : "Language"}>
-          {allLangs.map((l) => (
-            <CheckItem
-              key={l}
-              checked={selLangs.includes(l)}
-              onChange={() => setSearch({ language: toggleInCsv(selLangs, l) })}
-              label={LANG_LABELS[l]?.[lang] ?? l}
-            />
-          ))}
-          {selLangs.length > 1 && (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {ar ? "يتم عرض الأطباء الذين يتحدثون كل اللغات المختارة." : "Showing doctors who speak all selected languages."}
-            </p>
-          )}
-        </FilterGroup>
-      )}
-    </div>
-  );
-
-  const totalDoctors = doctors.length;
-  const totalSpecs = specialties.length;
 
   const sortLabel = (s: SortKey): string =>
     ar
@@ -416,6 +263,10 @@ function DoctorsPage() {
         : s === "experience"
           ? "Most experienced"
           : "Name (A-Z)";
+
+  const filtersPanel = (
+    <DoctorFilters specialties={specialties} branches={branches} languages={allLangs} />
+  );
 
   return (
     <div className="bg-muted/30 min-h-screen">
@@ -445,35 +296,19 @@ function DoctorsPage() {
                 : "A selection of consultants and specialists across many specialties. Find your doctor, review their expertise, and book in minutes."}
             </p>
 
-            <div className="mt-8 relative">
-              <Search className="absolute top-1/2 -translate-y-1/2 start-5 h-5 w-5 text-muted-foreground pointer-events-none" />
-              <input
-                value={qLocal}
-                onChange={(e) => setQLocal(e.target.value)}
-                placeholder={ar ? "ابحث بالاسم أو التخصص…" : "Search by name or specialty…"}
-                className="w-full h-16 rounded-2xl border border-border bg-card shadow-md ps-14 pe-4 text-base focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label={ar ? "بحث" : "Search"}
-              />
-              {qLocal && (
-                <button
-                  onClick={() => setQLocal("")}
-                  className="absolute top-1/2 -translate-y-1/2 end-4 rounded-full p-1.5 text-muted-foreground hover:bg-muted"
-                  aria-label={ar ? "مسح" : "Clear"}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            <div className="mt-8">
+              <DoctorSearchBar />
             </div>
 
             <div className="mt-8 flex flex-wrap gap-6 text-sm">
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-primary">{totalDoctors}+</span>
+                <span className="text-2xl font-bold text-primary">{doctors.length}+</span>
                 <span className="text-muted-foreground">
                   {ar ? "طبيب واستشاري" : "Doctors & consultants"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-primary">{totalSpecs}+</span>
+                <span className="text-2xl font-bold text-primary">{specialties.length}+</span>
                 <span className="text-muted-foreground">{ar ? "تخصص طبي" : "Specialties"}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -495,7 +330,7 @@ function DoctorsPage() {
                   {ar ? "تصفية النتائج" : "Filter results"}
                 </h3>
               </div>
-              {FiltersPanel}
+              {filtersPanel}
             </div>
           </aside>
 
@@ -506,7 +341,7 @@ function DoctorsPage() {
                   <>
                     عرض{" "}
                     <span className="font-semibold text-foreground">
-                      {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + PER_PAGE, filtered.length)}
+                      {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + perPage, filtered.length)}
                     </span>{" "}
                     من أصل <span className="font-semibold text-foreground">{filtered.length}</span>
                   </>
@@ -514,7 +349,7 @@ function DoctorsPage() {
                   <>
                     Showing{" "}
                     <span className="font-semibold text-foreground">
-                      {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + PER_PAGE, filtered.length)}
+                      {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + perPage, filtered.length)}
                     </span>{" "}
                     of <span className="font-semibold text-foreground">{filtered.length}</span>
                   </>
@@ -522,13 +357,12 @@ function DoctorsPage() {
               </p>
 
               <div className="flex items-center gap-2">
-                {/* Sort */}
                 <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                   <ArrowUpDown className="h-4 w-4" />
                   <span className="hidden sm:inline">{ar ? "الترتيب" : "Sort"}</span>
                   <select
                     value={sort}
-                    onChange={(e) => setSearch({ sort: e.target.value })}
+                    onChange={(e) => setSort(e.target.value as SortKey)}
                     className="rounded-lg border border-border bg-card px-2 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary"
                     aria-label={ar ? "الترتيب" : "Sort"}
                   >
@@ -540,7 +374,6 @@ function DoctorsPage() {
                   </select>
                 </label>
 
-                {/* Mobile filters trigger */}
                 <Sheet>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="lg:hidden gap-2">
@@ -558,112 +391,26 @@ function DoctorsPage() {
                       <Filter className="h-4 w-4 text-primary" />
                       {ar ? "تصفية النتائج" : "Filter results"}
                     </h3>
-                    {FiltersPanel}
+                    {filtersPanel}
                   </SheetContent>
                 </Sheet>
               </div>
             </div>
 
-            {/* Loading: skeleton grid, announced politely. */}
-            {isLoading && (
-              <div
-                className="grid gap-5 sm:grid-cols-2"
-                role="status"
-                aria-live="polite"
-                aria-busy="true"
-                aria-label={ar ? "جارٍ تحميل قائمة الأطباء" : "Loading doctors"}
-              >
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl border border-border bg-card p-5 animate-pulse"
-                    aria-hidden
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-full bg-muted" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 w-2/3 rounded bg-muted" />
-                        <div className="h-3 w-1/2 rounded bg-muted" />
-                      </div>
-                    </div>
-                    <div className="mt-5 space-y-2">
-                      <div className="h-3 w-full rounded bg-muted" />
-                      <div className="h-3 w-5/6 rounded bg-muted" />
-                    </div>
-                    <div className="mt-6 h-10 w-full rounded-xl bg-muted" />
-                  </div>
-                ))}
-                <span className="sr-only">
-                  {ar ? "جارٍ تحميل قائمة الأطباء…" : "Loading doctors…"}
-                </span>
-              </div>
-            )}
-
-            {/* Empty: distinguish "no data yet" from "no filter matches". */}
-            {!isLoading && filtered.length === 0 && (
-              <div
-                role="status"
-                aria-live="polite"
-                className="rounded-2xl border border-dashed border-border bg-card p-12 text-center"
-              >
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                  <Search className="h-6 w-6 text-muted-foreground" aria-hidden />
-                </div>
-                {activeCount > 0 ? (
-                  <>
-                    <h3 className="text-base font-semibold text-foreground">
-                      {ar ? "لا يوجد أطباء يطابقون بحثك" : "No doctors match your search"}
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {ar
-                        ? "جرّب تعديل الفلاتر أو مسحها لعرض المزيد من النتائج."
-                        : "Try adjusting or clearing your filters to see more results."}
-                    </p>
-                    <button
-                      onClick={clearAll}
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-                    >
-                      <X className="h-4 w-4" />
-                      {ar ? `مسح الفلاتر (${activeCount})` : `Clear filters (${activeCount})`}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="text-base font-semibold text-foreground">
-                      {ar ? "لا يوجد أطباء لعرضهم حاليًا" : "No doctors available yet"}
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {ar
-                        ? "سيتم إضافة الأطباء قريبًا. يرجى المحاولة لاحقًا."
-                        : "Doctors will be listed here soon. Please check back later."}
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {!isLoading && filtered.length > 0 && (
-              <>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {paged.map((d) => (
-                    <DoctorCard key={d.id} d={d} lang={lang} nextSlotIso={nextSlotMap[d.id]} />
-                  ))}
-                </div>
-
-                {totalPages > 1 && (
-                  <Pagination
-                    page={safePage}
-                    totalPages={totalPages}
-                    onGo={goPage}
-                    ar={ar}
-                  />
-                )}
-              </>
-            )}
+            <DoctorResults
+              doctors={doctors}
+              isLoading={isLoading}
+              nextSlotMap={nextSlotMap}
+              onVisibleIdsChange={setVisibleIds}
+              onPageChange={() => {
+                if (typeof window !== "undefined") {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+            />
           </main>
         </div>
       </div>
     </div>
   );
 }
-
