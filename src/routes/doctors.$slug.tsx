@@ -310,6 +310,25 @@ function DoctorDetail() {
   const gallery = Array.from(
     new Set([d.photo_url, ...(d.photos ?? [])].filter((u): u is string => !!u)),
   );
+  const hasPhoto = gallery.length > 0;
+
+  // Descriptive alt text: doctor + title + specialty.
+  const photoAlt = [
+    lang === "ar" ? `صورة ${name}` : `Photo of ${name}`,
+    jobTitle,
+    specName,
+  ]
+    .filter(Boolean)
+    .join(" — ");
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0))
+    .join("");
+  const noPhotoLabel =
+    lang === "ar" ? "لا تتوفر صورة لهذا الطبيب" : "No photo available for this doctor";
+
 
   return (
     <div>
@@ -323,11 +342,19 @@ function DoctorDetail() {
             <span className="text-white">{name}</span>
           </nav>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            <div className="h-32 w-32 rounded-2xl bg-white/15 grid place-items-center overflow-hidden shrink-0 ring-4 ring-white/20">
-              {d.photo_url ? (
-                <img src={d.photo_url} alt={name} className="h-full w-full object-cover" />
+            <div
+              className="h-32 w-32 rounded-2xl bg-white/15 grid place-items-center overflow-hidden shrink-0 ring-4 ring-white/20"
+              role={hasPhoto ? undefined : "img"}
+              aria-label={hasPhoto ? undefined : noPhotoLabel}
+              title={hasPhoto ? undefined : noPhotoLabel}
+            >
+              {hasPhoto ? (
+                <img src={gallery[0]} alt={photoAlt} className="h-full w-full object-cover" />
               ) : (
-                <span className="text-5xl font-bold">{name.charAt(0)}</span>
+                <div className="flex flex-col items-center gap-1 text-white/90">
+                  <User className="h-10 w-10" aria-hidden />
+                  <span className="text-2xl font-bold leading-none">{initials || name.charAt(0)}</span>
+                </div>
               )}
             </div>
             <div className="flex-1">
@@ -386,7 +413,7 @@ function DoctorDetail() {
               </p>
             </div>
 
-            {gallery.length > 1 && <DoctorGallery photos={gallery} name={name} lang={lang} />}
+            {gallery.length > 1 && <DoctorGallery photos={gallery} name={name} alt={photoAlt} lang={lang} />}
 
 
 
@@ -671,7 +698,7 @@ function DoctorRatings({ doctorId, lang }: { doctorId: string; lang: string }) {
   );
 }
 
-function DoctorGallery({ photos, name, lang }: { photos: string[]; name: string; lang: string }) {
+function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: string; alt: string; lang: string }) {
   const ar = lang === "ar";
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
@@ -691,7 +718,7 @@ function DoctorGallery({ photos, name, lang }: { photos: string[]; name: string;
         <div className="aspect-[16/10] bg-muted">
           <img
             src={photos[active]}
-            alt={`${name} — ${active + 1}/${total}`}
+            alt={`${alt} (${active + 1}/${total})`}
             className="h-full w-full object-cover"
             loading="lazy"
           />
@@ -752,7 +779,7 @@ function DoctorGallery({ photos, name, lang }: { photos: string[]; name: string;
           )}
           <img
             src={photos[active]}
-            alt={`${name} — ${active + 1}/${total}`}
+            alt={`${alt} (${active + 1}/${total})`}
             className="max-h-[85vh] max-w-[92vw] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
