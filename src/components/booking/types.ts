@@ -69,6 +69,10 @@ export function loadDraft(initial: Partial<State>): State {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as State;
+      // Success survives reload: if the persisted draft is on step 9,
+      // keep it there and IGNORE the URL step (URL still shows the last
+      // pushed value, typically step=8 from the review step).
+      if (parsed.step === 9) return { ...INITIAL, ...parsed };
       return { ...INITIAL, ...parsed, ...initial };
     }
   } catch {/* ignore */}

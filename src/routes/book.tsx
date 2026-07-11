@@ -198,7 +198,25 @@ function BookPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [result, setResult] = useState<{ reference: string | null; phone: string } | null>(null);
+  // Success result survives reload — booking reference lives in
+  // sessionStorage so the success screen (step=9) still renders after F5.
+  // Without this, reload would drop `result` (React-only) and step=9 would
+  // render an empty card even though state.step=9 persisted.
+  const RESULT_KEY = "booking:result";
+  const [result, setResult] = useState<{ reference: string | null; phone: string } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem(RESULT_KEY);
+      return raw ? (JSON.parse(raw) as { reference: string | null; phone: string }) : null;
+    } catch { return null; }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (result) sessionStorage.setItem(RESULT_KEY, JSON.stringify(result));
+      else sessionStorage.removeItem(RESULT_KEY);
+    } catch {/* ignore */}
+  }, [result]);
 
   const { data: branches = [] }    = useQuery({ queryKey: ["branches"], queryFn: fetchBranches, staleTime: 5 * 60_000 });
   const { data: specialties = [] } = useQuery({ queryKey: ["specialties-active"], queryFn: fetchSpecialties, staleTime: 5 * 60_000 });
@@ -297,8 +315,12 @@ function BookPage() {
     setResult(null);
     setErrorMsg(null);
     dispatch({ t: "reset" });
-    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
-    navigate({ to: "/book", search: {} });
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(RESULT_KEY);
+    } catch {}
+    // Explicit step=1 — otherwise the zod validator defaults `step` to 0.
+    navigate({ to: "/book", search: { step: 1 } });
   }
 
   const STEPS = lang === "ar"
