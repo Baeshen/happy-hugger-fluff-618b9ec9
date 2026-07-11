@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Pill, Stethoscope, HeartHandshake } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { trackEvent } from "@/lib/analytics";
 
 type Slide = {
   eyebrow: { ar: string; en: string };
@@ -61,10 +62,24 @@ export function HeroSlider() {
     align: "start",
   });
   const [selected, setSelected] = useState(0);
+  const prevIndexRef = useRef(0);
 
   useEffect(() => {
     if (!emblaApi) return;
-    const onSelect = () => setSelected(emblaApi.selectedScrollSnap());
+    const onSelect = () => {
+      const idx = emblaApi.selectedScrollSnap();
+      const from = prevIndexRef.current;
+      setSelected(idx);
+      if (idx !== from) {
+        const s = SLIDES[idx];
+        trackEvent("hero_slide_change", {
+          from_index: from,
+          to_index: idx,
+          slide_title: s?.title.en ?? "",
+        });
+        prevIndexRef.current = idx;
+      }
+    };
     onSelect();
     emblaApi.on("select", onSelect);
     return () => void emblaApi.off("select", onSelect);
@@ -76,8 +91,14 @@ export function HeroSlider() {
     return () => window.clearInterval(id);
   }, [emblaApi]);
 
-  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const scrollPrev = useCallback(() => {
+    trackEvent("hero_nav_click", { direction: "prev", from_index: selected });
+    emblaApi?.scrollPrev();
+  }, [emblaApi, selected]);
+  const scrollNext = useCallback(() => {
+    trackEvent("hero_nav_click", { direction: "next", from_index: selected });
+    emblaApi?.scrollNext();
+  }, [emblaApi, selected]);
 
   return (
     <section className="relative overflow-hidden">
