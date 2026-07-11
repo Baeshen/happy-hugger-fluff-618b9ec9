@@ -779,7 +779,7 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
           )}
           <img
             src={photos[active]}
-            alt={`${name} — ${active + 1}/${total}`}
+            alt={`${alt} (${active + 1}/${total})`}
             className="max-h-[85vh] max-w-[92vw] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
