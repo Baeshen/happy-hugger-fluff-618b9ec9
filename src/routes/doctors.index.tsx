@@ -573,14 +573,26 @@ function DoctorCard({ d, lang }: { d: DoctorRow; lang: "ar" | "en" }) {
           <div />
         )}
         {d.booking_enabled ? (
-          <Link
-            to="/book"
-            search={{ doctor: d.id }}
-            className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1 transition-colors"
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            {lang === "ar" ? "احجز موعد" : "Book"}
-          </Link>
+          d.slug ? (
+            <Link
+              to="/doctors/$slug"
+              params={{ slug: d.slug }}
+              hash="book"
+              className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1 transition-colors"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {lang === "ar" ? "احجز موعد" : "Book"}
+            </Link>
+          ) : (
+            <Link
+              to="/book"
+              search={{ doctor: d.id }}
+              className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold text-center hover:bg-primary/90 flex items-center justify-center gap-1 transition-colors"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {lang === "ar" ? "احجز موعد" : "Book"}
+            </Link>
+          )
         ) : (
           <span className="rounded-lg bg-muted text-muted-foreground px-3 py-2 text-xs text-center">
             {lang === "ar" ? "الحجز غير متاح" : "Booking closed"}

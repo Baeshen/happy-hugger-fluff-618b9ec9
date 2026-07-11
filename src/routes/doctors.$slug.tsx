@@ -244,6 +244,25 @@ function InlineBookingWidget({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
 
+  // When arrived via `#book` (from doctor cards or hero CTA), scroll the
+  // widget into view and briefly highlight it so the user lands directly
+  // on the booking step without hunting for it.
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#book") return;
+    const el = widgetRef.current;
+    if (!el) return;
+    // Wait a tick so layout is settled before scrolling.
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setHighlight(true);
+      window.setTimeout(() => setHighlight(false), 1600);
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const { data: availData, isLoading: availLoading } = useQuery({
     ...availabilityQuery(doctorId, selectedDate),
     enabled: bookingEnabled && step >= 2,
@@ -252,7 +271,7 @@ function InlineBookingWidget({
 
   if (!bookingEnabled) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div id="book" ref={widgetRef} className={`rounded-2xl border border-border bg-card p-6 scroll-mt-24 transition-shadow ${highlight ? "ring-2 ring-primary ring-offset-2" : ""}`}>
         <h3 className="font-bold mb-2 flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" /> {ar ? "الحجز غير متاح" : "Booking unavailable"}
         </h3>
@@ -274,7 +293,7 @@ function InlineBookingWidget({
   // Success state.
   if (step === 5) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+      <div id="book" ref={widgetRef} className="rounded-2xl border border-border bg-card p-6 text-center scroll-mt-24">
         <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-emerald-600">
           <ClipboardCheck className="h-6 w-6" />
         </div>
@@ -362,7 +381,7 @@ function InlineBookingWidget({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div id="book" ref={widgetRef} className={`rounded-2xl border border-border bg-card p-5 scroll-mt-24 transition-shadow ${highlight ? "ring-2 ring-primary ring-offset-2" : ""}`}>
       <h3 className="font-bold mb-3 flex items-center gap-2">
         <Calendar className="h-5 w-5 text-primary" />
         {ar ? "احجز الآن" : "Book now"}
