@@ -413,7 +413,7 @@ function DoctorDetail() {
               </p>
             </div>
 
-            {gallery.length > 1 && <DoctorGallery photos={gallery} name={name} lang={lang} />}
+            {gallery.length > 1 && <DoctorGallery photos={gallery} name={name} alt={photoAlt} lang={lang} />}
 
 
 
