@@ -56,12 +56,14 @@ async def assert_deep_link(page, url, expected_params):
     # "اختر التاريخ" is the Date-step (5) heading — proves the deep link
     # skipped the earlier steps (service/branch/specialty/doctor).
     await page.wait_for_selector("text=اختر التاريخ", timeout=10_000)
-    await page.wait_for_timeout(200)  # let URL-sync effect flush
+    # Wait for URL-sync effect to push step=5 into the URL.
+    await page.wait_for_function("window.location.search.includes('step=5')", timeout=5_000)
     final = page.url
-    for k, v in expected_params.items():
+    for k, v in {**expected_params, "step": "5"}.items():
         if f"{k}={v}" not in final:
             raise AssertionError(f"missing {k}={v} in URL: {final}")
     print(f"[ok] {url}\n     landed on Date step (5), URL: {final}")
+
 
 
 async def main():
