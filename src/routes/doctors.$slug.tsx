@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
@@ -704,16 +704,48 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   const [open, setOpen] = useState(false);
   const total = photos.length;
   const go = (dir: 1 | -1) => setActive((i) => (i + dir + total) % total);
+  const titleId = useId();
+  const descId = useId();
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLButtonElement>(null);
+  const caption = `${alt} — ${ar ? "صورة" : "Photo"} ${active + 1} ${ar ? "من" : "of"} ${total}`;
+
+  // Keyboard: Esc closes, Arrow keys navigate (respect RTL), Home/End jump.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); setOpen(false); return; }
+      if (total <= 1) return;
+      const prevKey = ar ? "ArrowRight" : "ArrowLeft";
+      const nextKey = ar ? "ArrowLeft" : "ArrowRight";
+      if (e.key === prevKey) { e.preventDefault(); go(-1); }
+      else if (e.key === nextKey) { e.preventDefault(); go(1); }
+      else if (e.key === "Home") { e.preventDefault(); setActive(0); }
+      else if (e.key === "End") { e.preventDefault(); setActive(total - 1); }
+    };
+    window.addEventListener("keydown", onKey);
+    // Lock body scroll while lightbox is open.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Move focus into the dialog and return it on close.
+    closeBtnRef.current?.focus();
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      openerRef.current?.focus();
+    };
+  }, [open, total, ar]);
 
   return (
     <div>
       <h2 className="text-xl font-bold mb-3">{ar ? "معرض الصور" : "Gallery"}</h2>
 
       <button
+        ref={openerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="block w-full overflow-hidden rounded-2xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary"
-        aria-label={ar ? "عرض الصورة بالحجم الكامل" : "View full size"}
+        className="block w-full overflow-hidden rounded-2xl border border-border bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={ar ? `عرض الصورة بالحجم الكامل — ${alt}` : `View full size — ${alt}`}
       >
         <div className="aspect-[16/10] bg-muted">
           <img
@@ -725,19 +757,25 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
         </div>
       </button>
 
-      <div className="mt-3 grid grid-cols-5 gap-2">
+      <div
+        className="mt-3 grid grid-cols-5 gap-2"
+        role="listbox"
+        aria-label={ar ? "الصور المصغّرة" : "Photo thumbnails"}
+      >
         {photos.map((src, i) => (
           <button
             key={src + i}
             type="button"
+            role="option"
             onClick={() => setActive(i)}
-            className={`aspect-square overflow-hidden rounded-lg border-2 transition ${
+            className={`aspect-square overflow-hidden rounded-lg border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               i === active ? "border-primary" : "border-transparent hover:border-primary/40"
             }`}
-            aria-label={`${ar ? "صورة" : "Photo"} ${i + 1}`}
-            aria-current={i === active}
+            aria-label={`${ar ? "عرض الصورة" : "View photo"} ${i + 1} ${ar ? "من" : "of"} ${total} — ${name}`}
+            aria-selected={i === active}
+            aria-current={i === active ? "true" : undefined}
           >
-            <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+            <img src={src} alt="" aria-hidden className="h-full w-full object-cover" loading="lazy" />
           </button>
         ))}
       </div>
@@ -747,45 +785,68 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
           className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={descId}
           onClick={() => setOpen(false)}
         >
+          <h3 id={titleId} className="sr-only">
+            {ar ? `معرض صور ${name}` : `${name} photo gallery`}
+          </h3>
+
           <button
+            ref={closeBtnRef}
             type="button"
             onClick={(e) => { e.stopPropagation(); setOpen(false); }}
-            className="absolute top-4 right-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-2"
-            aria-label={ar ? "إغلاق" : "Close"}
+            className="absolute top-4 right-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            aria-label={ar ? "إغلاق العارض (Esc)" : "Close viewer (Esc)"}
           >
-            <XCircle className="h-6 w-6" />
+            <XCircle className="h-6 w-6" aria-hidden />
           </button>
+
           {total > 1 && (
             <>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); go(-1); }}
-                className="absolute start-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-3"
-                aria-label={ar ? "السابق" : "Previous"}
+                className="absolute start-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                aria-label={ar ? "الصورة السابقة" : "Previous photo"}
+                aria-controls={descId}
               >
-                <ArrowLeft className="h-6 w-6 rtl:rotate-180" />
+                <ArrowLeft className="h-6 w-6 rtl:rotate-180" aria-hidden />
               </button>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); go(1); }}
-                className="absolute end-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-3"
-                aria-label={ar ? "التالي" : "Next"}
+                className="absolute end-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                aria-label={ar ? "الصورة التالية" : "Next photo"}
+                aria-controls={descId}
               >
-                <ArrowLeft className="h-6 w-6 rotate-180 rtl:rotate-0" />
+                <ArrowLeft className="h-6 w-6 rotate-180 rtl:rotate-0" aria-hidden />
               </button>
             </>
           )}
-          <img
-            src={photos[active]}
-            alt={`${alt} (${active + 1}/${total})`}
-            className="max-h-[85vh] max-w-[92vw] object-contain rounded-lg"
+
+          <figure
+            id={descId}
+            className="flex flex-col items-center gap-3"
             onClick={(e) => e.stopPropagation()}
-          />
-          <div className="absolute bottom-4 inset-x-0 text-center text-white/80 text-sm">
-            {active + 1} / {total}
-          </div>
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <img
+              src={photos[active]}
+              alt={caption}
+              className="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
+            />
+            <figcaption className="text-white/90 text-sm text-center max-w-[92vw]">
+              <span className="block">{alt}</span>
+              <span className="block text-white/70 text-xs mt-1">
+                {ar
+                  ? `صورة ${active + 1} من ${total} — استخدم الأسهم للتنقل و Esc للإغلاق`
+                  : `Photo ${active + 1} of ${total} — use arrow keys to navigate, Esc to close`}
+              </span>
+            </figcaption>
+          </figure>
         </div>
       )}
     </div>
