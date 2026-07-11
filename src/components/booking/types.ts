@@ -78,6 +78,24 @@ export function loadDraft(initial: Partial<State>): State {
 /* ---------------- Availability response ---------------- */
 export type AvailResp = { ok: boolean; times: string[]; booked: string[] };
 
+/* ---------------- Step reachability ----------------
+ * Highest step whose prerequisites are satisfied by the current state.
+ * Used to clamp a URL-supplied `?step=` that outruns the real data
+ * (e.g. a shared link with ?step=8 but no doctor). Step 9 (success) is
+ * intentionally excluded — it's only reachable through a successful submit.
+ */
+export function maxReachableStep(s: State, patientOk: boolean): number {
+  let r = 1;
+  if (s.serviceType || s.branchId || s.specialtyId || s.doctorId) r = 2;
+  if (s.branchId    || s.specialtyId || s.doctorId)               r = 3;
+  if (s.specialtyId || s.doctorId)                                r = 4;
+  if (s.doctorId)                                                 r = 5;
+  if (s.doctorId && s.date)                                       r = 6;
+  if (s.doctorId && s.date && s.time)                             r = 7;
+  if (s.doctorId && s.date && s.time && patientOk)                r = 8;
+  return r;
+}
+
 /* ---------------- Formatting helpers ---------------- */
 export function formatArDate(iso: string | null, lang: "ar" | "en"): string {
   if (!iso) return "—";
