@@ -841,10 +841,14 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             aria-live="polite"
             aria-atomic="true"
           >
-            <img
+            <ProgressiveImage
               src={photos[active]}
               alt={caption}
-              className="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
+              className="max-h-[80vh] max-w-[92vw]"
+              imgClassName="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
+              loading="eager"
+              fetchPriority="high"
+              spinnerLight
             />
             <figcaption className="text-white/90 text-sm text-center max-w-[92vw]">
               <span className="block">{alt}</span>
