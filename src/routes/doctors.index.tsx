@@ -202,7 +202,7 @@ function DoctorsPage() {
   const selSpec = useMemo(() => csvToList(params.specialty), [params.specialty]);
   const selBranch = useMemo(() => csvToList(params.branch), [params.branch]);
   const selGender = params.gender === "male" || params.gender === "female" ? params.gender : "";
-  const selLang = params.language;
+  const selLangs = useMemo(() => csvToList(params.language), [params.language]);
   const qUrl = params.q;
 
   // Local search state so typing doesn't hit history on every keystroke.
@@ -283,7 +283,10 @@ function DoctorsPage() {
         if (!ids.some((b) => selBranch.includes(b))) return false;
       }
       if (selGender && d.gender !== selGender) return false;
-      if (selLang && !(d.languages ?? []).includes(selLang)) return false;
+      if (selLangs.length) {
+        const langs = d.languages ?? [];
+        if (!selLangs.every((l) => langs.includes(l))) return false;
+      }
       if (query) {
         const name = `${d.name_ar} ${d.name_en}`.toLowerCase();
         const spec = `${d.specialty_name_ar ?? ""} ${d.specialty_name_en ?? ""}`.toLowerCase();
@@ -309,7 +312,7 @@ function DoctorsPage() {
       return collator.compare(an, bn);
     });
     return list;
-  }, [doctors, qUrl, selSpec, selBranch, selGender, selLang, sort, ar]);
+  }, [doctors, qUrl, selSpec, selBranch, selGender, selLangs, sort, ar]);
 
   // Pagination — clamp page to available range after filters change.
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
@@ -360,7 +363,7 @@ function DoctorsPage() {
     selSpec.length +
     selBranch.length +
     (selGender ? 1 : 0) +
-    (selLang ? 1 : 0) +
+    selLangs.length +
     (qUrl ? 1 : 0);
 
   const FiltersPanel = (
@@ -413,11 +416,16 @@ function DoctorsPage() {
           {allLangs.map((l) => (
             <CheckItem
               key={l}
-              checked={selLang === l}
-              onChange={(v) => setSearch({ language: v ? l : "" })}
+              checked={selLangs.includes(l)}
+              onChange={() => setSearch({ language: toggleInCsv(selLangs, l) })}
               label={LANG_LABELS[l]?.[lang] ?? l}
             />
           ))}
+          {selLangs.length > 1 && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {ar ? "يتم عرض الأطباء الذين يتحدثون كل اللغات المختارة." : "Showing doctors who speak all selected languages."}
+            </p>
+          )}
         </FilterGroup>
       )}
     </div>
