@@ -79,8 +79,10 @@ async def main():
         await page.evaluate("() => sessionStorage.removeItem('booking:draft')")
 
         errors = []
+        logs = []
         page.on("pageerror", lambda e: errors.append(str(e)))
-        page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+        page.on("console", lambda m: (logs.append(m.text) if "[book]" in m.text else (errors.append(m.text) if m.type == "error" else None)))
+
 
         # 1) Deep-link → step=5.
         await page.goto(deep_link, wait_until="domcontentloaded")
