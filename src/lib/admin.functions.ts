@@ -157,7 +157,7 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
 
     // 1) Authenticated user (middleware) + role gate
     const roles = (await getRoles(sb, actorId)) as StaffRole[];
-    if (!roles.some((r) => (["admin", "reception"] as StaffRole[]).includes(r))) {
+    if (!roles.some((r) => (["admin", "reception", "super_admin"] as StaffRole[]).includes(r))) {
       await logDenied("role_denied", null, { roles });
       throw new Error("ليست لديك الصلاحية لتنفيذ هذا الإجراء.");
     }
