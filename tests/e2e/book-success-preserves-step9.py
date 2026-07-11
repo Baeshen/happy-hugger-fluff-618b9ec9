@@ -185,6 +185,11 @@ async def main():
             # The success screen (step=9) must survive a page reload —
             # even though the URL still shows step=8 (design: step=9 isn't
             # pushed). Reference persists via sessionStorage.
+            storage_dump = await page.evaluate(
+                "() => ({ draft: sessionStorage.getItem('booking:draft'),"
+                "         result: sessionStorage.getItem('booking:result') })"
+            )
+            print("sessionStorage before reload:", storage_dump)
             await page.reload(wait_until="domcontentloaded")
             try:
                 await page.get_by_role(
