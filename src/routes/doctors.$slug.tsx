@@ -745,6 +745,8 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
   const titleId = useId();
   const descId = useId();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
   const openerRef = useRef<HTMLButtonElement>(null);
   const caption = `${alt} — ${ar ? "صورة" : "Photo"} ${active + 1} ${ar ? "من" : "of"} ${total}`;
 
