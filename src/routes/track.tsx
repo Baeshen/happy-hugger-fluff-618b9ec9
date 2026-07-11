@@ -172,7 +172,7 @@ function TrackPage() {
   const [autoSearching, setAutoSearching] = useState(false);
   const [autoFailed, setAutoFailed] = useState(false);
 
-  async function runLookup(payload: { reference: string; phone_last4: string }) {
+  async function runLookup(payload: { reference: string; phone_last4: string }): Promise<boolean> {
     setLoading(true);
     setError(null);
     setAppointment(null);
