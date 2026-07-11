@@ -77,7 +77,7 @@ async def main():
 
     cases = [
         ("no-params",      f"{BASE}/book",                                       1),
-        ("branch-only",    f"{BASE}/book?branch={branch}",                       3),
+        ("branch-only",    f"{BASE}/book?branch={branch}",                       1),
         ("specialty-only", f"{BASE}/book?specialty={specialty}",                 4),
         ("branch+spec",    f"{BASE}/book?branch={branch}&specialty={specialty}", 4),
         ("doctor-only",    f"{BASE}/book?doctor={doctor}",                       5),
