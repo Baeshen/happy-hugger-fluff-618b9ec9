@@ -696,6 +696,11 @@ function BookPage() {
                               : "border-border hover:border-primary/50 hover:bg-muted/40"
                           }`}
                         >
+                          {idx === 0 && date !== d.date && (
+                            <span className="absolute -top-1.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow-sm">
+                              الأقرب
+                            </span>
+                          )}
                           <div
                             className={`text-[10px] ${date === d.date ? "text-primary-foreground/80" : "text-muted-foreground"}`}
                           >
