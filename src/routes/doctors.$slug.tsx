@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { buildLocalBusinessSchema, buildBreadcrumbs, CLINIC_ID, SITE_URL } from "@/lib/localBusinessSchema";
 import { clinicSettingsQuery, type ClinicSettings } from "@/lib/clinicSettings";
-import { ArrowLeft, Phone, MapPin, Languages, GraduationCap, Briefcase, Award, Calendar, Clock, User } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, Languages, GraduationCap, Briefcase, Award, Calendar, Clock, User, ClipboardCheck, XCircle, Info } from "lucide-react";
 
 type Doctor = {
   id: string;
@@ -401,7 +401,10 @@ function DoctorDetail() {
                 </p>
               </div>
             )}
+
+            <BookingPolicy lang={lang} />
           </div>
+
 
           <aside className="space-y-6">
             <AvailabilityWidget doctorId={d.id} bookingEnabled={bookingEnabled} />
@@ -440,6 +443,79 @@ function DoctorDetail() {
           </aside>
         </div>
       </section>
+    </div>
+  );
+}
+
+function BookingPolicy({ lang }: { lang: string }) {
+  const ar = lang === "ar";
+  const prep = ar
+    ? [
+        "احضر قبل الموعد بـ 15 دقيقة لإكمال الاستقبال.",
+        "أحضر الهوية الوطنية أو الإقامة وبطاقة التأمين إن وُجدت.",
+        "أحضر التقارير والأشعة والتحاليل السابقة ذات العلاقة.",
+        "دوّن قائمة بالأدوية الحالية والحساسية إن وُجدت.",
+        "لبعض الفحوصات (كالتحاليل والأشعة) قد يُطلب الصيام — سيتم إبلاغك مسبقًا.",
+      ]
+    : [
+        "Arrive 15 minutes early to complete reception.",
+        "Bring your National ID / Iqama and insurance card if any.",
+        "Bring previous reports, scans, and lab results if related.",
+        "Prepare a list of current medications and allergies.",
+        "Some tests (labs/imaging) may require fasting — you will be informed in advance.",
+      ];
+  const policy = ar
+    ? [
+        "يمكن تعديل الموعد أو إلغاؤه مجانًا قبل الموعد بـ 3 ساعات على الأقل.",
+        "التأخر أكثر من 15 دقيقة قد يُلغي الحجز تلقائيًا ويتطلب إعادة جدولته.",
+        "عدم الحضور دون إشعار مسبق قد يؤثر على أولوية الحجوزات المستقبلية.",
+        "لتعديل الموعد اتصل بنا أو استخدم رابط التأكيد المرسل عبر الرسائل النصية.",
+      ]
+    : [
+        "You can reschedule or cancel free of charge up to 3 hours before the appointment.",
+        "Arriving more than 15 minutes late may cancel the booking automatically.",
+        "No-shows without prior notice may affect priority on future bookings.",
+        "To modify your appointment, call us or use the confirmation link sent by SMS.",
+      ];
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Info className="h-5 w-5 text-primary" />
+        <h3 className="font-bold">
+          {ar ? "قبل تأكيد الحجز" : "Before you confirm"}
+        </h3>
+      </div>
+
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-2 text-sm font-semibold">
+          <ClipboardCheck className="h-4 w-4 text-primary" />
+          {ar ? "تعليمات التحضير للموعد" : "Appointment preparation"}
+        </div>
+        <ul className="space-y-1.5 text-sm text-muted-foreground leading-6 list-disc ps-5">
+          {prep.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-2 text-sm font-semibold">
+          <XCircle className="h-4 w-4 text-primary" />
+          {ar ? "سياسة الإلغاء والتعديل" : "Cancellation & modification policy"}
+        </div>
+        <ul className="space-y-1.5 text-sm text-muted-foreground leading-6 list-disc ps-5">
+          {policy.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        {ar
+          ? "بالمتابعة إلى الحجز فإنك توافق على التعليمات والسياسة أعلاه."
+          : "By continuing to book, you agree to the instructions and policy above."}
+      </p>
     </div>
   );
 }
