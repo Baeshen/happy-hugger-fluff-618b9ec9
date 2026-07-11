@@ -69,9 +69,11 @@ function AccreditationsPage() {
             {list.map((a) => {
               const Icon = iconFor(a.category);
               return (
-                <article
+                <Link
                   key={a.id}
-                  className="rounded-2xl border border-border bg-card p-6 hover:border-primary/40 hover:shadow-md transition"
+                  to="/accreditations/$id"
+                  params={{ id: a.id }}
+                  className="block rounded-2xl border border-border bg-card p-6 hover:border-primary/40 hover:shadow-md transition"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -98,11 +100,12 @@ function AccreditationsPage() {
                     <div className="mt-1 text-xs font-medium text-primary">{a.category}</div>
                   )}
                   {(lang === "ar" ? a.description_ar : a.description_en) && (
-                    <p className="mt-2 text-sm text-muted-foreground leading-6">
+                    <p className="mt-2 text-sm text-muted-foreground leading-6 line-clamp-3">
                       {lang === "ar" ? a.description_ar : a.description_en}
                     </p>
                   )}
-                </article>
+                  <div className="mt-4 text-xs font-semibold text-primary">عرض التفاصيل ←</div>
+                </Link>
               );
             })}
           </div>

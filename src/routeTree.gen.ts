@@ -49,6 +49,7 @@ import { Route as HealthSlugRouteImport } from './routes/health.$slug'
 import { Route as ExcellenceSlugRouteImport } from './routes/excellence.$slug'
 import { Route as DoctorsSlugRouteImport } from './routes/doctors.$slug'
 import { Route as BranchesSlugRouteImport } from './routes/branches.$slug'
+import { Route as AccreditationsIdRouteImport } from './routes/accreditations.$id'
 import { Route as AuthenticatedTransitionsStatsRouteImport } from './routes/_authenticated/transitions-stats'
 import { Route as AuthenticatedTransitionAlertsRouteImport } from './routes/_authenticated/transition-alerts'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -280,6 +281,11 @@ const BranchesSlugRoute = BranchesSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => BranchesRoute,
 } as any)
+const AccreditationsIdRoute = AccreditationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AccreditationsRoute,
+} as any)
 const AuthenticatedTransitionsStatsRoute =
   AuthenticatedTransitionsStatsRouteImport.update({
     id: '/transitions-stats',
@@ -456,7 +462,7 @@ const ApiPublicBookAvailabilityRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/accreditations': typeof AccreditationsRoute
+  '/accreditations': typeof AccreditationsRouteWithChildren
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
@@ -506,6 +512,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
+  '/accreditations/$id': typeof AccreditationsIdRoute
   '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/excellence/$slug': typeof ExcellenceSlugRoute
@@ -528,7 +535,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/accreditations': typeof AccreditationsRoute
+  '/accreditations': typeof AccreditationsRouteWithChildren
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
@@ -578,6 +585,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
+  '/accreditations/$id': typeof AccreditationsIdRoute
   '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/excellence/$slug': typeof ExcellenceSlugRoute
@@ -602,7 +610,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/about': typeof AboutRoute
-  '/accreditations': typeof AccreditationsRoute
+  '/accreditations': typeof AccreditationsRouteWithChildren
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
@@ -652,6 +660,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/transition-alerts': typeof AuthenticatedTransitionAlertsRoute
   '/_authenticated/transitions-stats': typeof AuthenticatedTransitionsStatsRoute
+  '/accreditations/$id': typeof AccreditationsIdRoute
   '/branches/$slug': typeof BranchesSlugRoute
   '/doctors/$slug': typeof DoctorsSlugRoute
   '/excellence/$slug': typeof ExcellenceSlugRoute
@@ -726,6 +735,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transition-alerts'
     | '/transitions-stats'
+    | '/accreditations/$id'
     | '/branches/$slug'
     | '/doctors/$slug'
     | '/excellence/$slug'
@@ -798,6 +808,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transition-alerts'
     | '/transitions-stats'
+    | '/accreditations/$id'
     | '/branches/$slug'
     | '/doctors/$slug'
     | '/excellence/$slug'
@@ -871,6 +882,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/transition-alerts'
     | '/_authenticated/transitions-stats'
+    | '/accreditations/$id'
     | '/branches/$slug'
     | '/doctors/$slug'
     | '/excellence/$slug'
@@ -895,7 +907,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
-  AccreditationsRoute: typeof AccreditationsRoute
+  AccreditationsRoute: typeof AccreditationsRouteWithChildren
   AppRoute: typeof AppRoute
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
@@ -1218,6 +1230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BranchesSlugRouteImport
       parentRoute: typeof BranchesRoute
     }
+    '/accreditations/$id': {
+      id: '/accreditations/$id'
+      path: '/$id'
+      fullPath: '/accreditations/$id'
+      preLoaderRoute: typeof AccreditationsIdRouteImport
+      parentRoute: typeof AccreditationsRoute
+    }
     '/_authenticated/transitions-stats': {
       id: '/_authenticated/transitions-stats'
       path: '/transitions-stats'
@@ -1499,6 +1518,18 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AccreditationsRouteChildren {
+  AccreditationsIdRoute: typeof AccreditationsIdRoute
+}
+
+const AccreditationsRouteChildren: AccreditationsRouteChildren = {
+  AccreditationsIdRoute: AccreditationsIdRoute,
+}
+
+const AccreditationsRouteWithChildren = AccreditationsRoute._addFileChildren(
+  AccreditationsRouteChildren,
+)
+
 interface BranchesRouteChildren {
   BranchesSlugRoute: typeof BranchesSlugRoute
 }
@@ -1539,7 +1570,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AboutRoute: AboutRoute,
-  AccreditationsRoute: AccreditationsRoute,
+  AccreditationsRoute: AccreditationsRouteWithChildren,
   AppRoute: AppRoute,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
