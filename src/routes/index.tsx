@@ -12,36 +12,83 @@ import { AwardsMarquee } from "@/components/home/AwardsMarquee";
 import { HeroSlider } from "@/components/home/HeroSlider";
 import { WhyChooseUs } from "@/components/home/WhyChooseUs";
 
+const HOME_URL = "https://bashenmedical.com/";
+const HOME_TITLE =
+  "مجمع باعشن الطبي بصبيا جازان — حجز أطباء استشاريين وصيدلية | Baeshen Medical";
+const HOME_DESC =
+  "مجمع باعشن الطبي في صبيا، جازان — معتمد من CBAHI. احجز موعدك مع استشاريين في الباطنة والأطفال والنساء والولادة والأسنان والعيون، واطلب دواءك من صيدلياتنا مع خدمة رعاية منزلية.";
+const HOME_OG_IMAGE =
+  "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/da5ecdb6-8fc6-4806-a4f3-419040820761/id-preview-7a856abf--550c7bc5-80b4-4118-853f-28cc7bd42f26.lovable.app-1783385951418.png";
+
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(clinicSettingsQuery()),
   head: ({ loaderData }) => ({
     meta: [
-      { title: "مجمع باعشن الطبي — رعايتك تبدأ هنا | Baeshen Medical" },
+      { title: HOME_TITLE },
+      { name: "description", content: HOME_DESC },
       {
-        name: "description",
+        name: "keywords",
         content:
-          "احجز موعدك مع أطباء استشاريين في صبيا، جازان أو اطلب دواءك من صيدليات باعشن. مجمع طبي معتمد من CBAHI.",
+          "مجمع باعشن الطبي, باعشن, مستشفى صبيا, أطباء جازان, حجز طبيب صبيا, صيدلية صبيا, رعاية منزلية جازان, CBAHI, Baeshen Medical, Sabya, Jazan",
       },
-      { property: "og:title", content: "مجمع باعشن الطبي — رعايتك تبدأ هنا" },
-      { property: "og:description", content: "خدمات طبية تخصصية وصيدلية داخلية في صبيا، جازان." },
+      { name: "author", content: "Baeshen Medical Complex" },
+      { name: "robots", content: "index, follow, max-image-preview:large" },
+      { name: "theme-color", content: "#0f766e" },
+      // Open Graph
+      { property: "og:site_name", content: "Baeshen Medical" },
+      { property: "og:title", content: HOME_TITLE },
+      { property: "og:description", content: HOME_DESC },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: SITE_URL },
+      { property: "og:url", content: HOME_URL },
+      { property: "og:locale", content: "ar_SA" },
+      { property: "og:locale:alternate", content: "en_US" },
+      { property: "og:image", content: HOME_OG_IMAGE },
+      { property: "og:image:alt", content: "مجمع باعشن الطبي بصبيا، جازان" },
+      // Twitter
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: HOME_TITLE },
+      { name: "twitter:description", content: HOME_DESC },
+      { name: "twitter:image", content: HOME_OG_IMAGE },
+      { name: "twitter:image:alt", content: "مجمع باعشن الطبي بصبيا، جازان" },
     ],
-    links: [{ rel: "canonical", href: SITE_URL }],
+    links: [
+      { rel: "canonical", href: HOME_URL },
+      { rel: "alternate", hrefLang: "ar-SA", href: HOME_URL },
+      { rel: "alternate", hrefLang: "en", href: HOME_URL },
+      { rel: "alternate", hrefLang: "x-default", href: HOME_URL },
+    ],
     scripts: [
       {
         type: "application/ld+json",
         children: JSON.stringify(
           buildLocalBusinessSchema({
-            pageUrl: SITE_URL,
+            pageUrl: HOME_URL,
             settings: loaderData as ClinicSettings | undefined,
           }),
         ),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Baeshen Medical",
+          alternateName: "مجمع باعشن الطبي",
+          url: HOME_URL,
+          inLanguage: ["ar-SA", "en"],
+          potentialAction: {
+            "@type": "SearchAction",
+            target: `${HOME_URL}health/search?q={search_term_string}`,
+            "query-input": "required name=search_term_string",
+          },
+        }),
       },
     ],
   }),
   component: HomePage,
 });
+
+
 
 function HomePage() {
   const { t, lang } = useI18n();
