@@ -342,11 +342,19 @@ function DoctorDetail() {
             <span className="text-white">{name}</span>
           </nav>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            <div className="h-32 w-32 rounded-2xl bg-white/15 grid place-items-center overflow-hidden shrink-0 ring-4 ring-white/20">
-              {d.photo_url ? (
-                <img src={d.photo_url} alt={name} className="h-full w-full object-cover" />
+            <div
+              className="h-32 w-32 rounded-2xl bg-white/15 grid place-items-center overflow-hidden shrink-0 ring-4 ring-white/20"
+              role={hasPhoto ? undefined : "img"}
+              aria-label={hasPhoto ? undefined : noPhotoLabel}
+              title={hasPhoto ? undefined : noPhotoLabel}
+            >
+              {hasPhoto ? (
+                <img src={gallery[0]} alt={photoAlt} className="h-full w-full object-cover" />
               ) : (
-                <span className="text-5xl font-bold">{name.charAt(0)}</span>
+                <div className="flex flex-col items-center gap-1 text-white/90">
+                  <User className="h-10 w-10" aria-hidden />
+                  <span className="text-2xl font-bold leading-none">{initials || name.charAt(0)}</span>
+                </div>
               )}
             </div>
             <div className="flex-1">
