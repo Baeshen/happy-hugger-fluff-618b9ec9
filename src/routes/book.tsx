@@ -826,3 +826,101 @@ function StepShell({ lang, title, children }: { lang: "ar"|"en"; title: string; 
     </div>
   );
 }
+
+/* ================================================================
+   Step 9 — Success / booking confirmation (inline)
+   ================================================================ */
+
+function StepSuccess({
+  lang, state, branches, specialties, doctors, reference, phone, onNewBooking,
+}: {
+  lang: "ar"|"en"; state: State; branches: any[]; specialties: any[]; doctors: any[];
+  reference: string | null; phone: string; onNewBooking: () => void;
+}) {
+  const branch = branches.find((b) => b.id === state.branchId);
+  const spec   = specialties.find((s) => s.id === state.specialtyId);
+  const doc    = doctors.find((d: any) => d.id === state.doctorId);
+  const rows = [
+    { label: lang === "ar" ? "الفرع" : "Branch", value: branch ? (lang === "ar" ? branch.name_ar : branch.name_en) : "—" },
+    { label: lang === "ar" ? "التخصص" : "Specialty", value: spec ? (lang === "ar" ? spec.name_ar : spec.name_en) : "—" },
+    { label: lang === "ar" ? "الطبيب" : "Doctor", value: doc ? (lang === "ar" ? doc.name_ar : doc.name_en) : "—" },
+    { label: lang === "ar" ? "التاريخ" : "Date", value: state.date ?? "—" },
+    { label: lang === "ar" ? "الوقت" : "Time", value: state.time ?? "—" },
+    { label: lang === "ar" ? "الاسم" : "Name", value: state.patient.name },
+    { label: lang === "ar" ? "الجوال" : "Phone", value: phone },
+  ];
+
+  async function copyRef() {
+    if (!reference) return;
+    try {
+      await navigator.clipboard.writeText(reference);
+      toast.success(lang === "ar" ? "تم نسخ رقم الحجز" : "Reference copied");
+    } catch {
+      toast.error(lang === "ar" ? "تعذّر النسخ" : "Copy failed");
+    }
+  }
+
+  return (
+    <div className="max-w-xl mx-auto text-center">
+      <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 grid place-items-center mb-4">
+        <CheckCircle2 className="h-12 w-12 text-emerald-600 dark:text-emerald-400"/>
+      </div>
+      <h2 className="text-2xl md:text-3xl font-bold">
+        {lang === "ar" ? "تم تأكيد حجزك" : "Your booking is confirmed"}
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {lang === "ar"
+          ? "سنتواصل معك لتأكيد الموعد. احتفظ برقم الحجز لأي استفسار."
+          : "We'll contact you to confirm. Keep your reference for any inquiry."}
+      </p>
+
+      {reference && (
+        <div className="mt-6 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-4">
+          <div className="text-xs text-muted-foreground mb-1">
+            {lang === "ar" ? "رقم الحجز" : "Booking reference"}
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <span className="text-2xl md:text-3xl font-mono font-bold tracking-wider text-primary">
+              {reference}
+            </span>
+            <Button variant="outline" size="sm" onClick={copyRef} className="gap-1">
+              <ClipboardList className="h-4 w-4"/>
+              {lang === "ar" ? "نسخ" : "Copy"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <dl className="mt-6 rounded-xl border border-border divide-y divide-border overflow-hidden text-start">
+        {rows.map((r) => (
+          <div key={r.label} className="grid grid-cols-3 p-3 text-sm">
+            <dt className="text-muted-foreground col-span-1">{r.label}</dt>
+            <dd className="col-span-2 font-medium">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <Link
+          to="/booking-confirmation"
+          search={{ ref: reference ?? undefined, phone } as never}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-bold hover:opacity-90"
+        >
+          <CheckCircle2 className="h-4 w-4"/>
+          {lang === "ar" ? "عرض التفاصيل الكاملة" : "View full details"}
+        </Link>
+        <Button variant="outline" onClick={onNewBooking} className="gap-2 h-auto py-3">
+          <CalIcon className="h-4 w-4"/>
+          {lang === "ar" ? "حجز جديد" : "New booking"}
+        </Button>
+      </div>
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        {lang === "ar" ? "لديك استفسار؟ " : "Questions? "}
+        <Link to="/track" className="text-primary hover:underline">
+          {lang === "ar" ? "تتبع حجزك" : "Track your booking"}
+        </Link>
+      </p>
+    </div>
+  );
+}
