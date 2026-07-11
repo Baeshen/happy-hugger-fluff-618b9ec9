@@ -899,17 +899,31 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
             aria-live="polite"
             aria-atomic="true"
           >
-            <ProgressiveImage
-              src={photos[active]}
-              alt={caption}
-              className="max-h-[80vh] max-w-[92vw]"
-              imgClassName="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
-              loading="eager"
-              fetchPriority="high"
-              spinnerLight
-              widths={[768, 1024, 1440, 1920]}
-              sizes="92vw"
-            />
+            <div className="relative">
+              <ProgressiveImage
+                src={photos[active]}
+                alt={caption}
+                className="max-h-[80vh] max-w-[92vw]"
+                imgClassName="max-h-[80vh] max-w-[92vw] object-contain rounded-lg"
+                loading="eager"
+                fetchPriority="high"
+                spinnerLight
+                widths={[768, 1024, 1440, 1920]}
+                sizes="92vw"
+                onLoadingChange={setLightboxLoading}
+              />
+              {showSpinner && (
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                  role="status"
+                  aria-live="polite"
+                  aria-label={ar ? "جارٍ تحميل الصورة" : "Loading image"}
+                >
+                  <Loader2 className="h-10 w-10 animate-spin text-white/90 drop-shadow" aria-hidden />
+                </div>
+              )}
+            </div>
+
             <figcaption className="text-white/90 text-sm text-center max-w-[92vw]">
               <span className="block">{alt}</span>
               <span className="block text-white/70 text-xs mt-1">
