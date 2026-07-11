@@ -747,14 +747,15 @@ function DoctorGallery({ photos, name, alt, lang }: { photos: string[]; name: st
         className="block w-full overflow-hidden rounded-2xl border border-border bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         aria-label={ar ? `عرض الصورة بالحجم الكامل — ${alt}` : `View full size — ${alt}`}
       >
-        <div className="aspect-[16/10] bg-muted">
-          <img
-            src={photos[active]}
-            alt={`${alt} (${active + 1}/${total})`}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        </div>
+        <ProgressiveImage
+          src={photos[active]}
+          alt={`${alt} (${active + 1}/${total})`}
+          className="aspect-[16/10] w-full"
+          imgClassName="h-full w-full object-cover"
+          loading="eager"
+          fetchPriority="high"
+        />
+
       </button>
 
       <div
