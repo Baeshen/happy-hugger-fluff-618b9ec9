@@ -41,6 +41,53 @@ const PHONE_MIN = 6, PHONE_MAX = 32;
 const NID_MAX = 20;
 const REASON_MAX = 500;
 const PHONE_RE = /^[+0-9\s\-()]+$/;
+// Saudi mobile: local 05XXXXXXXX (10 digits) OR international +9665XXXXXXXX / 009665XXXXXXXX.
+const SA_PHONE_RE = /^(?:(?:\+?966)|0)?5\d{8}$/;
+// 10-digit Saudi National ID / Iqama (starts with 1 or 2).
+const SA_NID_RE = /^[12]\d{9}$/;
+// Full name should have at least two words (given + family), letters/spaces only.
+const NAME_RE = /^[\p{L}][\p{L}\s'.-]{1,}$/u;
+
+const patientSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(NAME_MIN, "الاسم قصير جدًا (٢ أحرف على الأقل)")
+    .max(NAME_MAX, "الاسم طويل جدًا")
+    .regex(NAME_RE, "الاسم يحتوي على أحرف غير مسموحة")
+    .refine((v) => v.split(/\s+/).filter(Boolean).length >= 2, "أدخل الاسم كاملاً (اسمان على الأقل)"),
+  phone: z
+    .string()
+    .trim()
+    .min(PHONE_MIN, "رقم الجوال قصير جدًا")
+    .max(PHONE_MAX, "رقم الجوال طويل جدًا")
+    .refine((v) => SA_PHONE_RE.test(v.replace(/[\s\-()]/g, "")), "رقم جوال سعودي غير صالح (مثال: 05XXXXXXXX)"),
+  nationalId: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || SA_NID_RE.test(v), "رقم هوية غير صالح (10 أرقام يبدأ بـ 1 أو 2)"),
+  gender: z.enum(["male", "female"], { message: "اختر الجنس" }),
+  reason: z.string().trim().max(REASON_MAX, `السبب طويل جدًا (الحد ${REASON_MAX} حرفًا)`),
+});
+
+type PatientErrors = Partial<Record<"name" | "phone" | "nationalId" | "gender" | "reason", string>>;
+
+function validatePatient(p: State["patient"]): { ok: boolean; errors: PatientErrors } {
+  const r = patientSchema.safeParse({
+    name: p.name,
+    phone: p.phone,
+    nationalId: p.nationalId,
+    gender: p.gender ?? undefined,
+    reason: p.reason,
+  });
+  if (r.success) return { ok: true, errors: {} };
+  const errors: PatientErrors = {};
+  for (const issue of r.error.issues) {
+    const k = issue.path[0] as keyof PatientErrors;
+    if (k && !errors[k]) errors[k] = issue.message;
+  }
+  return { ok: false, errors };
+}
 
 export const Route = createFileRoute("/book")({
   validateSearch: search,
@@ -218,6 +265,8 @@ function BookPage() {
     staleTime: 20_000,
   });
 
+  const patientValidation = useMemo(() => validatePatient(state.patient), [state.patient]);
+
   const canNext = useMemo(() => {
     switch (state.step) {
       case 1: return !!state.serviceType;
@@ -226,21 +275,19 @@ function BookPage() {
       case 4: return !!state.doctorId;
       case 5: return !!state.date;
       case 6: return !!state.time;
-      case 7: {
-        const p = state.patient;
-        return (
-          p.name.trim().length >= NAME_MIN &&
-          p.phone.trim().length >= PHONE_MIN &&
-          PHONE_RE.test(p.phone.trim()) &&
-          !!p.gender
-        );
-      }
+      case 7: return patientValidation.ok;
       default: return true;
     }
-  }, [state]);
+  }, [state, patientValidation]);
 
   async function handleSubmit() {
     setErrorMsg(null);
+    // Defence-in-depth: re-validate right before submission.
+    if (!patientValidation.ok) {
+      setErrorMsg(lang === "ar" ? "يرجى تصحيح بيانات المريض قبل التأكيد" : "Please fix patient info before confirming");
+      dispatch({ t: "goto", step: 7 });
+      return;
+    }
     setSubmitting(true);
     const p = state.patient;
     const res = await submitBooking({
@@ -306,8 +353,8 @@ function BookPage() {
           {state.step === 4 && <StepDoctor lang={lang} doctors={doctors} value={state.doctorId} onPick={(v) => { dispatch({ t: "set", p: { doctorId: v, date: null, time: null } }); dispatch({ t: "goto", step: 5 }); }}/>}
           {state.step === 5 && <StepDate lang={lang} value={state.date} onPick={(v) => { dispatch({ t: "set", p: { date: v, time: null } }); dispatch({ t: "goto", step: 6 }); }} doctorId={state.doctorId} specialtyId={state.specialtyId} branchId={state.branchId}/>}
           {state.step === 6 && <StepTime lang={lang} value={state.time} avail={avail} onPick={(v) => { dispatch({ t: "set", p: { time: v } }); dispatch({ t: "goto", step: 7 }); }}/>}
-          {state.step === 7 && <StepPatient lang={lang} value={state.patient} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
-          {state.step === 8 && <StepReview lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} errorMsg={errorMsg} submitting={submitting} onSubmit={handleSubmit}/>}
+          {state.step === 7 && <StepPatient lang={lang} value={state.patient} errors={patientValidation.errors} onChange={(p) => dispatch({ t: "setPatient", p })}/>}
+          {state.step === 8 && <StepReview lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} errorMsg={errorMsg} submitting={submitting} onSubmit={handleSubmit} patientValid={patientValidation.ok} onEditPatient={() => dispatch({ t: "goto", step: 7 })}/>}
           {state.step === 9 && result && <StepSuccess lang={lang} state={state} branches={branches} specialties={specialties} doctors={doctors} reference={result.reference} phone={result.phone} onNewBooking={handleReset}/>}
         </div>
 
@@ -711,42 +758,57 @@ function StepTime({ lang, value, avail, onPick }: { lang: "ar"|"en"; value: stri
 
 /* ------------ Patient info ------------ */
 
-function StepPatient({ lang, value, onChange }: { lang: "ar"|"en"; value: State["patient"]; onChange: (p: Partial<State["patient"]>) => void }) {
+function StepPatient({ lang, value, errors, onChange }: { lang: "ar"|"en"; value: State["patient"]; errors: PatientErrors; onChange: (p: Partial<State["patient"]>) => void }) {
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const mark = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
+  const show = (k: keyof PatientErrors) => (touched[k] ? errors[k] : undefined);
+  const allValid = Object.keys(errors).length === 0;
+
   return (
     <StepShell lang={lang} title={lang === "ar" ? "بياناتك" : "Your details"}>
       <div className="grid gap-4 sm:grid-cols-2 max-w-2xl mx-auto">
-        <Field label={lang === "ar" ? "الاسم الرباعي" : "Full name"} required>
+        <Field label={lang === "ar" ? "الاسم الرباعي" : "Full name"} required error={show("name")}>
           <input
             value={value.name}
             onChange={(e) => onChange({ name: e.target.value.slice(0, NAME_MAX) })}
-            className="input"
+            onBlur={() => mark("name")}
+            aria-invalid={!!show("name")}
+            className={`input ${show("name") ? "input-error" : ""}`}
             placeholder={lang === "ar" ? "الاسم كما في الهوية" : "Full name"}
+            autoComplete="name"
           />
         </Field>
-        <Field label={lang === "ar" ? "رقم الجوال" : "Mobile"} required>
+        <Field label={lang === "ar" ? "رقم الجوال" : "Mobile"} required error={show("phone")}>
           <input
             value={value.phone}
             onChange={(e) => onChange({ phone: e.target.value.slice(0, PHONE_MAX) })}
-            className="input"
+            onBlur={() => mark("phone")}
+            aria-invalid={!!show("phone")}
+            className={`input ${show("phone") ? "input-error" : ""}`}
             placeholder="05XXXXXXXX"
             dir="ltr"
             inputMode="tel"
+            autoComplete="tel"
           />
         </Field>
-        <Field label={lang === "ar" ? "رقم الهوية / الإقامة" : "National ID"}>
+        <Field label={lang === "ar" ? "رقم الهوية / الإقامة (اختياري)" : "National ID (optional)"} error={show("nationalId")}>
           <input
             value={value.nationalId}
-            onChange={(e) => onChange({ nationalId: e.target.value.slice(0, NID_MAX) })}
-            className="input"
+            onChange={(e) => onChange({ nationalId: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+            onBlur={() => mark("nationalId")}
+            aria-invalid={!!show("nationalId")}
+            className={`input ${show("nationalId") ? "input-error" : ""}`}
+            placeholder="1XXXXXXXXX / 2XXXXXXXXX"
             dir="ltr"
             inputMode="numeric"
+            maxLength={10}
           />
         </Field>
-        <Field label={lang === "ar" ? "الجنس" : "Gender"} required>
+        <Field label={lang === "ar" ? "الجنس" : "Gender"} required error={touched.gender ? errors.gender : undefined}>
           <div className="grid grid-cols-2 gap-2">
             {(["male","female"] as const).map((g) => (
               <button key={g} type="button"
-                onClick={() => onChange({ gender: g })}
+                onClick={() => { onChange({ gender: g }); mark("gender"); }}
                 className={`rounded-lg border-2 py-2 text-sm font-medium transition ${
                   value.gender === g ? "border-primary bg-primary/5 text-primary" : "border-border bg-card hover:border-primary/50"
                 }`}
@@ -757,13 +819,16 @@ function StepPatient({ lang, value, onChange }: { lang: "ar"|"en"; value: State[
           </div>
         </Field>
         <div className="sm:col-span-2">
-          <Field label={lang === "ar" ? "سبب الزيارة (اختياري)" : "Reason (optional)"}>
+          <Field label={lang === "ar" ? "سبب الزيارة (اختياري)" : "Reason (optional)"} error={show("reason")}>
             <textarea
               value={value.reason}
               onChange={(e) => onChange({ reason: e.target.value.slice(0, REASON_MAX) })}
-              className="input min-h-[80px]"
+              onBlur={() => mark("reason")}
+              aria-invalid={!!show("reason")}
+              className={`input min-h-[80px] ${show("reason") ? "input-error" : ""}`}
               placeholder={lang === "ar" ? "وصف مختصر…" : "Short description…"}
             />
+            <div className="text-[11px] text-muted-foreground mt-1 text-end">{value.reason.length}/{REASON_MAX}</div>
           </Field>
         </div>
         <div className="sm:col-span-2 rounded-xl bg-muted/50 p-4 space-y-2">
@@ -777,17 +842,28 @@ function StepPatient({ lang, value, onChange }: { lang: "ar"|"en"; value: State[
             {lang === "ar" ? "قبل ساعتين" : "2 hours before"}
           </label>
         </div>
+
+        {!allValid && Object.values(touched).some(Boolean) && (
+          <div className="sm:col-span-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {lang === "ar" ? "يوجد بيانات ناقصة أو غير صحيحة. أكمل الحقول المطلوبة للمتابعة." : "Some fields are missing or invalid. Complete required fields to continue."}
+          </div>
+        )}
       </div>
-      <style>{`.input{width:100%;border:1px solid hsl(var(--border));background:hsl(var(--background));border-radius:.5rem;padding:.55rem .75rem;font-size:.875rem}.input:focus{outline:none;box-shadow:0 0 0 2px hsl(var(--primary)/.4)}`}</style>
+      <style>{`
+        .input{width:100%;border:1px solid hsl(var(--border));background:hsl(var(--background));border-radius:.5rem;padding:.55rem .75rem;font-size:.875rem;transition:box-shadow .15s,border-color .15s}
+        .input:focus{outline:none;box-shadow:0 0 0 2px hsl(var(--primary)/.4)}
+        .input-error{border-color:hsl(var(--destructive));box-shadow:0 0 0 1px hsl(var(--destructive)/.3)}
+      `}</style>
     </StepShell>
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="text-xs font-semibold mb-1.5">{label}{required && <span className="text-destructive">*</span>}</div>
+      <div className="text-xs font-semibold mb-1.5">{label}{required && <span className="text-destructive"> *</span>}</div>
       {children}
+      {error && <div className="mt-1 text-xs text-destructive">{error}</div>}
     </label>
   );
 }
@@ -795,10 +871,11 @@ function Field({ label, required, children }: { label: string; required?: boolea
 /* ------------ Review + submit ------------ */
 
 function StepReview({
-  lang, state, branches, specialties, doctors, errorMsg, submitting, onSubmit,
+  lang, state, branches, specialties, doctors, errorMsg, submitting, onSubmit, patientValid, onEditPatient,
 }: {
   lang: "ar"|"en"; state: State; branches: any[]; specialties: any[]; doctors: any[];
   errorMsg: string | null; submitting: boolean; onSubmit: () => void;
+  patientValid: boolean; onEditPatient: () => void;
 }) {
   const branch = branches.find((b) => b.id === state.branchId);
   const spec   = specialties.find((s) => s.id === state.specialtyId);
@@ -824,11 +901,20 @@ function StepReview({
           ))}
         </dl>
 
+        {!patientValid && (
+          <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between gap-3">
+            <span>{lang === "ar" ? "بيانات المريض غير مكتملة أو غير صحيحة." : "Patient info is incomplete or invalid."}</span>
+            <Button variant="outline" size="sm" onClick={onEditPatient}>
+              {lang === "ar" ? "تعديل" : "Edit"}
+            </Button>
+          </div>
+        )}
+
         {errorMsg && <div className="mt-4"><SubmitErrorBanner kind="unknown" message={errorMsg}/></div>}
 
         <Button
           onClick={onSubmit}
-          disabled={submitting}
+          disabled={submitting || !patientValid}
           className="w-full mt-6 gap-2 h-12 text-base"
         >
           {submitting
