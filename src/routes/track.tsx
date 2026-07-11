@@ -161,12 +161,14 @@ function formatArabicDate(iso: string) {
 }
 
 function TrackPage() {
-  const [reference, setReference] = useState("");
-  const [phone4, setPhone4] = useState("");
+  const { ref: initialRef, phone4: initialPhone4 } = Route.useSearch();
+  const [reference, setReference] = useState(initialRef ?? "");
+  const [phone4, setPhone4] = useState(initialPhone4 ?? "");
   const [loading, setLoading] = useState(false);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [error, setError] = useState<LookupError | null>(null);
   const lastQueryRef = useRef<{ reference: string; phone_last4: string } | null>(null);
+  const autoRanRef = useRef(false);
 
   async function runLookup(payload: { reference: string; phone_last4: string }) {
     setLoading(true);
