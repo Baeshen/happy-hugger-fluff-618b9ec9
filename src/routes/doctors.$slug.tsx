@@ -244,6 +244,25 @@ function InlineBookingWidget({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
 
+  // When arrived via `#book` (from doctor cards or hero CTA), scroll the
+  // widget into view and briefly highlight it so the user lands directly
+  // on the booking step without hunting for it.
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#book") return;
+    const el = widgetRef.current;
+    if (!el) return;
+    // Wait a tick so layout is settled before scrolling.
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setHighlight(true);
+      window.setTimeout(() => setHighlight(false), 1600);
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const { data: availData, isLoading: availLoading } = useQuery({
     ...availabilityQuery(doctorId, selectedDate),
     enabled: bookingEnabled && step >= 2,
