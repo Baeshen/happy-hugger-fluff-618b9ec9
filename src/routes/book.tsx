@@ -613,7 +613,18 @@ function BookPage() {
                       لا يوجد أطباء في هذا التخصص حاليًا.
                     </div>
                   )}
-                  {filteredDoctors.map((d) => (
+                  {filteredDoctors
+                    .filter((d) => {
+                      const q = doctorSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        d.name_ar?.toLowerCase().includes(q) ||
+                        d.name_en?.toLowerCase().includes(q) ||
+                        d.title_ar?.toLowerCase().includes(q) ||
+                        d.title_en?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((d) => (
                     <button
                       key={d.id}
                       onClick={() => setDoctorId(d.id)}
