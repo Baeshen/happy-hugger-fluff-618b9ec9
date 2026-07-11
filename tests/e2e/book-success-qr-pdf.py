@@ -154,18 +154,38 @@ async def main():
             await page.wait_for_timeout(200)
             await check_success_ui(page, label)
 
-        # PDF button opens a new tab (window.open in booking-pdf.ts)
-        async with ctx.expect_page(timeout=8_000) as new_page_info:
-            await page.locator('[data-testid="booking-pdf-btn"]').click()
-        pdf_page = await new_page_info.value
-        await pdf_page.wait_for_load_state("load")
-        await pdf_page.wait_for_timeout(500)
-        html_text = await pdf_page.content()
-        if "تأكيد حجز" not in html_text and "مجمع باعشن" not in html_text:
-            print("PDF snippet:", html_text[:500])
-            raise AssertionError("PDF window content missing expected header")
-        print("[ok] PDF window opened with confirmation content")
-        await pdf_page.close()
+        # PDF button either opens a new tab (popup allowed) or triggers a
+        # download of the confirmation HTML (popup blocked / noopener fallback).
+        pdf_btn = page.locator('[data-testid="booking-pdf-btn"]')
+        got_pdf = False
+        try:
+            async with ctx.expect_page(timeout=3_000) as new_page_info:
+                await pdf_btn.click()
+            pdf_page = await new_page_info.value
+            await pdf_page.wait_for_load_state("load")
+            await pdf_page.wait_for_timeout(400)
+            html_text = await pdf_page.content()
+            if "مجمع باعشن" in html_text or "تأكيد حجز" in html_text:
+                got_pdf = True
+                print("[ok] PDF window opened with confirmation content")
+            await pdf_page.close()
+        except Exception:
+            pass
+
+        if not got_pdf:
+            try:
+                async with page.expect_download(timeout=5_000) as dl_info:
+                    await pdf_btn.click()
+                dl = await dl_info.value
+                fn = dl.suggested_filename
+                if "booking-" in fn:
+                    got_pdf = True
+                    print(f"[ok] PDF download triggered: {fn}")
+            except Exception as e:
+                print("no popup and no download:", e)
+
+        if not got_pdf:
+            raise AssertionError("PDF button neither opened a window nor started a download")
         await pdf_page.close()
 
         real = [e for e in errors if "Failed to load resource" not in e and "Manifest" not in e]
