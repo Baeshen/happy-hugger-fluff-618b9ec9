@@ -196,7 +196,7 @@ function TrackPage() {
         const msg = ERROR_META[kind].title;
         setError({ kind, message: msg });
         toast.error(msg, { id: toastId });
-        return;
+        return false;
       }
 
       let body: { ok?: boolean; appointment?: Appointment; message?: string } = {};
@@ -206,13 +206,13 @@ function TrackPage() {
         const kind: LookupErrorKind = res.status >= 500 ? "server" : "unknown";
         setError({ kind, message: ERROR_META[kind].title });
         toast.error(ERROR_META[kind].title, { id: toastId });
-        return;
+        return false;
       }
 
       if (res.ok && body.ok && body.appointment) {
         setAppointment(body.appointment);
         toast.success("تم العثور على طلبك", { id: toastId });
-        return;
+        return true;
       }
 
       const kind: LookupErrorKind =
@@ -226,6 +226,7 @@ function TrackPage() {
       const message = body.message?.trim() || ERROR_META[kind].title;
       setError({ kind, message });
       toast.error(message, { id: toastId });
+      return false;
     } finally {
       clearTimeout(timer);
       setLoading(false);
