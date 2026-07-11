@@ -101,6 +101,7 @@ function BookPage() {
   const [doctorId, setDoctorId] = useState<string | null>(initDoc ?? null);
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
+  const [doctorSearch, setDoctorSearch] = useState("");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -115,6 +116,77 @@ function BookPage() {
   const [submitError, setSubmitError] = useState<
     Extract<BookingSubmitResult, { ok: false }> | null
   >(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Restore draft from localStorage (once, on mount). Saves the user's
+  // progress if they accidentally close the tab.
+  const DRAFT_KEY = "baeshen_book_draft_v1";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw) as {
+        step?: number;
+        specialtyId?: string | null;
+        doctorId?: string | null;
+        date?: string;
+        time?: string;
+        form?: typeof form;
+        ts?: number;
+      };
+      // Ignore drafts older than 24 hours.
+      if (!d.ts || Date.now() - d.ts > 24 * 3600_000) {
+        localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      if (d.specialtyId) setSpecialtyId(d.specialtyId);
+      if (d.doctorId) setDoctorId(d.doctorId);
+      if (d.date) setDate(d.date);
+      if (d.time) setTime(d.time);
+      if (d.form) setForm((prev) => ({ ...prev, ...d.form }));
+      if (typeof d.step === "number" && d.step >= 1 && d.step <= 4) setStep(d.step);
+      setDraftRestored(true);
+    } catch {
+      /* corrupt draft — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist draft on any relevant change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ step, specialtyId, doctorId, date, time, form, ts: Date.now() }),
+      );
+    } catch {
+      /* quota / private mode — ignore */
+    }
+  }, [step, specialtyId, doctorId, date, time, form]);
+
+  const clearDraft = () => {
+    if (typeof window !== "undefined") localStorage.removeItem(DRAFT_KEY);
+    setStep(1);
+    setSpecialtyId(null);
+    setDoctorId(null);
+    setDate("");
+    setTime("");
+    setDoctorSearch("");
+    setForm({
+      name: "",
+      phone: "",
+      national_id: "",
+      gender: "male",
+      reason: "",
+      reminder_24h: true,
+      reminder_2h: true,
+    });
+    setErrors({});
+    setDraftRestored(false);
+    toast.success("تم مسح البيانات وبدء حجز جديد");
+  };
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
@@ -370,6 +442,7 @@ function BookPage() {
       return;
     }
     const ref = result.reference ?? "";
+    if (typeof window !== "undefined") localStorage.removeItem(DRAFT_KEY);
     navigate({
       to: "/booking-confirmation",
       search: { ref, phone: v.phone, wa: "1" },
@@ -443,6 +516,23 @@ function BookPage() {
         <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           {/* Main card */}
           <div className="rounded-2xl border border-border bg-card p-6 md:p-8 shadow-sm">
+            {draftRestored && (
+              <div className="mb-5 flex items-start justify-between gap-3 rounded-lg border border-primary/25 bg-primary/5 p-3 text-xs">
+                <div className="flex items-start gap-2 text-foreground">
+                  <CheckCircle2 className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                  <span>
+                    استعدنا بياناتك من جلسة سابقة لتكمل من حيث توقفت.
+                  </span>
+                </div>
+                <button
+                  onClick={clearDraft}
+                  className="text-primary font-semibold hover:underline shrink-0"
+                >
+                  بدء من جديد
+                </button>
+              </div>
+            )}
+
             {step === 1 && (
               <div>
                 <h2 className="text-lg font-bold mb-1">{t("choose_specialty")}</h2>
@@ -488,6 +578,15 @@ function BookPage() {
                   يمكنك اختيار طبيب معيّن أو ترك النظام يقترح أقرب طبيب متاح.
                 </p>
                 <div className="grid gap-2.5">
+                  {filteredDoctors.length > 8 && (
+                    <input
+                      type="search"
+                      value={doctorSearch}
+                      onChange={(e) => setDoctorSearch(e.target.value)}
+                      placeholder="ابحث باسم الطبيب…"
+                      className={INPUT_CLS}
+                    />
+                  )}
                   <button
                     onClick={() => setDoctorId(null)}
                     className={`flex items-center gap-3 text-start rounded-xl border p-4 transition ${
@@ -514,7 +613,18 @@ function BookPage() {
                       لا يوجد أطباء في هذا التخصص حاليًا.
                     </div>
                   )}
-                  {filteredDoctors.map((d) => (
+                  {filteredDoctors
+                    .filter((d) => {
+                      const q = doctorSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        d.name_ar?.toLowerCase().includes(q) ||
+                        d.name_en?.toLowerCase().includes(q) ||
+                        d.title_ar?.toLowerCase().includes(q) ||
+                        d.title_en?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((d) => (
                     <button
                       key={d.id}
                       onClick={() => setDoctorId(d.id)}
@@ -549,8 +659,23 @@ function BookPage() {
                   اختر اليوم ثم الوقت المناسب لك من الأوقات المتاحة.
                 </p>
                 <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2.5">
-                    <CalIcon className="h-3.5 w-3.5 text-primary" /> {t("date")}
+                  <div className="flex items-center justify-between gap-2 mb-2.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                      <CalIcon className="h-3.5 w-3.5 text-primary" /> {t("date")}
+                    </div>
+                    {availableDates.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const first = availableDates[0];
+                          setDate(first.date);
+                          setTime("");
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 transition"
+                      >
+                        <Clock className="h-3 w-3" /> الأقرب متاح
+                      </button>
+                    )}
                   </div>
                   {availableDates.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
@@ -558,19 +683,24 @@ function BookPage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                      {availableDates.map((d) => (
+                      {availableDates.map((d, idx) => (
                         <button
                           key={d.date}
                           onClick={() => {
                             setDate(d.date);
                             setTime("");
                           }}
-                          className={`rounded-xl border p-2.5 text-xs text-center transition ${
+                          className={`relative rounded-xl border p-2.5 text-xs text-center transition ${
                             date === d.date
                               ? "border-primary bg-primary text-primary-foreground shadow-sm"
                               : "border-border hover:border-primary/50 hover:bg-muted/40"
                           }`}
                         >
+                          {idx === 0 && date !== d.date && (
+                            <span className="absolute -top-1.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow-sm">
+                              الأقرب
+                            </span>
+                          )}
                           <div
                             className={`text-[10px] ${date === d.date ? "text-primary-foreground/80" : "text-muted-foreground"}`}
                           >
