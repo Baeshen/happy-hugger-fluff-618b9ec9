@@ -25,8 +25,10 @@ type Doctor = {
   languages: string[] | null;
   gender: string | null;
   years_experience: number | null;
-  education: string | null;
-  experience: string | null;
+  education_ar: string | null;
+  education_en: string | null;
+  experience_ar: string | null;
+  experience_en: string | null;
   booking_enabled: boolean | null;
   branch_id: string | null;
   specialties: {
