@@ -145,6 +145,7 @@ export function HeroSlider() {
     >
       <div
         ref={emblaRef}
+        id="hero-slides"
         className="overflow-hidden"
         aria-live={paused ? "polite" : "off"}
         aria-atomic="true"
