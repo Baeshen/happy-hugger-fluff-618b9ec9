@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { Stethoscope } from "lucide-react";
+import { Stethoscope, Users } from "lucide-react";
 import { buildLocalBusinessSchema, buildBreadcrumbs } from "@/lib/localBusinessSchema";
+import { specialtyDoctorCountsQuery } from "@/lib/accreditations";
 
 
 const SITE_URL = "https://happy-hugger-fluff.lovable.app";
