@@ -137,44 +137,51 @@ function BookPage() {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   }, [state]);
 
-  // Sync step to URL. If the URL has no explicit step yet (searchParams.step
-  // is the default 0), we're filling it in for the first time → REPLACE so
-  // we don't create a duplicate history entry. Once step is present in the
-  // URL, subsequent transitions PUSH so browser Back/Forward walk the wizard.
-  //
-  // `skipUrlSyncRef` swallows one state→URL sync cycle after popstate so a
-  // Back/Forward that already updated the URL doesn't get overwritten by a
-  // stale render where state.step hasn't caught up yet.
-  const skipUrlSyncRef = useRef(false);
-  useEffect(() => {
-    if (state.step === 9) return; // success page: don't push
-    if (searchParams.step === state.step) return; // already in sync
-    if (skipUrlSyncRef.current) { skipUrlSyncRef.current = false; return; }
+  // Explicit step→URL sync helper: bumps state and pushes an entry so the
+  // browser Back/Forward buttons walk the wizard naturally. Also called from
+  // popstate below with `pushUrl=false` (browser already moved the URL).
+  const goto = (step: number, pushUrl = true) => {
+    dispatch({ t: "goto", step });
+    if (!pushUrl) return;
+    if (step === 9) return; // success page: don't push
+    if (typeof window === "undefined") return;
     navigate({
       to: "/book",
-      search: (prev: Record<string, unknown>) => ({ ...prev, step: state.step }),
-      replace: searchParams.step === 0, // 0 = URL had no step yet (schema default)
+      search: (prev: Record<string, unknown>) => ({ ...prev, step }),
     });
+  };
+
+  // Deep-link fill-in: when the URL has no explicit step (schema default 0)
+  // but state derived a step (e.g. 5 from ?doctor=&specialty=), REPLACE the
+  // current entry so step appears in the URL without creating a duplicate.
+  const didInitialFillRef = useRef(false);
+  useEffect(() => {
+    if (didInitialFillRef.current) return;
+    didInitialFillRef.current = true;
+    if (state.step !== 9 && searchParams.step === 0 && state.step >= 1) {
+      navigate({
+        to: "/book",
+        search: (prev: Record<string, unknown>) => ({ ...prev, step: state.step }),
+        replace: true,
+      });
+    }
   }, [state.step, searchParams.step, navigate]);
 
-
-  // Restore state from URL on browser Back/Forward (popstate). Programmatic
-  // navigate() calls do NOT fire popstate, so this only reacts to real
-  // history traversal.
+  // Restore state from URL on browser Back/Forward (popstate). URL is
+  // authoritative here — dispatch without re-pushing.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onPop = () => {
       if (window.location.pathname !== "/book") return;
       const params = new URLSearchParams(window.location.search);
       const s = parseInt(params.get("step") ?? "0", 10);
-      if (s >= 1 && s <= 9) {
-        skipUrlSyncRef.current = true;
-        dispatch({ t: "goto", step: s });
-      }
+      if (s >= 1 && s <= 9) dispatch({ t: "goto", step: s });
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+
 
 
 
